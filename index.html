@@ -212,25 +212,25 @@
                 <span id="ctrl-vault-amount" class="text-sm sm:text-base font-black text-emerald-400">$30</span>
             </div>
         </header>
-
-        <!-- Center Playing Table Banner -->
-        <div class="my-2 flex-1 flex flex-col items-center justify-center bg-purple-950/40 border-2 border-purple-700/40 rounded-3xl p-4 text-center">
-            <span class="text-xs text-purple-300 font-bold uppercase tracking-wider mb-1">LANGKAH SELANJUTNYA / NEXT TARGET</span>
-            <div id="ctrl-target-display" class="bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-lg sm:text-2xl shadow-lg border-2 border-amber-200 animate-bounce">
-                🍞 Bun
+    <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-3 flex flex-col justify-between overflow-hidden select-none">
+        
+        <!-- Header Bar: Player Info & Vault Money Only -->
+        <header class="bg-purple-950/90 border-2 border-purple-700/60 rounded-2xl px-5 py-2 flex justify-between items-center shadow-lg shrink-0">
+            <div class="flex items-center gap-3">
+                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide">Player 1</span>
             </div>
-            <p class="text-xs text-purple-200 mt-2 font-semibold">Sentuh/Tap kartu di bawah untuk memasukkan bahan ke burger!</p>
-        </div>
-
-        <div class="wood-tray rounded-t-3xl p-3 pt-4 shadow-2xl relative shrink-0">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black text-xs px-4 py-0.5 rounded-full border border-amber-600 shadow">
-                KARTU KAMU (TAP UNTUK MAIN)
+            <div class="bg-emerald-950/80 border border-emerald-500/50 px-4 py-1.5 rounded-xl flex items-center gap-2">
+                <span class="text-xs text-emerald-300 font-bold uppercase">Vault:</span>
+                <span id="ctrl-vault-amount" class="text-base sm:text-lg font-black text-emerald-400">$30</span>
             </div>
+        </header>
 
-            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 max-w-5xl mx-auto items-center min-h-[110px]">
+        <!-- Main Cards Area -->
+        <main class="flex-1 my-3 flex items-center justify-center min-h-0">
+            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-6xl h-full items-center">
                 <!-- Hand Cards rendered dynamically -->
             </div>
-        </div>
+        </main>
     </div>
 
     <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
@@ -712,37 +712,24 @@
         function renderSimulatedPhone() {
             const playerNum = activeSimPlayer;
             const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            const target = gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null;
 
             const viewport = document.getElementById('sim-phone-viewport');
             viewport.innerHTML = `
-                <div class="bg-purple-950/80 border border-purple-700/60 rounded-xl px-2.5 py-1 mb-1 flex justify-between items-center text-xs shrink-0 text-white">
-                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2 py-0.5 rounded text-[10px] uppercase">Player ${playerNum}</span>
-                    <span class="text-xs font-black text-amber-300">Target: ${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
-                    <span class="text-xs font-black text-emerald-400">$${gameState.vaultMoney} Vault</span>
+                <div class="bg-purple-950/90 border border-purple-700/60 rounded-xl px-3 py-1.5 mb-2 flex justify-between items-center text-xs shrink-0 text-white">
+                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2.5 py-0.5 rounded-lg text-[10px] uppercase">Player ${playerNum}</span>
+                    <span class="text-xs font-black text-emerald-400">Vault: $${gameState.vaultMoney}</span>
                 </div>
 
-                <div class="my-2 flex-1 flex flex-col items-center justify-center bg-purple-950/40 border border-purple-700/40 rounded-2xl p-2 text-center">
-                    <span class="text-[10px] text-purple-300 font-bold uppercase mb-0.5">TARGET SEKARANG</span>
-                    <span class="text-sm font-black text-amber-300">${target ? target.emoji + ' ' + target.name : 'Selesai!'}</span>
-                    <span class="text-[9px] text-purple-200 mt-1">Tap kartu di bawah untuk memasukkan ke burger!</span>
-                </div>
-
-                <div class="wood-tray rounded-t-2xl p-2 pt-2.5 shrink-0">
-                    <div id="sim-hand-container" class="grid grid-cols-6 gap-1.5 items-center">
+                <div class="flex-1 flex items-center justify-center p-1 min-h-0">
+                    <div id="sim-hand-container" class="grid grid-cols-6 gap-2 w-full h-full items-center">
                         ${hand.map((ingKey, idx) => {
                             const ing = INGREDIENTS[ingKey];
                             return `
-                                <div class="relative group">
-                                    <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full card-shadow btn-bounce h-20 rounded-xl border-2 p-1 flex flex-col items-center justify-between shadow" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                                        <span class="text-lg font-black">${ing.emoji}</span>
-                                        <span class="text-[8px] font-black leading-tight text-center">${ing.name}</span>
-                                        <span class="text-[7px] bg-black/20 px-1 py-0.5 rounded font-black">TAP</span>
-                                    </button>
-                                    <button onclick="simPrepCard(${playerNum}, ${idx})" class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow z-10">
-                                        +PREP
-                                    </button>
-                                </div>
+                                <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full h-full min-h-[140px] card-shadow btn-bounce rounded-2xl border-2 p-2 flex flex-col items-center justify-between shadow-lg" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                                    <span class="text-3xl font-black mt-1">${ing.emoji}</span>
+                                    <span class="text-xs font-black leading-tight text-center">${ing.name}</span>
+                                    <span class="text-[9px] bg-black/20 px-2 py-0.5 rounded-md font-black">TAP</span>
+                                </button>
                             `;
                         }).join('')}
                     </div>
@@ -851,29 +838,21 @@
             const playerNum = myPlayerNum;
             const hand = playerNum === 1 ? syncState.p1Hand : syncState.p2Hand;
 
-            const target = syncState.currentTarget;
-            document.getElementById('ctrl-target-display').innerText = target ? `${target.emoji} ${target.name}` : 'Finished!';
             document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
 
             const container = document.getElementById('ctrl-hand-container');
             container.innerHTML = hand.map((ingKey, idx) => {
                 const ing = INGREDIENTS[ingKey];
                 return `
-                    <div class="relative">
-                        <div class="card-shadow btn-bounce w-full h-24 rounded-2xl border-3 p-1.5 flex flex-col items-center justify-between text-white shadow-lg cursor-pointer select-none"
-                             style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
-                             onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
-                            <div class="w-full flex justify-between items-center px-1 opacity-80">
-                                <span class="text-[9px] font-black">#${idx+1}</span>
-                                <span class="text-[8px] uppercase font-bold">TAP</span>
-                            </div>
-                            <span class="text-3xl">${ing.emoji}</span>
-                            <span class="text-[10px] font-black text-center leading-none mb-1">${ing.name}</span>
+                    <div class="card-shadow btn-bounce w-full h-full min-h-[160px] max-h-[220px] rounded-2xl border-3 p-2 flex flex-col items-center justify-between text-white shadow-xl cursor-pointer select-none"
+                         style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
+                         onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
+                        <div class="w-full flex justify-between items-center px-1 opacity-80">
+                            <span class="text-[10px] font-black">#${idx+1}</span>
+                            <span class="text-[9px] uppercase font-black bg-black/20 px-1.5 py-0.5 rounded">TAP</span>
                         </div>
-                        <button onclick="event.stopPropagation(); sendControllerAction({type:'PREP_CARD', player:${playerNum}, cardIndex:${idx}})" 
-                                class="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-900 text-[8px] font-black px-1.5 py-0.5 rounded-full border border-amber-600 shadow z-10">
-                            +PREP
-                        </button>
+                        <span class="text-4xl sm:text-5xl my-auto">${ing.emoji}</span>
+                        <span class="text-xs sm:text-sm font-black text-center leading-tight mb-1">${ing.name}</span>
                     </div>
                 `;
             }).join('');
