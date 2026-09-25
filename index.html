@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Burger Buddies - 2 Player Co-op Card Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- Tone.js for cute audio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- PeerJS for WebRTC Mobile Controller Connection -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        'cream-bg': '#FFF9E6',
+                        'burger-red': '#FF5964',
+                        'burger-yellow': '#FFD166',
+                        'burger-green': '#06D6A0',
+                        'burger-brown': '#7F4F24',
+                        'burger-sauce': '#EE4266',
+                        'kawaii-pink': '#FF85A1',
+                        'kawaii-blue': '#4EA8DE',
+                    },
+                    animation: {
+                        'bounce-gentle': 'bounceGentle 2s infinite',
+                        'pulse-glow': 'pulseGlow 1.5s infinite alternate',
+                        'float-up': 'floatUp 0.8s ease-out forwards',
+                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'wiggle': 'wiggle 0.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        bounceGentle: {
+                            '0%, 100%': { transform: 'translateY(-3%)' },
+                            '50%': { transform: 'translateY(0)' },
+                        },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 10px rgba(255, 209, 102, 0.5)' },
+                            '100%': { boxShadow: '0 0 25px rgba(255, 209, 102, 0.9)' },
+                        },
+                        floatUp: {
+                            '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                            '100%': { opacity: '0', transform: 'translateY(-60px) scale(1.2)' },
+                        },
+                        popIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.5)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #FFF9E6;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .wood-pattern {
+            background-color: #f3d2a2;
+            background-image: radial-gradient(#e0b77d 15%, transparent 16%), radial-gradient(#e0b77d 15%, transparent 16%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+        }
+        .card-shadow {
+            box-shadow: 0 6px 0px rgba(0,0,0,0.15);
+        }
+        .card-shadow:active {
+            box-shadow: 0 2px 0px rgba(0,0,0,0.15);
+            transform: translateY(4px);
+        }
+        .btn-bounce {
+            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-bounce:hover {
+            transform: translateY(-2px) scale(1.02);
+        }
+        .btn-bounce:active {
+            transform: translateY(2px) scale(0.98);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FFE8AD;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FFB703;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800">
+
+    <!-- Sound Toggle Floating Button -->
+    <button id="sound-btn" onclick="toggleAudio()" class="fixed top-3 right-3 z-50 bg-white border-4 border-amber-300 shadow-lg rounded-full p-2.5 hover:scale-110 transition cursor-pointer">
+        <span id="sound-icon" class="text-xl">🔊</span>
+    </button>
+
+    <div id="host-screen" class="h-full w-full flex flex-col justify-between p-2 md:p-4 max-w-7xl mx-auto">
+        
+        <!-- Top Info Header Bar -->
+        <header class="bg-white/95 backdrop-blur-md rounded-2xl border-4 border-amber-200 p-2 md:p-3 shadow-md flex justify-between items-center z-10">
+            <div class="flex items-center gap-2 md:gap-4">
+                <!-- Brand / Logo -->
+                <div class="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white px-3 py-1 rounded-xl shadow-inner">
+                    <span class="text-xl md:text-2xl animate-bounce">🍔</span>
+                    <span class="font-bold text-sm md:text-xl tracking-wide hidden sm:inline">BURGER BUDDIES</span>
+                </div>
+                
+                <!-- Shift Day Progress -->
+                <div class="flex items-center gap-2 bg-amber-50 border-2 border-amber-300 px-3 py-1 rounded-xl">
+                    <div class="flex flex-col">
+                        <span id="day-tag" class="text-[10px] text-amber-800 font-extrabold uppercase leading-none">DAY 1</span>
+                        <span id="day-goal-text" class="text-xs md:text-sm font-black text-amber-900 leading-tight">$0 / $60</span>
+                    </div>
+                </div>
+
+                <!-- Earnings Counter -->
+                <div class="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-300 px-3 py-1 rounded-xl">
+                    <span class="text-lg">🪙</span>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-emerald-800 font-extrabold uppercase leading-none">Vault</span>
+                        <span id="vault-money" class="text-sm md:text-xl font-black text-emerald-900 leading-tight">$30</span>
+                    </div>
+                </div>
+
+                <!-- Omaha Multiplier Badge -->
+                <div id="omaha-badge" class="hidden animate-pulse bg-gradient-to-r from-red-500 to-amber-500 text-white font-black text-[10px] md:text-xs px-2.5 py-1 rounded-xl shadow border border-yellow-300">
+                    🔥 2X OMAHA ACTIVE!
+                </div>
+            </div>
+
+            <!-- Header Controls & Controller Sync -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleQRModal()" class="btn-bounce bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white font-bold px-4 py-2 rounded-xl border-b-4 border-blue-700 shadow flex items-center gap-2 text-xs md:text-sm">
+                    <span class="text-lg">📱</span>
+                    <span>Connect Controllers / Simulator</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 my-2 flex flex-col lg:flex-row gap-4 items-center justify-center relative overflow-hidden">
+            
+            <!-- Left Side: Customer Order & Avatar -->
+            <div class="w-full lg:w-1/2 flex flex-col items-center justify-center relative px-2">
+                
+                <!-- Customer Speech Bubble Order Display (ENLARGED) -->
+                <div class="relative bg-white border-4 border-slate-800 rounded-3xl p-4 md:p-6 shadow-2xl w-full max-w-xl md:max-w-2xl animate-pop-in">
+                    <!-- Speech bubble point -->
+                    <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[16px] border-t-slate-800"></div>
+                    <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[12px] border-t-white"></div>
+                    
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm md:text-base font-extrabold uppercase tracking-wider text-slate-500">
+                            Order #<span id="customer-num">1</span>: <span id="customer-name" class="text-slate-900 font-black">Kawaii Bear</span>
+                        </span>
+                        <div class="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-black text-sm px-3 py-1 rounded-full border-2 border-emerald-400">
+                            <span>Payout:</span>
+                            <span id="burger-value" class="text-base md:text-lg font-black">$25</span>
+                        </div>
+                    </div>
+
+                    <!-- Customer Patience Bar -->
+                    <div class="w-full bg-slate-200 rounded-full h-3.5 mb-4 overflow-hidden border-2 border-slate-300">
+                        <div id="patience-bar" class="bg-gradient-to-r from-emerald-400 to-green-500 h-full w-full transition-all duration-300"></div>
+                    </div>
+
+                    <!-- Required Ingredient Sequence (MUCH BIGGER) -->
+                    <div class="flex flex-wrap items-center justify-center gap-2.5 py-2" id="recipe-sequence">
+                        <!-- Dynamic SVG Ingredient Badges -->
+                    </div>
+                </div>
+
+                <!-- Customer Animated Avatar -->
+                <div class="mt-4 flex flex-col items-center">
+                    <div id="customer-avatar" class="text-7xl md:text-8xl filter drop-shadow-lg animate-bounce-gentle transition-all duration-300">
+                        🐱
+                    </div>
+                    <span id="customer-mood" class="bg-white/95 border-2 border-amber-300 rounded-full px-4 py-1 text-xs md:text-sm font-black text-amber-950 mt-2 shadow-md">
+                        "I'm super hungry! Faster please~"
+                    </span>
+                </div>
+            </div>
+
+            <!-- Right Side: Shared Counter & Stack -->
+            <div class="w-full lg:w-1/2 flex flex-col items-center justify-between h-full min-h-[320px] md:min-h-[400px] wood-pattern rounded-3xl border-4 border-amber-800/30 p-4 shadow-inner relative">
+                
+                <!-- Shared Kitchen Counter / Prep Station Buffer -->
+                <div class="w-full bg-amber-950/10 border-2 border-amber-800/40 rounded-2xl p-2.5 flex flex-wrap justify-between items-center gap-2 backdrop-blur-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🔪</span>
+                        <div>
+                            <h4 class="text-xs md:text-sm font-black text-amber-950 uppercase leading-none">Shared Kitchen Counter</h4>
+                            <p class="text-[11px] text-amber-900/90 font-extrabold leading-tight">Place spare ingredients here for either player to use!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2" id="prep-table-slots">
+                        <!-- 2 Prep Buffer Slots -->
+                    </div>
+                </div>
+
+                <!-- Floating Feedback Popups Container -->
+                <div id="floating-text-container" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
+
+                <!-- Cutting Board / Counter Stack -->
+                <div class="relative w-full max-w-sm flex flex-col items-center justify-end h-full mt-2">
+                    
+                    <!-- Assembled Burger Stack -->
+                    <div id="burger-stack" class="flex flex-col-reverse items-center justify-start w-full z-10 transition-all">
+                        <!-- Ingredient layers stacked dynamically -->
+                    </div>
+
+                    <!-- Serving Plate Base -->
+                    <div class="w-64 md:w-72 h-8 bg-gradient-to-r from-slate-200 via-white to-slate-200 rounded-full border-b-4 border-slate-300 shadow-xl flex items-center justify-center mt-[-8px]">
+                        <div class="w-56 md:w-64 h-3.5 bg-sky-100/70 rounded-full border border-sky-200"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- LANDSCAPE MOBILE CONTROLLER SCREEN -->
+    <div id="controller-screen" class="hidden h-full w-full bg-slate-900 text-white p-2.5 flex-col justify-between overflow-hidden">
+        <!-- Landscape Controller Header / Info Bar -->
+        <header class="bg-slate-800 border-2 border-slate-700 rounded-2xl px-3 py-1.5 flex justify-between items-center shadow-lg shrink-0">
+            <div class="flex items-center gap-2.5">
+                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase">Player 1</span>
+                <span id="ctrl-room-tag" class="text-[10px] text-slate-400 font-mono">Room: ---</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <span class="text-[9px] text-slate-400 uppercase font-extrabold block leading-none">Current Target</span>
+                    <span id="ctrl-target-ingredient" class="text-xs sm:text-sm font-black text-amber-400 leading-tight">🍔 Bun</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Horizontal Layout Area for Landscape View -->
+        <div class="my-2 flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-y-auto items-stretch">
+            <!-- Left Side Controls: Vault, Draw, Discard -->
+            <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-2 flex flex-col justify-between gap-1.5 min-w-0">
+                <div class="bg-slate-900/90 p-1.5 rounded-xl border border-slate-700 text-center shrink-0">
+                    <span class="text-[9px] text-emerald-400 uppercase font-black block leading-none">Vault</span>
+                    <span id="ctrl-vault-amount" class="text-sm font-black text-white">$30</span>
+                </div>
+
+                <div class="flex flex-col gap-2 flex-1 justify-center min-h-0">
+                    <button id="ctrl-draw-btn" class="btn-bounce bg-amber-400 hover:bg-amber-500 active:scale-95 border-b-4 border-amber-600 text-slate-950 font-black p-2 rounded-xl flex items-center justify-center gap-1.5 shadow min-h-[42px] shrink-0">
+                        <span class="text-base leading-none">📥</span>
+                        <span class="text-[11px] font-black uppercase whitespace-nowrap">Draw (-$5)</span>
+                    </button>
+                    <button id="ctrl-discard-btn" class="btn-bounce bg-rose-600 hover:bg-rose-700 active:scale-95 border-b-4 border-rose-800 text-white font-black p-2 rounded-xl flex items-center justify-center gap-1.5 shadow min-h-[42px] shrink-0">
+                        <span class="text-base leading-none">🗑️</span>
+                        <span class="text-[11px] font-black uppercase whitespace-nowrap">Discard All</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Center Hand Cards Grid -->
+            <div class="col-span-6 bg-slate-800/50 border border-slate-700/60 rounded-2xl p-2 flex flex-col justify-center min-w-0">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 text-center block leading-none shrink-0">Your Hand</span>
+                <div id="ctrl-hand-grid" class="grid grid-cols-3 gap-1.5 flex-1 items-center"></div>
+            </div>
+
+            <!-- Right Side Specialty Slot -->
+            <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-2 flex flex-col justify-center items-center min-w-0">
+                <span class="text-[9px] font-bold uppercase tracking-wider text-amber-400 mb-1 text-center block leading-none shrink-0">Specialty</span>
+                <div id="ctrl-specialty-container" class="w-full flex-1 flex items-center justify-center"></div>
+            </div>
+        </div>
+
+        <div class="text-[9px] text-slate-400 font-extrabold text-center shrink-0">
+            🔄 Mobile Controller (Landscape Mode)
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl border-4 border-amber-300 p-5 max-w-lg w-full text-center shadow-2xl relative animate-pop-in">
+            <button onclick="toggleQRModal()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 rounded-full w-8 h-8 font-extrabold text-slate-700">✕</button>
+            
+            <h2 class="text-xl font-black text-slate-800 mb-1">📱 Connect Phone Controllers</h2>
+            <p class="text-xs text-slate-500 mb-3">Scan QR code on mobile devices or use the Built-in Simulator!</p>
+
+            <div id="websocket-warning" class="hidden mb-3 p-2 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-[11px] text-left font-semibold">
+                ⚠️ <span>External WebSockets are blocked inside preview sandboxes. Open preview in a new window to scan with real phones, or test with the <b>Simulator</b> below!</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="flex flex-col items-center bg-blue-50 border-2 border-blue-200 rounded-2xl p-2.5">
+                    <span class="bg-blue-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] mb-1.5">PLAYER 1</span>
+                    <div id="qrcode-p1" class="p-1.5 bg-white rounded-xl shadow border border-blue-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
+                    <span id="p1-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
+                    <button onclick="launchSimulatedPhone(1)" class="mt-2 w-full btn-bounce bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
+                        📲 Test P1 Phone Simulator
+                    </button>
+                </div>
+
+                <div class="flex flex-col items-center bg-pink-50 border-2 border-pink-200 rounded-2xl p-2.5">
+                    <span class="bg-pink-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] mb-1.5">PLAYER 2</span>
+                    <div id="qrcode-p2" class="p-1.5 bg-white rounded-xl shadow border border-pink-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
+                    <span id="p2-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
+                    <button onclick="launchSimulatedPhone(2)" class="mt-2 w-full btn-bounce bg-pink-600 hover:bg-pink-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
+                        📲 Test P2 Phone Simulator
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="toggleQRModal()" class="mt-4 w-full btn-bounce bg-amber-400 hover:bg-amber-500 border-b-4 border-amber-600 text-slate-900 font-black py-2.5 rounded-2xl shadow">
+                Ready to Play!
+            </button>
+        </div>
+    </div>
+
+    <!-- SIMULATED MOBILE PHONE OVERLAY (LANDSCAPE ORIENTED) -->
+    <div id="simulated-phone-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-2 hidden">
+        <div class="relative w-full max-w-2xl h-[360px] bg-slate-900 border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-slate-800 px-3 py-1.5 flex justify-between items-center border-b border-slate-700 shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                    <span id="sim-phone-title" class="text-xs font-black text-amber-400">P1 Mobile Controller (Landscape)</span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-bold">📱 Landscape Simulator</span>
+                <button onclick="closeSimulatedPhone()" class="bg-slate-700 hover:bg-slate-600 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
+            </div>
+
+            <div id="sim-phone-viewport" class="flex-1 overflow-y-auto p-2 flex flex-col justify-between min-h-0"></div>
+        </div>
+    </div>
+
+    <!-- DAY SHIFT COMPLETE MODAL -->
+    <div id="day-complete-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gradient-to-b from-amber-400 to-orange-500 text-white rounded-3xl border-4 border-yellow-200 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
+            <span class="text-6xl block mb-2 animate-bounce">🎉</span>
+            <h2 class="text-3xl font-black mb-1">SHIFT COMPLETED!</h2>
+            <p id="day-complete-subtitle" class="text-sm font-bold text-amber-100 mb-4">You reached the daily earnings goal!</p>
+            
+            <div class="bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl p-4 mb-5 text-left text-sm space-y-2">
+                <div class="flex justify-between font-extrabold">
+                    <span>Day Level:</span>
+                    <span id="summary-day-num">Day 1</span>
+                </div>
+                <div class="flex justify-between font-extrabold">
+                    <span>Vault Revenue:</span>
+                    <span id="summary-vault-amount">$60</span>
+                </div>
+                <div class="flex justify-between font-extrabold text-yellow-200">
+                    <span>Next Shift Target:</span>
+                    <span id="summary-next-target">$120</span>
+                </div>
+            </div>
+
+            <button onclick="startNextDayShift()" class="w-full btn-bounce bg-slate-900 hover:bg-slate-800 text-amber-400 border-b-4 border-black font-black text-lg py-3 rounded-2xl shadow-xl">
+                Start Next Day Shift! 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- CUSTOM MYSTERY BOX REWARD MODAL -->
+    <div id="mystery-modal" class="fixed inset-0 bg-purple-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gradient-to-b from-purple-800 to-indigo-900 text-white rounded-3xl border-4 border-purple-400 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
+            <span class="text-5xl block mb-2 animate-bounce">🎁</span>
+            <h2 class="text-2xl font-black mb-1">MYSTERY BOX REWARD</h2>
+            <p id="mystery-subtitle" class="text-xs text-purple-200 mb-4">Choose 1 bonus reward to activate:</p>
+            <div id="mystery-options" class="grid grid-cols-1 gap-2.5"></div>
+        </div>
+    </div>
+
+    <!-- CUSTOM NOTIFICATION TOAST -->
+    <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl border-2 border-amber-400 shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-4 text-xs md:text-sm">
+        Message Text
+    </div>
+
+    <script>
+        const INGREDIENTS = {
+            bun_bottom: { name: 'Bottom Bun', emoji: '🍞', color: '#D4A373', borderColor: '#BC6C25', textColor: '#FFF' },
+            patty: { name: 'Burger Patty', emoji: '🥩', color: '#6F1D1B', borderColor: '#432818', textColor: '#FFF' },
+            lettuce: { name: 'Crispy Lettuce', emoji: '🥬', color: '#52B788', borderColor: '#2D6A4F', textColor: '#FFF' },
+            tomato: { name: 'Fresh Tomato', emoji: '🍅', color: '#E63946', borderColor: '#9B2226', textColor: '#FFF' },
+            cheese: { name: 'Melted Cheese', emoji: '🧀', color: '#FFB703', borderColor: '#FB8500', textColor: '#000' },
+            sauce: { name: 'Tomato Sauce', emoji: '🥫', color: '#D62828', borderColor: '#800F2F', textColor: '#FFF' },
+            bacon: { name: 'Crispy Bacon', emoji: '🥓', color: '#B5179E', borderColor: '#7209B7', textColor: '#FFF' },
+            pickle: { name: 'Sour Pickle', emoji: '🥒', color: '#70E000', borderColor: '#38B000', textColor: '#000' },
+            bun_top: { name: 'Top Bun', emoji: '🍔', color: '#E9C46A', borderColor: '#F4A261', textColor: '#000' }
+        };
+
+        const SPECIALTIES = {
+            brainwash: { name: 'Brainwash', emoji: '🌀', desc: 'Reroll order using active cards', color: 'from-purple-500 to-indigo-600', borderColor: 'border-purple-300' },
+            golden: { name: 'Golden Card', emoji: '🌟', desc: 'Wildcard for current step', color: 'from-amber-400 to-yellow-500', borderColor: 'border-amber-200' },
+            omaha: { name: 'Omaha Sauce', emoji: '🔥', desc: 'Double (2x) burger payout', color: 'from-red-500 to-rose-600', borderColor: 'border-red-300' },
+            restock: { name: 'Restock', emoji: '🔄', desc: 'Refill both players hands', color: 'from-cyan-500 to-blue-600', borderColor: 'border-cyan-200' },
+            mystery: { name: 'Mystery Box', emoji: '🎁', desc: 'Choose 1 bonus reward', color: 'from-pink-500 to-rose-500', borderColor: 'border-pink-300' }
+        };
+
+        const CUSTOMERS = [
+            { name: 'Kawaii Bear', emoji: '🐻' },
+            { name: 'Cute Bunny', emoji: '🐰' },
+            { name: 'Lazy Cat', emoji: '🐱' },
+            { name: 'Shiba Inu', emoji: '🐕' },
+            { name: 'Happy Panda', emoji: '🐼' },
+            { name: 'Fancy Piggy', emoji: '🐷' }
+        ];
+
+        let gameState = {
+            currentDay: 1,
+            dayGoal: 60,
+            vaultMoney: 30,
+            customerNum: 1,
+            currentCustomer: null,
+            recipe: [],
+            currentStep: 0,
+            patience: 100,
+            patienceTimer: null,
+            omahaMultiplier: 1,
+            p1Hand: [],
+            p2Hand: [],
+            p1Specialty: null,
+            p2Specialty: null,
+            prepTable: [null, null], // Shared 2-slot kitchen buffer
+            burgerStack: [],
+            onScreenHandsVisible: true,
+            isAudioMuted: false
+        };
+
+        let peer = null;
+        let p1Conn = null;
+        let p2Conn = null;
+        let hostConn = null;
+        let isControllerRole = false;
+        let myPlayerNum = 1;
+        let roomCode = null;
+
+        let synth, polySynth;
+        function initAudio() {
+            if (!synth) {
+                synth = new Tone.Synth().toDestination();
+                polySynth = new Tone.PolySynth().toDestination();
+                Tone.start();
+            }
+        }
+
+        function playSound(type) {
+            if (gameState.isAudioMuted) return;
+            try {
+                initAudio();
+                if (type === 'playCard') synth.triggerAttackRelease("C5", "8n");
+                else if (type === 'completeBurger') polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
+                else if (type === 'drawCard') synth.triggerAttackRelease("G4", "16n");
+                else if (type === 'specialty') polySynth.triggerAttackRelease(["E5", "A5", "C6"], "8n");
+                else if (type === 'error') synth.triggerAttackRelease("A2", "8n");
+            } catch(e) {}
+        }
+
+        function toggleAudio() {
+            gameState.isAudioMuted = !gameState.isAudioMuted;
+            document.getElementById('sound-icon').innerText = gameState.isAudioMuted ? '🔇' : '🔊';
+        }
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const role = urlParams.get('role');
+            const room = urlParams.get('room');
+            const player = urlParams.get('player');
+
+            if (role === 'controller' && room && player) {
+                initControllerMode(room, parseInt(player));
+            } else {
+                initHostMode();
+            }
+        };
+
+        function generateQRCodes(roomId) {
+            const baseUrl = window.location.href.split('?')[0];
+            const urlP1 = `${baseUrl}?role=controller&room=${roomId}&player=1`;
+            const urlP2 = `${baseUrl}?role=controller&room=${roomId}&player=2`;
+
+            const qrContainerP1 = document.getElementById('qrcode-p1');
+            const qrContainerP2 = document.getElementById('qrcode-p2');
+            
+            if (qrContainerP1) {
+                qrContainerP1.innerHTML = '';
+                new QRCode(qrContainerP1, { text: urlP1, width: 110, height: 110 });
+            }
+            if (qrContainerP2) {
+                qrContainerP2.innerHTML = '';
+                new QRCode(qrContainerP2, { text: urlP2, width: 110, height: 110 });
+            }
+        }
+
+        function initHostMode() {
+            document.getElementById('host-screen').classList.remove('hidden');
+            document.getElementById('controller-screen').classList.add('hidden');
+
+            roomCode = 'burger-' + Math.random().toString(36).substring(2, 7);
+
+            try {
+                peer = new Peer(roomCode);
+                
+                peer.on('open', (id) => {
+                    generateQRCodes(id);
+                });
+
+                peer.on('error', (err) => {
+                    document.getElementById('websocket-warning').classList.remove('hidden');
+                    document.getElementById('p1-peer-status').innerText = '⚠️ Network restricted. Use Simulator!';
+                    document.getElementById('p2-peer-status').innerText = '⚠️ Network restricted. Use Simulator!';
+                });
+
+                peer.on('connection', (conn) => {
+                    conn.on('data', (data) => {
+                        handleControllerInput(data);
+                    });
+                    conn.on('open', () => {
+                        if (conn.metadata && conn.metadata.player) {
+                            if (conn.metadata.player === 1) {
+                                p1Conn = conn;
+                                document.getElementById('p1-peer-status').innerText = '🟢 Phone Connected!';
+                                document.getElementById('p1-status').innerText = '📱 Mobile';
+                            } else {
+                                p2Conn = conn;
+                                document.getElementById('p2-peer-status').innerText = '🟢 Phone Connected!';
+                                document.getElementById('p2-status').innerText = '📱 Mobile';
+                            }
+                            syncControllers();
+                            showToast(`Player ${conn.metadata.player} Mobile Controller Connected!`);
+                        }
+                    });
+                });
+            } catch(e) {
+                document.getElementById('websocket-warning').classList.remove('hidden');
+            }
+
+            dealInitialHand(1);
+            dealInitialHand(2);
+            spawnNextCustomer();
+            renderHostUI();
+        }
+
+        function initControllerMode(room, playerNum) {
+            isControllerRole = true;
+            myPlayerNum = playerNum;
+            
+            document.getElementById('host-screen').classList.add('hidden');
+            document.getElementById('controller-screen').classList.remove('hidden');
+            document.getElementById('controller-screen').style.display = 'flex';
+            
+            const tag = document.getElementById('ctrl-player-tag');
+            tag.innerText = `Player ${playerNum}`;
+            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase' : 'bg-pink-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase';
+            document.getElementById('ctrl-room-tag').innerText = `Room: ${room}`;
+
+            document.getElementById('ctrl-draw-btn').onclick = () => sendControllerAction({ type: 'DRAW_CARD', player: playerNum });
+            document.getElementById('ctrl-discard-btn').onclick = () => sendControllerAction({ type: 'DISCARD_HAND', player: playerNum });
+
+            try {
+                peer = new Peer();
+                peer.on('open', () => {
+                    hostConn = peer.connect(room, { metadata: { player: playerNum } });
+                    
+                    hostConn.on('open', () => {
+                        showToast(`Connected to Host Game!`);
+                    });
+
+                    hostConn.on('data', (data) => {
+                        if (data.type === 'STATE_SYNC') {
+                            renderMobileControllerUI(data.state);
+                        }
+                    });
+
+                    hostConn.on('close', () => {
+                        showToast('Disconnected from host.');
+                    });
+                });
+
+                peer.on('error', (err) => {
+                    showToast('Connection error. Host unreachable.');
+                });
+            } catch(e) {
+                showToast('PeerJS error');
+            }
+        }
+
+        function sendControllerAction(actionData) {
+            if (hostConn && hostConn.open) {
+                hostConn.send(actionData);
+            } else {
+                handleControllerInput(actionData);
+            }
+        }
+
+        function getRandomIngredientKey() {
+            const keys = Object.keys(INGREDIENTS).filter(k => k !== 'bun_top' && k !== 'bun_bottom');
+            return keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        function getRandomSpecialtyKey() {
+            const keys = Object.keys(SPECIALTIES);
+            return keys[Math.floor(Math.random() * keys.length)];
+        }
+
+        // Smart Recipe Generator: Guarantees 60-80% of ingredients exist across P1 hand, P2 hand, or Prep board so customers aren't impossible!
+        function spawnNextCustomer() {
+            const customerObj = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
+            gameState.currentCustomer = customerObj;
+            
+            // Collect available ingredient cards currently held across players and prep buffer
+            const availableInHands = [...gameState.p1Hand, ...gameState.p2Hand, ...gameState.prepTable.filter(x => x !== null)];
+            const fillerOptions = Object.keys(INGREDIENTS).filter(k => k !== 'bun_top' && k !== 'bun_bottom');
+
+            // Recipe length scales slightly with Day progression
+            let numFillers = 2 + Math.floor(Math.random() * 2);
+            if (gameState.currentDay >= 3) numFillers += 1;
+
+            const newRecipe = ['bun_bottom'];
+
+            for (let i = 0; i < numFillers; i++) {
+                // 70% chance to pick an ingredient that at least one player holds
+                const usableCards = availableInHands.filter(k => k !== 'bun_bottom' && k !== 'bun_top');
+                if (usableCards.length > 0 && Math.random() < 0.75) {
+                    const picked = usableCards[Math.floor(Math.random() * usableCards.length)];
+                    newRecipe.push(picked);
+                } else {
+                    newRecipe.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
+                }
+            }
+
+            newRecipe.push('bun_top');
+
+            gameState.recipe = newRecipe;
+            gameState.currentStep = 0;
+            gameState.burgerStack = [];
+            gameState.omahaMultiplier = 1;
+            gameState.patience = 100;
+
+            if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
+            gameState.patienceTimer = setInterval(() => {
+                gameState.patience -= 1.2;
+                if (gameState.patience <= 0) {
+                    gameState.patience = 0;
+                    clearInterval(gameState.patienceTimer);
+                    customerLeaveAngry();
+                }
+                renderHostUI();
+            }, 1000);
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function customerLeaveAngry() {
+            playSound('error');
+            showToast(`${gameState.currentCustomer.name} ran out of patience! 😿`);
+            gameState.vaultMoney = Math.max(0, gameState.vaultMoney - 5);
+            setTimeout(() => {
+                gameState.customerNum++;
+                spawnNextCustomer();
+            }, 1400);
+        }
+
+        function dealInitialHand(playerNum) {
+            const hand = ['bun_bottom', 'bun_top', getRandomIngredientKey(), getRandomIngredientKey()];
+            if (playerNum === 1) {
+                gameState.p1Hand = hand;
+                gameState.p1Specialty = getRandomSpecialtyKey();
+            } else {
+                gameState.p2Hand = hand;
+                gameState.p2Specialty = getRandomSpecialtyKey();
+            }
+        }
+
+        function playCard(playerNum, cardIndex) {
+            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
+            if (cardIndex < 0 || cardIndex >= hand.length) return;
+
+            const playedIngredient = hand[cardIndex];
+            const requiredIngredient = gameState.recipe[gameState.currentStep];
+
+            if (playedIngredient === requiredIngredient) {
+                hand.splice(cardIndex, 1);
+                gameState.burgerStack.push(playedIngredient);
+                gameState.currentStep++;
+                gameState.patience = Math.min(100, gameState.patience + 10); // Reward patience bonus for correct step
+                
+                playSound('playCard');
+                showFloatingText(`+ Correct!`, '#06D6A0');
+
+                if (gameState.currentStep >= gameState.recipe.length) {
+                    completeBurgerOrder();
+                }
+            } else {
+                playSound('error');
+                showFloatingText(`Wrong Ingredient!`, '#EF4444');
+            }
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function placeCardOnPrepTable(playerNum, cardIndex) {
+            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
+            if (cardIndex < 0 || cardIndex >= hand.length) return;
+
+            const emptySlotIndex = gameState.prepTable.findIndex(slot => slot === null);
+            if (emptySlotIndex === -1) {
+                showToast("Kitchen Prep Table is full! Use or trash a slot.");
+                return;
+            }
+
+            const card = hand.splice(cardIndex, 1)[0];
+            gameState.prepTable[emptySlotIndex] = card;
+            playSound('drawCard');
+            showToast(`Player ${playerNum} placed ${INGREDIENTS[card].name} on Shared Prep Table!`);
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function useCardFromPrepTable(slotIndex) {
+            const playedIngredient = gameState.prepTable[slotIndex];
+            if (!playedIngredient) return;
+
+            const requiredIngredient = gameState.recipe[gameState.currentStep];
+
+            if (playedIngredient === requiredIngredient) {
+                gameState.prepTable[slotIndex] = null;
+                gameState.burgerStack.push(playedIngredient);
+                gameState.currentStep++;
+                gameState.patience = Math.min(100, gameState.patience + 10);
+
+                playSound('playCard');
+                showFloatingText(`+ Prep Used!`, '#06D6A0');
+
+                if (gameState.currentStep >= gameState.recipe.length) {
+                    completeBurgerOrder();
+                }
+            } else {
+                playSound('error');
+                showFloatingText(`Wrong Ingredient!`, '#EF4444');
+            }
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function trashPrepSlot(slotIndex) {
+            if (gameState.prepTable[slotIndex]) {
+                const name = INGREDIENTS[gameState.prepTable[slotIndex]].name;
+                gameState.prepTable[slotIndex] = null;
+                showToast(`Trashed ${name} from Prep Table.`);
+                renderHostUI();
+                syncControllers();
+            }
+        }
+
+        function discardSingleCard(playerNum, cardIndex) {
+            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
+            if (cardIndex < 0 || cardIndex >= hand.length) return;
+
+            const card = hand.splice(cardIndex, 1)[0];
+            showToast(`Discarded 1 ${INGREDIENTS[card].name}`);
+            renderHostUI();
+            syncControllers();
+        }
+
+        // Smart Anti-RNG Draw System
+        function drawCard(playerNum) {
+            if (gameState.vaultMoney < 5) {
+                showToast("Not enough money in Vault ($5 needed)!");
+                playSound('error');
+                return;
+            }
+
+            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
+            if (hand.length >= 6) {
+                showToast("Hand is full! (Max 6 cards)");
+                return;
+            }
+
+            gameState.vaultMoney -= 5;
+
+            // Check if either player currently holds the active step requirement
+            const targetReq = gameState.recipe[gameState.currentStep];
+            const p1HasTarget = gameState.p1Hand.includes(targetReq);
+            const p2HasTarget = gameState.p2Hand.includes(targetReq);
+            const prepHasTarget = gameState.prepTable.includes(targetReq);
+
+            let drawnCard;
+            // Pity System: If NO ONE has the needed card, give 80% chance to draw the required target ingredient!
+            if (!p1HasTarget && !p2HasTarget && !prepHasTarget && targetReq && Math.random() < 0.80) {
+                drawnCard = targetReq;
+            } else {
+                drawnCard = getRandomIngredientKey();
+            }
+
+            hand.push(drawnCard);
+            playSound('drawCard');
+            renderHostUI();
+            syncControllers();
+        }
+
+        function discardHand(playerNum) {
+            const newHand = [getRandomIngredientKey(), getRandomIngredientKey(), getRandomIngredientKey(), getRandomIngredientKey()];
+            if (playerNum === 1) gameState.p1Hand = newHand;
+            else gameState.p2Hand = newHand;
+
+            playSound('drawCard');
+            showToast(`Player ${playerNum} discarded hand & drew new cards!`);
+            renderHostUI();
+            syncControllers();
+        }
+
+        function playSpecialtyCard(playerNum) {
+            const specialty = playerNum === 1 ? gameState.p1Specialty : gameState.p2Specialty;
+            if (!specialty) return;
+
+            playSound('specialty');
+
+            if (specialty === 'brainwash') {
+                showToast(`🌀 Brainwash! Rerolling customer order to match active cards!`);
+                spawnNextCustomer();
+            } else if (specialty === 'golden') {
+                showToast(`🌟 Golden Card! Auto-filling current ingredient!`);
+                const currentReq = gameState.recipe[gameState.currentStep];
+                gameState.burgerStack.push(currentReq);
+                gameState.currentStep++;
+                if (gameState.currentStep >= gameState.recipe.length) {
+                    completeBurgerOrder();
+                }
+            } else if (specialty === 'omaha') {
+                showToast(`🔥 Omaha Sauce Activated! 2X Payout!`);
+                gameState.omahaMultiplier = 2;
+            } else if (specialty === 'restock') {
+                showToast(`🔄 Restock! Refilling both players' hands!`);
+                dealInitialHand(1);
+                dealInitialHand(2);
+            } else if (specialty === 'mystery') {
+                openMysteryBoxModal(playerNum);
+            }
+
+            if (playerNum === 1) {
+                gameState.p1Specialty = null;
+                setTimeout(() => {
+                    gameState.p1Specialty = getRandomSpecialtyKey();
+                    renderHostUI();
+                    syncControllers();
+                }, 3500);
+            } else {
+                gameState.p2Specialty = null;
+                setTimeout(() => {
+                    gameState.p2Specialty = getRandomSpecialtyKey();
+                    renderHostUI();
+                    syncControllers();
+                }, 3500);
+            }
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function openMysteryBoxModal(playerNum) {
+            const modal = document.getElementById('mystery-modal');
+            const optionsContainer = document.getElementById('mystery-options');
+            document.getElementById('mystery-subtitle').innerText = `Player ${playerNum} opened a Mystery Box! Choose 1 reward:`;
+
+            const choices = [
+                { id: 'money', title: '🪙 +$25 Cash', desc: 'Add instant bonus cash to Vault' },
+                { id: 'golden', title: '🌟 Golden Step', desc: 'Instantly fulfill current ingredient' },
+                { id: 'omaha', title: '🔥 Omaha Sauce', desc: 'Multiply burger payout 2x' }
+            ];
+
+            optionsContainer.innerHTML = choices.map(c => `
+                <button onclick="applyMysteryChoice(${playerNum}, '${c.id}')" class="btn-bounce bg-white/10 hover:bg-white/20 border-2 border-purple-300 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
+                    <span class="text-base font-black mb-0.5">${c.title}</span>
+                    <span class="text-[11px] text-purple-200">${c.desc}</span>
+                </button>
+            `).join('');
+
+            modal.classList.remove('hidden');
+        }
+
+        function applyMysteryChoice(playerNum, choiceId) {
+            document.getElementById('mystery-modal').classList.add('hidden');
+            playSound('specialty');
+
+            if (choiceId === 'money') {
+                gameState.vaultMoney += 25;
+                showToast(`+$25 Cash Bonus Received!`);
+            } else if (choiceId === 'golden') {
+                const currentReq = gameState.recipe[gameState.currentStep];
+                gameState.burgerStack.push(currentReq);
+                gameState.currentStep++;
+                if (gameState.currentStep >= gameState.recipe.length) {
+                    completeBurgerOrder();
+                }
+            } else if (choiceId === 'omaha') {
+                gameState.omahaMultiplier = 2;
+                showToast(`2X Omaha Multiplier Applied!`);
+            }
+
+            renderHostUI();
+            syncControllers();
+        }
+
+        function completeBurgerOrder() {
+            if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
+            playSound('completeBurger');
+
+            const baseValue = gameState.recipe.length * 6;
+            const payout = baseValue * gameState.omahaMultiplier;
+            gameState.vaultMoney += payout;
+
+            confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+
+            showFloatingText(`+$${payout} SOLD! 🍔`, '#FFD166');
+            showToast(`Burger Completed! Earned $${payout}!`);
+
+            // Check if Daily earnings goal has been met!
+            if (gameState.vaultMoney >= gameState.dayGoal) {
+                setTimeout(() => {
+                    openDayCompleteModal();
+                }, 1200);
+            } else {
+                setTimeout(() => {
+                    gameState.customerNum++;
+                    spawnNextCustomer();
+                }, 1600);
+            }
+        }
+
+        function openDayCompleteModal() {
+            document.getElementById('summary-day-num').innerText = `Day ${gameState.currentDay}`;
+            document.getElementById('summary-vault-amount').innerText = `$${gameState.vaultMoney}`;
+            document.getElementById('summary-next-target').innerText = `$${gameState.dayGoal + 80}`;
+            document.getElementById('day-complete-modal').classList.remove('hidden');
+        }
+
+        function startNextDayShift() {
+            document.getElementById('day-complete-modal').classList.add('hidden');
+            gameState.currentDay++;
+            gameState.dayGoal = gameState.vaultMoney + 80;
+            gameState.customerNum = 1;
+            dealInitialHand(1);
+            dealInitialHand(2);
+            spawnNextCustomer();
+            showToast(`Day ${gameState.currentDay} Shift Started! Goal: $${gameState.dayGoal}`);
+        }
+
+        let activeSimPlayer = 1;
+
+        function launchSimulatedPhone(playerNum) {
+            activeSimPlayer = playerNum;
+            document.getElementById('qr-modal').classList.add('hidden');
+            document.getElementById('simulated-phone-modal').classList.remove('hidden');
+            document.getElementById('sim-phone-title').innerText = `Player ${playerNum} Mobile Controller`;
+            renderSimulatedPhone();
+        }
+
+        function closeSimulatedPhone() {
+            document.getElementById('simulated-phone-modal').classList.add('hidden');
+        }
+
+        function renderSimulatedPhone() {
+            const playerNum = activeSimPlayer;
+            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
+            const specialtyKey = playerNum === 1 ? gameState.p1Specialty : gameState.p2Specialty;
+            const target = gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null;
+
+            const viewport = document.getElementById('sim-phone-viewport');
+            viewport.innerHTML = `
+                <div class="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 mb-1 flex justify-between items-center text-xs shrink-0">
+                    <div>
+                        <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2 py-0.5 rounded text-[10px] uppercase">Player ${playerNum}</span>
+                        <span class="text-slate-400 text-[10px] ml-2 font-mono">Vault: $${gameState.vaultMoney}</span>
+                    </div>
+                    <div class="text-right flex items-center gap-1.5">
+                        <span class="text-[10px] text-slate-400 block">Target:</span>
+                        <span class="font-black text-amber-400 text-xs">${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
+                    </div>
+                </div>
+
+                <div class="flex-1 grid grid-cols-12 gap-2 items-stretch min-h-0">
+                    <!-- Left Side Actions -->
+                    <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-xl p-1.5 flex flex-col justify-between gap-1.5">
+                        <div class="bg-slate-900/90 p-1 rounded-lg border border-slate-700 text-center shrink-0">
+                            <span class="text-[8px] text-emerald-400 uppercase font-black block leading-none">Vault</span>
+                            <span class="text-xs font-black text-white">$${gameState.vaultMoney}</span>
+                        </div>
+                        <div class="flex flex-col gap-1.5 flex-1 justify-center">
+                            <button onclick="simDrawCard(${playerNum})" class="btn-bounce bg-amber-400 hover:bg-amber-500 border-b-2 border-amber-600 text-slate-950 font-black p-1.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow min-h-[38px]">
+                                <span>📥 Draw (-$5)</span>
+                            </button>
+                            <button onclick="simDiscardHand(${playerNum})" class="btn-bounce bg-rose-600 hover:bg-rose-700 border-b-2 border-rose-800 text-white font-black p-1.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow min-h-[38px]">
+                                <span>🗑️ Discard All</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Center Cards Grid (Landscape 3x2) -->
+                    <div class="col-span-6 bg-slate-800/50 border border-slate-700/60 rounded-xl p-1.5 grid grid-cols-3 gap-1.5 items-center">
+                        ${hand.map((ingKey, idx) => {
+                            const ing = INGREDIENTS[ingKey];
+                            return `
+                                <div class="relative group h-full flex flex-col justify-center">
+                                    <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full card-shadow btn-bounce h-16 rounded-xl border-2 p-1 flex flex-col items-center justify-between text-white shadow" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                                        <span class="text-lg leading-none mt-0.5">${ing.emoji}</span>
+                                        <span class="text-[9px] font-black leading-none">${ing.name}</span>
+                                    </button>
+                                    <button onclick="simPrepCard(${playerNum}, ${idx})" class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow z-10">
+                                        +PREP
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <!-- Right Side Specialty Slot -->
+                    <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-xl p-1.5 flex flex-col items-center justify-center">
+                        ${specialtyKey ? `
+                            <button onclick="simPlaySpecialty(${playerNum})" class="w-full card-shadow btn-bounce bg-gradient-to-r ${SPECIALTIES[specialtyKey].color} border-2 ${SPECIALTIES[specialtyKey].borderColor} text-white p-1.5 rounded-xl flex flex-col items-center justify-center shadow text-center h-28">
+                                <span class="text-2xl mb-1">${SPECIALTIES[specialtyKey].emoji}</span>
+                                <h4 class="font-black text-[10px] leading-tight">${SPECIALTIES[specialtyKey].name}</h4>
+                                <span class="bg-white/20 font-black text-[8px] px-1.5 py-0.5 rounded mt-1">USE</span>
+                            </button>
+                        ` : `
+                            <div class="w-full h-28 bg-slate-800 border border-dashed border-slate-700 p-1.5 rounded-xl text-center text-slate-500 font-bold text-[9px] flex flex-col items-center justify-center">
+                                ⌛ Refilling...
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function simPlayCard(pNum, idx) { playCard(pNum, idx); renderSimulatedPhone(); }
+        function simPrepCard(pNum, idx) { placeCardOnPrepTable(pNum, idx); renderSimulatedPhone(); }
+        function simDrawCard(pNum) { drawCard(pNum); renderSimulatedPhone(); }
+        function simDiscardHand(pNum) { discardHand(pNum); renderSimulatedPhone(); }
+        function simPlaySpecialty(pNum) { playSpecialtyCard(pNum); renderSimulatedPhone(); }
+
+        function syncControllers() {
+            const stateSync = {
+                type: 'STATE_SYNC',
+                state: {
+                    vaultMoney: gameState.vaultMoney,
+                    currentTarget: gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null,
+                    p1Hand: gameState.p1Hand,
+                    p2Hand: gameState.p2Hand,
+                    p1Specialty: gameState.p1Specialty,
+                    p2Specialty: gameState.p2Specialty
+                }
+            };
+            if (p1Conn && p1Conn.open) p1Conn.send(stateSync);
+            if (p2Conn && p2Conn.open) p2Conn.send(stateSync);
+
+            if (!document.getElementById('simulated-phone-modal').classList.contains('hidden')) {
+                renderSimulatedPhone();
+            }
+        }
+
+        function handleControllerInput(data) {
+            if (data.type === 'PLAY_CARD') playCard(data.player, data.cardIndex);
+            else if (data.type === 'PREP_CARD') placeCardOnPrepTable(data.player, data.cardIndex);
+            else if (data.type === 'DRAW_CARD') drawCard(data.player);
+            else if (data.type === 'DISCARD_HAND') discardHand(data.player);
+            else if (data.type === 'PLAY_SPECIALTY') playSpecialtyCard(data.player);
+            else if (data.type === 'SELECT_MYSTERY') applyMysteryChoice(data.player, data.choice);
+        }
+
+        function renderHostUI() {
+            document.getElementById('day-tag').innerText = `DAY ${gameState.currentDay}`;
+            document.getElementById('day-goal-text').innerText = `$${gameState.vaultMoney} / $${gameState.dayGoal}`;
+            document.getElementById('vault-money').innerText = `$${gameState.vaultMoney}`;
+            document.getElementById('customer-num').innerText = gameState.customerNum;
+            
+            if (gameState.currentCustomer) {
+                document.getElementById('customer-name').innerText = gameState.currentCustomer.name;
+                document.getElementById('customer-avatar').innerText = gameState.currentCustomer.emoji;
+            }
+
+            const omahaBadge = document.getElementById('omaha-badge');
+            if (gameState.omahaMultiplier > 1) omahaBadge.classList.remove('hidden');
+            else omahaBadge.classList.add('hidden');
+
+            const baseVal = gameState.recipe.length * 6;
+            document.getElementById('burger-value').innerText = `$${baseVal * gameState.omahaMultiplier}`;
+
+            const patienceBar = document.getElementById('patience-bar');
+            patienceBar.style.width = `${gameState.patience}%`;
+            patienceBar.className = gameState.patience < 30 ? "bg-gradient-to-r from-red-500 to-rose-600 h-full transition-all duration-300" : "bg-gradient-to-r from-emerald-400 to-green-500 h-full transition-all duration-300";
+
+            // Render Larger Recipe Badges for TV / Host Screen
+            const recipeSeq = document.getElementById('recipe-sequence');
+            recipeSeq.innerHTML = gameState.recipe.map((ingKey, idx) => {
+                const ing = INGREDIENTS[ingKey];
+                const isCurrent = idx === gameState.currentStep;
+                const isDone = idx < gameState.currentStep;
+
+                let borderClass = 'border-slate-300 opacity-60';
+                if (isDone) borderClass = 'border-emerald-500 bg-emerald-50 scale-95';
+                if (isCurrent) borderClass = 'border-amber-400 bg-amber-100 ring-4 ring-amber-300 scale-110 animate-bounce shadow-md';
+
+                return `
+                    <div class="flex items-center gap-2 border-3 ${borderClass} px-3 py-1.5 rounded-2xl transition-all duration-300">
+                        <span class="text-2xl md:text-3xl">${ing.emoji}</span>
+                        <span class="text-sm md:text-base font-black ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}">${ing.name}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Render Kitchen Prep Table Slots
+            const prepSlots = document.getElementById('prep-table-slots');
+            prepSlots.innerHTML = gameState.prepTable.map((cardKey, idx) => {
+                if (cardKey) {
+                    const ing = INGREDIENTS[cardKey];
+                    return `
+                        <div class="flex items-center gap-1.5 bg-white border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow">
+                            <button onclick="useCardFromPrepTable(${idx})" class="btn-bounce flex items-center gap-1.5">
+                                <span class="text-lg">${ing.emoji}</span>
+                                <span class="text-xs font-black text-slate-900">${ing.name}</span>
+                                <span class="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">USE</span>
+                            </button>
+                            <button onclick="trashPrepSlot(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-black ml-1">✕</button>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="border-2 border-dashed border-amber-800/30 rounded-xl px-3 py-1.5 text-xs text-amber-900/60 font-bold flex items-center justify-center">
+                            Empty Prep Slot
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            const burgerStack = document.getElementById('burger-stack');
+            burgerStack.innerHTML = gameState.burgerStack.map((ingKey) => {
+                const ing = INGREDIENTS[ingKey];
+                return `
+                    <div class="w-48 md:w-56 h-8 md:h-9 my-[-3px] rounded-2xl flex items-center justify-center font-black text-xs md:text-sm border-b-4 shadow-md transition-all animate-pop-in" 
+                         style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                        <span class="mr-2 text-base">${ing.emoji}</span> ${ing.name}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderHandCards(playerNum, hand, specialtyKey, standardContainerId, specialtyContainerId) {
+            const container = document.getElementById(standardContainerId);
+            const specContainer = document.getElementById(specialtyContainerId);
+
+            container.innerHTML = hand.map((ingKey, idx) => {
+                const ing = INGREDIENTS[ingKey];
+                return `
+                    <div class="relative group flex-shrink-0">
+                        <button onclick="playCard(${playerNum}, ${idx})" class="card-shadow btn-bounce w-18 md:w-22 h-20 md:h-24 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 cursor-pointer transition-all"
+                                style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                            <span class="text-xl md:text-2xl">${ing.emoji}</span>
+                            <span class="text-[9px] md:text-[10px] font-black leading-tight text-center">${ing.name}</span>
+                            <span class="text-[8px] opacity-80 uppercase font-bold">Play</span>
+                        </button>
+                        <button onclick="placeCardOnPrepTable(${playerNum}, ${idx})" title="Send to Prep Table" class="absolute -top-1 -right-1 bg-amber-400 hover:bg-amber-500 border border-amber-600 text-slate-900 text-[8px] font-black px-1 rounded-md shadow">
+                            +PREP
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            if (specialtyKey) {
+                const spec = SPECIALTIES[specialtyKey];
+                specContainer.innerHTML = `
+                    <button onclick="playSpecialtyCard(${playerNum})" class="card-shadow btn-bounce bg-gradient-to-b ${spec.color} border-2 ${spec.borderColor} text-white w-18 md:w-22 h-20 md:h-24 rounded-2xl p-1.5 flex flex-col items-center justify-between shadow-md">
+                        <span class="text-xl">${spec.emoji}</span>
+                        <span class="text-[9px] font-black text-center leading-tight">${spec.name}</span>
+                        <span class="text-[7px] bg-white/20 px-1 py-0.5 rounded-full font-bold uppercase">USE</span>
+                    </button>
+                `;
+            } else {
+                specContainer.innerHTML = `
+                    <div class="w-18 md:w-22 h-20 md:h-24 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-1.5">
+                        <span class="text-lg animate-spin">⏳</span>
+                        <span class="text-[8px] font-bold mt-0.5 text-center">Refilling...</span>
+                    </div>
+                `;
+            }
+        }
+
+        function renderMobileControllerUI(syncState) {
+            const playerNum = myPlayerNum;
+            const hand = playerNum === 1 ? syncState.p1Hand : syncState.p2Hand;
+            const specialtyKey = playerNum === 1 ? syncState.p1Specialty : syncState.p2Specialty;
+
+            const target = syncState.currentTarget;
+            document.getElementById('ctrl-target-ingredient').innerText = target ? `${target.emoji} ${target.name}` : 'Finished!';
+            document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
+
+            const handGrid = document.getElementById('ctrl-hand-grid');
+            handGrid.innerHTML = hand.map((ingKey, idx) => {
+                const ing = INGREDIENTS[ingKey];
+                return `
+                    <div class="relative group">
+                        <button onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})" 
+                                class="card-shadow btn-bounce w-full h-16 rounded-xl border-2 p-1 flex flex-col items-center justify-between text-white shadow-md active:scale-95"
+                                style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                            <span class="text-xl">${ing.emoji}</span>
+                            <span class="text-[9px] font-black text-center leading-none">${ing.name}</span>
+                        </button>
+                        <button onclick="sendControllerAction({type:'PREP_CARD', player:${playerNum}, cardIndex:${idx}})" 
+                                class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow">
+                            +PREP
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            const specContainer = document.getElementById('ctrl-specialty-container');
+            if (specialtyKey) {
+                const spec = SPECIALTIES[specialtyKey];
+                specContainer.innerHTML = `
+                    <button onclick="sendControllerAction({type:'PLAY_SPECIALTY', player:${playerNum}})" 
+                            class="card-shadow btn-bounce w-full bg-gradient-to-b ${spec.color} border-2 ${spec.borderColor} text-white p-2 rounded-xl flex flex-col items-center justify-center shadow-lg h-28 text-center">
+                        <span class="text-2xl mb-1">${spec.emoji}</span>
+                        <h3 class="font-black text-[10px] leading-tight">${spec.name}</h3>
+                        <span class="bg-white/20 font-black text-[8px] px-1.5 py-0.5 rounded mt-1">USE</span>
+                    </button>
+                `;
+            } else {
+                specContainer.innerHTML = `
+                    <div class="w-full h-28 bg-slate-800 border border-dashed border-slate-700 p-2 rounded-xl text-center text-slate-500 font-bold text-[9px] flex flex-col items-center justify-center">
+                        ⌛ Specialty refilling...
+                    </div>
+                `;
+            }
+        }
+
+        function showFloatingText(text, color) {
+            const container = document.getElementById('floating-text-container');
+            const el = document.createElement('div');
+            el.className = 'absolute font-black text-xl md:text-3xl animate-float-up pointer-events-none drop-shadow';
+            el.style.color = color;
+            el.innerText = text;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-message');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+            }, 2400);
+        }
+
+        function toggleQRModal() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function toggleOnscreenHands() {
+            gameState.onScreenHandsVisible = !gameState.onScreenHandsVisible;
+            const container = document.getElementById('onscreen-hands-container');
+            const btnText = document.getElementById('onscreen-toggle-text');
+
+            if (gameState.onScreenHandsVisible) {
+                container.classList.remove('hidden');
+                btnText.innerText = '📺 Desktop Hands';
+            } else {
+                container.classList.add('hidden');
+                btnText.innerText = '📺 Show Hands';
+            }
+        }
+    </script>
+</body>
+</html>
