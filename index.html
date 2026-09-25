@@ -79,11 +79,6 @@
             background-size: 24px 24px;
             background-position: 0 0, 12px 12px;
         }
-        .wood-tray {
-            background: linear-gradient(180deg, #A0522D 0%, #6A3818 100%);
-            border-top: 6px solid #C8753B;
-            box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
-        }
         .card-shadow {
             box-shadow: 0 6px 0px rgba(0,0,0,0.25), 0 10px 15px rgba(0,0,0,0.3);
         }
@@ -101,10 +96,12 @@
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800">
 
+    <!-- Sound Toggle Button -->
     <button id="sound-btn" onclick="toggleAudio()" class="fixed top-3 right-3 z-50 bg-white/90 backdrop-blur-md border-4 border-amber-300 shadow-lg rounded-full p-2 hover:scale-110 transition cursor-pointer">
         <span id="sound-icon" class="text-xl">🔊</span>
     </button>
 
+    <!-- MAIN HOST TV SCREEN VIEW -->
     <div id="host-screen" class="h-full w-full flex flex-col justify-between p-2 md:p-4 max-w-7xl mx-auto">
         
         <!-- Top Info Header Bar -->
@@ -139,6 +136,7 @@
             </div>
         </header>
 
+        <!-- Main Restaurant Stage Area -->
         <main class="flex-1 my-2 flex flex-col lg:flex-row gap-4 items-center justify-center relative overflow-hidden">
             
             <!-- Left Side: Customer Order Display -->
@@ -158,11 +156,13 @@
                         <div id="patience-bar" class="bg-gradient-to-r from-emerald-400 to-green-500 h-full w-full transition-all duration-300"></div>
                     </div>
 
+                    <!-- Customer Recipe Sequence Badges -->
                     <div class="flex flex-wrap items-center justify-center gap-3 py-2" id="recipe-sequence">
-                        <!-- Recipe Badges -->
+                        <!-- Recipe Badges dynamically generated here -->
                     </div>
                 </div>
 
+                <!-- Customer Avatar & Speech -->
                 <div class="mt-4 flex flex-col items-center">
                     <div id="customer-avatar" class="text-7xl md:text-8xl filter drop-shadow-lg animate-bounce-gentle transition-all duration-300">
                         🐱
@@ -173,20 +173,9 @@
                 </div>
             </div>
 
-            <div class="w-full lg:w-1/2 flex flex-col items-center justify-between h-full min-h-[320px] md:min-h-[400px] felt-pattern rounded-3xl border-4 border-purple-900/40 p-4 shadow-inner relative">
+            <!-- Right Side: Assembly Plate and Stack Display -->
+            <div class="w-full lg:w-1/2 flex flex-col items-center justify-center h-full min-h-[340px] md:min-h-[420px] felt-pattern rounded-3xl border-4 border-purple-900/40 p-4 shadow-inner relative">
                 
-                <div class="w-full bg-purple-950/40 border-2 border-purple-700/50 rounded-2xl p-2.5 flex flex-wrap justify-between items-center gap-2 backdrop-blur-xs text-white">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">🔪</span>
-                        <div>
-                            <h4 class="text-xs md:text-sm font-black uppercase leading-none text-amber-300">Shared Kitchen Prep Slot</h4>
-                            <p class="text-[11px] text-purple-200 font-extrabold leading-tight">Drop extra cards here for either player to use!</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-2" id="prep-table-slots"></div>
-                </div>
-
                 <div id="floating-text-container" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
 
                 <div class="relative w-full max-w-sm flex flex-col items-center justify-end h-full mt-2">
@@ -199,19 +188,7 @@
         </main>
     </div>
 
-    <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-2 flex flex-col justify-between overflow-hidden select-none">
-        
-        <!-- Header Bar -->
-        <header class="bg-purple-950/80 border-2 border-purple-700/60 rounded-2xl px-4 py-2 flex justify-between items-center shadow-lg shrink-0">
-            <div class="flex items-center gap-2">
-                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-3 py-1 rounded-xl text-xs sm:text-sm uppercase">Player 1</span>
-                <span id="ctrl-room-tag" class="text-xs text-purple-300 font-mono">Room: ---</span>
-            </div>
-            <div class="bg-emerald-950/80 border border-emerald-500/50 px-3 py-1 rounded-xl flex items-center gap-1.5">
-                <span class="text-xs">🪙 Vault:</span>
-                <span id="ctrl-vault-amount" class="text-sm sm:text-base font-black text-emerald-400">$30</span>
-            </div>
-        </header>
+    <!-- MOBILE CONTROLLER SCREEN VIEW (Landscape Focused) -->
     <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-3 flex flex-col justify-between overflow-hidden select-none">
         
         <!-- Header Bar: Player Info & Vault Money Only -->
@@ -225,7 +202,7 @@
             </div>
         </header>
 
-        <!-- Main Cards Area -->
+        <!-- Main Cards Area: Clean 6-Card Landscape View -->
         <main class="flex-1 my-3 flex items-center justify-center min-h-0">
             <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-6xl h-full items-center">
                 <!-- Hand Cards rendered dynamically -->
@@ -233,46 +210,50 @@
         </main>
     </div>
 
+    <!-- LARGE QR CODE CONNECTION MODAL -->
     <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl border-4 border-amber-300 p-5 max-w-lg w-full text-center shadow-2xl relative animate-pop-in">
-            <button onclick="toggleQRModal()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 rounded-full w-8 h-8 font-extrabold text-slate-700">✕</button>
+        <div class="bg-white rounded-3xl border-4 border-amber-300 p-6 max-w-3xl w-full text-center shadow-2xl relative animate-pop-in">
+            <button onclick="toggleQRModal()" class="absolute top-4 right-4 bg-slate-200 hover:bg-slate-300 rounded-full w-9 h-9 font-extrabold text-slate-700 text-lg">✕</button>
             
-            <h2 class="text-xl font-black text-slate-800 mb-1">📱 Connect Phone Controllers</h2>
-            <p class="text-xs text-slate-500 mb-3">Scan QR code with your mobile phones!</p>
+            <h2 class="text-2xl font-black text-slate-800 mb-1">📱 Connect Mobile Controllers</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mb-4">Scan QR code with your smartphones to join!</p>
 
-            <div id="websocket-warning" class="hidden mb-3 p-2 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-[11px] text-left font-semibold">
+            <div id="websocket-warning" class="hidden mb-4 p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs text-left font-semibold">
                 ⚠️ External WebSockets are blocked inside preview sandboxes. Open preview in a new window to scan with real phones, or test with the <b>Simulator</b> below!
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="flex flex-col items-center bg-blue-50 border-2 border-blue-200 rounded-2xl p-2.5">
-                    <span class="bg-blue-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] mb-1.5">PLAYER 1</span>
-                    <div id="qrcode-p1" class="p-1.5 bg-white rounded-xl shadow border border-blue-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
-                    <span id="p1-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
-                    <button onclick="launchSimulatedPhone(1)" class="mt-2 w-full btn-bounce bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <!-- Player 1 QR Code Block -->
+                <div class="flex flex-col items-center bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+                    <span class="bg-blue-500 text-white font-black px-4 py-1 rounded-full text-xs mb-2">PLAYER 1</span>
+                    <div id="qrcode-p1" class="p-2 bg-white rounded-2xl shadow border-2 border-blue-100 flex items-center justify-center min-h-[230px] min-w-[230px]"></div>
+                    <span id="p1-peer-status" class="text-xs font-bold text-slate-500 mt-2">Waiting for scan...</span>
+                    <button onclick="launchSimulatedPhone(1)" class="mt-3 w-full btn-bounce bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-2 rounded-xl shadow">
                         📲 Test P1 Controller Simulator
                     </button>
                 </div>
 
-                <div class="flex flex-col items-center bg-pink-50 border-2 border-pink-200 rounded-2xl p-2.5">
-                    <span class="bg-pink-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] mb-1.5">PLAYER 2</span>
-                    <div id="qrcode-p2" class="p-1.5 bg-white rounded-xl shadow border border-pink-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
-                    <span id="p2-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
-                    <button onclick="launchSimulatedPhone(2)" class="mt-2 w-full btn-bounce bg-pink-600 hover:bg-pink-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
+                <!-- Player 2 QR Code Block -->
+                <div class="flex flex-col items-center bg-pink-50 border-2 border-pink-200 rounded-2xl p-4">
+                    <span class="bg-pink-500 text-white font-black px-4 py-1 rounded-full text-xs mb-2">PLAYER 2</span>
+                    <div id="qrcode-p2" class="p-2 bg-white rounded-2xl shadow border-2 border-pink-100 flex items-center justify-center min-h-[230px] min-w-[230px]"></div>
+                    <span id="p2-peer-status" class="text-xs font-bold text-slate-500 mt-2">Waiting for scan...</span>
+                    <button onclick="launchSimulatedPhone(2)" class="mt-3 w-full btn-bounce bg-pink-600 hover:bg-pink-700 text-white font-black text-xs py-2 rounded-xl shadow">
                         📲 Test P2 Controller Simulator
                     </button>
                 </div>
             </div>
 
-            <button onclick="toggleQRModal()" class="mt-4 w-full btn-bounce bg-amber-400 hover:bg-amber-500 border-b-4 border-amber-600 text-slate-900 font-black py-2.5 rounded-2xl shadow">
+            <button onclick="toggleQRModal()" class="mt-5 w-full btn-bounce bg-amber-400 hover:bg-amber-500 border-b-4 border-amber-600 text-slate-900 font-black py-3 rounded-2xl shadow text-base">
                 Ready to Play!
             </button>
         </div>
     </div>
 
+    <!-- SIMULATED PHONE CONTROLLER MODAL -->
     <div id="simulated-phone-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-2 hidden">
-        <div class="relative w-full max-w-2xl h-[380px] felt-pattern border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
-            <div class="bg-slate-900 px-3 py-1.5 flex justify-between items-center border-b border-slate-700 shrink-0">
+        <div class="relative w-full max-w-3xl h-[390px] felt-pattern border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-slate-900 px-4 py-2 flex justify-between items-center border-b border-slate-700 shrink-0">
                 <div class="flex items-center gap-2">
                     <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                     <span id="sim-phone-title" class="text-xs font-black text-amber-400">P1 Mobile Controller (Landscape)</span>
@@ -280,10 +261,11 @@
                 <button onclick="closeSimulatedPhone()" class="bg-slate-700 hover:bg-slate-600 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
             </div>
 
-            <div id="sim-phone-viewport" class="flex-1 overflow-hidden p-2 flex flex-col justify-between min-h-0"></div>
+            <div id="sim-phone-viewport" class="flex-1 overflow-hidden p-3 flex flex-col justify-between min-h-0"></div>
         </div>
     </div>
 
+    <!-- SHIFT COMPLETE MODAL -->
     <div id="day-complete-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-gradient-to-b from-amber-400 to-orange-500 text-white rounded-3xl border-4 border-yellow-200 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
             <span class="text-6xl block mb-2 animate-bounce">🎉</span>
@@ -311,12 +293,13 @@
         </div>
     </div>
 
+    <!-- TOAST NOTIFICATION -->
     <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl border-2 border-amber-400 shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-4 text-xs md:text-sm">
         Message Text
     </div>
 
     <script>
-        // REDUCED INGREDIENTS LIST (6 ONLY)
+        // 6 INGREDIENTS ONLY
         const INGREDIENTS = {
             bun: { name: 'Bun', emoji: '🍞', color: '#E9C46A', borderColor: '#F4A261', textColor: '#4A2800' },
             patty: { name: 'Beef Patty', emoji: '🥩', color: '#6F1D1B', borderColor: '#432818', textColor: '#FFFFFF' },
@@ -347,7 +330,6 @@
             patienceTimer: null,
             p1Hand: [],
             p2Hand: [],
-            prepTable: [null, null],
             burgerStack: [],
             isAudioMuted: false
         };
@@ -408,11 +390,11 @@
             
             if (qrContainerP1) {
                 qrContainerP1.innerHTML = '';
-                new QRCode(qrContainerP1, { text: urlP1, width: 110, height: 110 });
+                new QRCode(qrContainerP1, { text: urlP1, width: 220, height: 220 });
             }
             if (qrContainerP2) {
                 qrContainerP2.innerHTML = '';
-                new QRCode(qrContainerP2, { text: urlP2, width: 110, height: 110 });
+                new QRCode(qrContainerP2, { text: urlP2, width: 220, height: 220 });
             }
         }
 
@@ -459,8 +441,7 @@
             
             const tag = document.getElementById('ctrl-player-tag');
             tag.innerText = `Player ${playerNum}`;
-            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-3 py-1 rounded-xl text-xs uppercase' : 'bg-pink-500 font-black px-3 py-1 rounded-xl text-xs uppercase';
-            document.getElementById('ctrl-room-tag').innerText = `Room: ${room}`;
+            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide' : 'bg-pink-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide';
 
             try {
                 peer = new Peer();
@@ -472,7 +453,7 @@
                     });
                 });
             } catch(e) {
-                showToast('PeerJS error');
+                showToast('PeerJS connection failed');
             }
         }
 
@@ -581,7 +562,7 @@
 
                 if (hand.length === 0) {
                     fillPlayerHandFromRecipe(playerNum);
-                    showToast(`Player ${playerNum} hand refreshed with new recipe cards!`);
+                    showToast(`Player ${playerNum} hand refreshed with new cards!`);
                 }
 
                 if (gameState.currentStep >= gameState.recipe.length) {
@@ -594,67 +575,6 @@
 
             renderHostUI();
             syncControllers();
-        }
-
-        function placeCardOnPrepTable(playerNum, cardIndex) {
-            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            if (cardIndex < 0 || cardIndex >= hand.length) return;
-
-            const emptySlotIndex = gameState.prepTable.findIndex(slot => slot === null);
-            if (emptySlotIndex === -1) {
-                showToast("Kitchen Prep Table is full!");
-                return;
-            }
-
-            const card = hand.splice(cardIndex, 1)[0];
-            gameState.prepTable[emptySlotIndex] = card;
-            playSound('drawCard');
-            showToast(`Player ${playerNum} placed ${INGREDIENTS[card].name} on Prep Table!`);
-
-            if (hand.length === 0) {
-                fillPlayerHandFromRecipe(playerNum);
-                showToast(`Player ${playerNum} hand refreshed!`);
-            }
-
-            renderHostUI();
-            syncControllers();
-        }
-
-        function useCardFromPrepTable(slotIndex) {
-            const playedIngredient = gameState.prepTable[slotIndex];
-            if (!playedIngredient) return;
-
-            const requiredIngredient = gameState.recipe[gameState.currentStep];
-
-            if (playedIngredient === requiredIngredient) {
-                gameState.prepTable[slotIndex] = null;
-                gameState.burgerStack.push(playedIngredient);
-                gameState.currentStep++;
-                gameState.patience = Math.min(100, gameState.patience + 10);
-
-                playSound('playCard');
-                showFloatingText(`+ Prep Used!`, '#06D6A0');
-
-                if (gameState.currentStep >= gameState.recipe.length) {
-                    completeBurgerOrder();
-                }
-            } else {
-                playSound('error');
-                showFloatingText(`Wrong Ingredient!`, '#EF4444');
-            }
-
-            renderHostUI();
-            syncControllers();
-        }
-
-        function trashPrepSlot(slotIndex) {
-            if (gameState.prepTable[slotIndex]) {
-                const name = INGREDIENTS[gameState.prepTable[slotIndex]].name;
-                gameState.prepTable[slotIndex] = null;
-                showToast(`Trashed ${name} from Prep Table.`);
-                renderHostUI();
-                syncControllers();
-            }
         }
 
         function completeBurgerOrder() {
@@ -715,8 +635,8 @@
 
             const viewport = document.getElementById('sim-phone-viewport');
             viewport.innerHTML = `
-                <div class="bg-purple-950/90 border border-purple-700/60 rounded-xl px-3 py-1.5 mb-2 flex justify-between items-center text-xs shrink-0 text-white">
-                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2.5 py-0.5 rounded-lg text-[10px] uppercase">Player ${playerNum}</span>
+                <div class="bg-purple-950/90 border border-purple-700/60 rounded-xl px-4 py-2 mb-2 flex justify-between items-center text-xs shrink-0 text-white">
+                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-3 py-1 rounded-lg text-xs uppercase">Player ${playerNum}</span>
                     <span class="text-xs font-black text-emerald-400">Vault: $${gameState.vaultMoney}</span>
                 </div>
 
@@ -725,7 +645,7 @@
                         ${hand.map((ingKey, idx) => {
                             const ing = INGREDIENTS[ingKey];
                             return `
-                                <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full h-full min-h-[140px] card-shadow btn-bounce rounded-2xl border-2 p-2 flex flex-col items-center justify-between shadow-lg" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                                <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full h-full min-h-[140px] card-shadow btn-bounce rounded-2xl border-2 p-2 flex flex-col items-center justify-between shadow-lg cursor-pointer" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
                                     <span class="text-3xl font-black mt-1">${ing.emoji}</span>
                                     <span class="text-xs font-black leading-tight text-center">${ing.name}</span>
                                     <span class="text-[9px] bg-black/20 px-2 py-0.5 rounded-md font-black">TAP</span>
@@ -738,7 +658,6 @@
         }
 
         function simPlayCard(pNum, idx) { playCard(pNum, idx); renderSimulatedPhone(); }
-        function simPrepCard(pNum, idx) { placeCardOnPrepTable(pNum, idx); renderSimulatedPhone(); }
 
         function syncControllers() {
             const stateSync = {
@@ -753,6 +672,10 @@
             if (p1Conn && p1Conn.open) p1Conn.send(stateSync);
             if (p2Conn && p2Conn.open) p2Conn.send(stateSync);
 
+            if (isControllerRole) {
+                renderMobileControllerUI(stateSync.state);
+            }
+
             if (!document.getElementById('simulated-phone-modal').classList.contains('hidden')) {
                 renderSimulatedPhone();
             }
@@ -760,7 +683,6 @@
 
         function handleControllerInput(data) {
             if (data.type === 'PLAY_CARD') playCard(data.player, data.cardIndex);
-            else if (data.type === 'PREP_CARD') placeCardOnPrepTable(data.player, data.cardIndex);
         }
 
         function renderHostUI() {
@@ -799,29 +721,6 @@
                 `;
             }).join('');
 
-            const prepSlots = document.getElementById('prep-table-slots');
-            prepSlots.innerHTML = gameState.prepTable.map((cardKey, idx) => {
-                if (cardKey) {
-                    const ing = INGREDIENTS[cardKey];
-                    return `
-                        <div class="flex items-center gap-1.5 bg-white border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow text-slate-900">
-                            <button onclick="useCardFromPrepTable(${idx})" class="btn-bounce flex items-center gap-1.5">
-                                <span class="text-lg">${ing.emoji}</span>
-                                <span class="text-xs font-black">${ing.name}</span>
-                                <span class="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">USE</span>
-                            </button>
-                            <button onclick="trashPrepSlot(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-black ml-1">✕</button>
-                        </div>
-                    `;
-                } else {
-                    return `
-                        <div class="border-2 border-dashed border-purple-500/50 rounded-xl px-3 py-1.5 text-xs text-purple-300 font-bold flex items-center justify-center">
-                            Empty Prep Slot
-                        </div>
-                    `;
-                }
-            }).join('');
-
             const burgerStack = document.getElementById('burger-stack');
             burgerStack.innerHTML = gameState.burgerStack.map((ingKey) => {
                 const ing = INGREDIENTS[ingKey];
@@ -841,19 +740,20 @@
             document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
 
             const container = document.getElementById('ctrl-hand-container');
+            if (!container) return;
             container.innerHTML = hand.map((ingKey, idx) => {
                 const ing = INGREDIENTS[ingKey];
                 return `
-                    <div class="card-shadow btn-bounce w-full h-full min-h-[160px] max-h-[220px] rounded-2xl border-3 p-2 flex flex-col items-center justify-between text-white shadow-xl cursor-pointer select-none"
+                    <button class="card-shadow btn-bounce w-full h-full min-h-[140px] rounded-2xl border-4 p-2 flex flex-col items-center justify-between text-white shadow-xl cursor-pointer select-none"
                          style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
                          onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
                         <div class="w-full flex justify-between items-center px-1 opacity-80">
-                            <span class="text-[10px] font-black">#${idx+1}</span>
-                            <span class="text-[9px] uppercase font-black bg-black/20 px-1.5 py-0.5 rounded">TAP</span>
+                            <span class="text-[11px] font-black">#${idx+1}</span>
+                            <span class="text-[10px] uppercase font-black bg-black/20 px-2 py-0.5 rounded">TAP</span>
                         </div>
                         <span class="text-4xl sm:text-5xl my-auto">${ing.emoji}</span>
                         <span class="text-xs sm:text-sm font-black text-center leading-tight mb-1">${ing.name}</span>
-                    </div>
+                    </button>
                 `;
             }).join('');
         }
