@@ -97,19 +97,6 @@
         .btn-bounce:active {
             transform: scale(0.94);
         }
-        .dragging-card {
-            position: fixed !important;
-            z-index: 1000 !important;
-            pointer-events: none !important;
-            transform: scale(1.1) rotate(2deg) !important;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5) !important;
-            transition: none !important;
-        }
-        .drop-target-active {
-            border-color: #FFD166 !important;
-            background-color: rgba(255, 209, 102, 0.25) !important;
-            transform: scale(1.02);
-        }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800">
@@ -215,59 +202,33 @@
     <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-2 flex flex-col justify-between overflow-hidden select-none">
         
         <!-- Header Bar -->
-        <header class="bg-purple-950/80 border-2 border-purple-700/60 rounded-2xl px-3 py-1.5 flex justify-between items-center shadow-lg shrink-0">
+        <header class="bg-purple-950/80 border-2 border-purple-700/60 rounded-2xl px-4 py-2 flex justify-between items-center shadow-lg shrink-0">
             <div class="flex items-center gap-2">
-                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase">Player 1</span>
-                <span id="ctrl-room-tag" class="text-[10px] text-purple-300 font-mono">Room: ---</span>
+                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-3 py-1 rounded-xl text-xs sm:text-sm uppercase">Player 1</span>
+                <span id="ctrl-room-tag" class="text-xs text-purple-300 font-mono">Room: ---</span>
             </div>
-            <div class="bg-emerald-950/80 border border-emerald-500/50 px-3 py-0.5 rounded-xl flex items-center gap-1.5">
+            <div class="bg-emerald-950/80 border border-emerald-500/50 px-3 py-1 rounded-xl flex items-center gap-1.5">
                 <span class="text-xs">🪙 Vault:</span>
-                <span id="ctrl-vault-amount" class="text-sm font-black text-emerald-400">$30</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-[10px] text-purple-300 uppercase font-black">Target:</span>
-                <span id="ctrl-target-ingredient" class="text-xs sm:text-sm font-black text-amber-300 bg-purple-900/90 border border-amber-400/40 px-2 py-0.5 rounded-lg">🍞 Bun</span>
+                <span id="ctrl-vault-amount" class="text-sm sm:text-base font-black text-emerald-400">$30</span>
             </div>
         </header>
 
-        <!-- Center Playing Table (Deck, Drop Zone, Discard Pile) -->
-        <div class="my-1.5 flex-1 flex items-center justify-between gap-3 px-4 relative min-h-0">
-            
-            <!-- Left: Deck Stack (Draw Card) -->
-            <button id="ctrl-draw-btn" class="btn-bounce relative flex flex-col items-center justify-center bg-gradient-to-b from-indigo-600 to-purple-800 border-3 border-indigo-300 rounded-2xl w-24 h-32 card-shadow group cursor-pointer shrink-0">
-                <span class="absolute -top-2.5 bg-amber-400 text-purple-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-600 shadow">Deck</span>
-                <div class="text-3xl mb-1 group-hover:scale-110 transition">📥</div>
-                <span class="text-[11px] font-black text-amber-200">Ambil Kartu</span>
-                <span class="text-[9px] text-indigo-200 font-bold">-$5 Cash</span>
-                <span class="text-lg absolute bottom-1 right-2 opacity-50">👆</span>
-            </button>
-
-            <!-- Center: Drag Target Drop Zone -->
-            <div id="drop-zone" class="flex-1 max-w-lg h-32 border-4 border-dashed border-purple-400/60 rounded-3xl bg-purple-950/40 flex flex-col items-center justify-center p-2 text-center transition-all duration-200 relative">
-                <span id="drop-zone-badge" class="bg-purple-800/80 text-purple-200 text-xs font-black px-4 py-1 rounded-full border border-purple-500/50 mb-1">
-                    Seret / Drag Kartu Ke Sini
-                </span>
-                <span id="drop-target-text" class="text-sm sm:text-base font-black text-amber-300">
-                    Target Next: 🍞 Bun
-                </span>
+        <!-- Center Playing Table Banner -->
+        <div class="my-2 flex-1 flex flex-col items-center justify-center bg-purple-950/40 border-2 border-purple-700/40 rounded-3xl p-4 text-center">
+            <span class="text-xs text-purple-300 font-bold uppercase tracking-wider mb-1">LANGKAH SELANJUTNYA / NEXT TARGET</span>
+            <div id="ctrl-target-display" class="bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 px-6 py-2.5 rounded-2xl font-black text-lg sm:text-2xl shadow-lg border-2 border-amber-200 animate-bounce">
+                🍞 Bun
             </div>
-
-            <!-- Right: Pile Stack (Discard All) -->
-            <button id="ctrl-discard-btn" class="btn-bounce relative flex flex-col items-center justify-center bg-gradient-to-b from-rose-600 to-red-800 border-3 border-rose-300 rounded-2xl w-24 h-32 card-shadow group cursor-pointer shrink-0">
-                <span class="absolute -top-2.5 bg-rose-300 text-rose-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-500 shadow">Pile</span>
-                <div class="text-3xl mb-1 group-hover:scale-110 transition">🗑️</div>
-                <span class="text-[11px] font-black text-white">Buang Semua</span>
-                <span class="text-[9px] text-rose-200 font-bold">Discard Hand</span>
-            </button>
+            <p class="text-xs text-purple-200 mt-2 font-semibold">Sentuh/Tap kartu di bawah untuk memasukkan bahan ke burger!</p>
         </div>
 
-        <div class="wood-tray rounded-t-3xl p-2 pt-3 shadow-2xl relative shrink-0">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black text-[10px] px-3 py-0.5 rounded-full border border-amber-600 shadow">
-                KARTU KAMU (MAX 6)
+        <div class="wood-tray rounded-t-3xl p-3 pt-4 shadow-2xl relative shrink-0">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black text-xs px-4 py-0.5 rounded-full border border-amber-600 shadow">
+                KARTU KAMU (TAP UNTUK MAIN)
             </div>
 
-            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 max-w-4xl mx-auto items-center min-h-[110px]">
-                <!-- 6 Hand Cards rendered dynamically -->
+            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 max-w-5xl mx-auto items-center min-h-[110px]">
+                <!-- Hand Cards rendered dynamically -->
             </div>
         </div>
     </div>
@@ -485,9 +446,6 @@
                 document.getElementById('websocket-warning').classList.remove('hidden');
             }
 
-            // Fill full 6 cards on init
-            dealFullHand(1);
-            dealFullHand(2);
             spawnNextCustomer();
             renderHostUI();
         }
@@ -501,11 +459,8 @@
             
             const tag = document.getElementById('ctrl-player-tag');
             tag.innerText = `Player ${playerNum}`;
-            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase' : 'bg-pink-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase';
+            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-3 py-1 rounded-xl text-xs uppercase' : 'bg-pink-500 font-black px-3 py-1 rounded-xl text-xs uppercase';
             document.getElementById('ctrl-room-tag').innerText = `Room: ${room}`;
-
-            document.getElementById('ctrl-draw-btn').onclick = () => sendControllerAction({ type: 'DRAW_CARD', player: playerNum });
-            document.getElementById('ctrl-discard-btn').onclick = () => sendControllerAction({ type: 'DISCARD_HAND', player: playerNum });
 
             try {
                 peer = new Peer();
@@ -519,8 +474,6 @@
             } catch(e) {
                 showToast('PeerJS error');
             }
-
-            setupDropZoneListeners();
         }
 
         function sendControllerAction(actionData) {
@@ -531,47 +484,59 @@
             }
         }
 
-        function getRandomIngredientKey() {
-            const keys = Object.keys(INGREDIENTS);
-            return keys[Math.floor(Math.random() * keys.length)];
+        function generateRecipeIngredientsPool(count) {
+            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
+            const pool = [];
+            for (let i = 0; i < count; i++) {
+                if (i === 0 || i === count - 1) {
+                    pool.push('bun');
+                } else {
+                    pool.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
+                }
+            }
+            return pool;
         }
 
-        function dealFullHand(playerNum) {
-            const hand = [];
+        function fillPlayerHandFromRecipe(playerNum) {
+            const neededIngredients = gameState.recipe.slice(gameState.currentStep);
+            const extraPool = generateRecipeIngredientsPool(12);
+            const combinedPool = [...neededIngredients, ...extraPool];
+
+            const targetHand = [];
             for (let i = 0; i < 6; i++) {
-                hand.push(getRandomIngredientKey());
+                if (combinedPool.length > 0) {
+                    const pickIndex = Math.floor(Math.random() * Math.min(combinedPool.length, 6));
+                    targetHand.push(combinedPool.splice(pickIndex, 1)[0]);
+                } else {
+                    targetHand.push('bun');
+                }
             }
-            if (playerNum === 1) gameState.p1Hand = hand;
-            else gameState.p2Hand = hand;
+
+            if (playerNum === 1) gameState.p1Hand = targetHand;
+            else gameState.p2Hand = targetHand;
         }
 
         function spawnNextCustomer() {
             const customerObj = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
             gameState.currentCustomer = customerObj;
-            
-            const availableInHands = [...gameState.p1Hand, ...gameState.p2Hand, ...gameState.prepTable.filter(x => x !== null)];
-            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
 
             let numFillers = 2 + Math.floor(Math.random() * 2);
             if (gameState.currentDay >= 3) numFillers += 1;
 
+            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
             const newRecipe = ['bun'];
-
             for (let i = 0; i < numFillers; i++) {
-                const usableCards = availableInHands.filter(k => k !== 'bun');
-                if (usableCards.length > 0 && Math.random() < 0.75) {
-                    newRecipe.push(usableCards[Math.floor(Math.random() * usableCards.length)]);
-                } else {
-                    newRecipe.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
-                }
+                newRecipe.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
             }
-
             newRecipe.push('bun');
 
             gameState.recipe = newRecipe;
             gameState.currentStep = 0;
             gameState.burgerStack = [];
             gameState.patience = 100;
+
+            fillPlayerHandFromRecipe(1);
+            fillPlayerHandFromRecipe(2);
 
             if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
             gameState.patienceTimer = setInterval(() => {
@@ -614,6 +579,11 @@
                 playSound('playCard');
                 showFloatingText(`+ Correct!`, '#06D6A0');
 
+                if (hand.length === 0) {
+                    fillPlayerHandFromRecipe(playerNum);
+                    showToast(`Player ${playerNum} hand refreshed with new recipe cards!`);
+                }
+
                 if (gameState.currentStep >= gameState.recipe.length) {
                     completeBurgerOrder();
                 }
@@ -640,6 +610,11 @@
             gameState.prepTable[emptySlotIndex] = card;
             playSound('drawCard');
             showToast(`Player ${playerNum} placed ${INGREDIENTS[card].name} on Prep Table!`);
+
+            if (hand.length === 0) {
+                fillPlayerHandFromRecipe(playerNum);
+                showToast(`Player ${playerNum} hand refreshed!`);
+            }
 
             renderHostUI();
             syncControllers();
@@ -682,47 +657,6 @@
             }
         }
 
-        function drawCard(playerNum) {
-            if (gameState.vaultMoney < 5) {
-                showToast("Not enough money in Vault ($5 needed)!");
-                playSound('error');
-                return;
-            }
-
-            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            if (hand.length >= 6) {
-                showToast("Hand is full! (Max 6 cards)");
-                return;
-            }
-
-            gameState.vaultMoney -= 5;
-
-            const targetReq = gameState.recipe[gameState.currentStep];
-            const p1HasTarget = gameState.p1Hand.includes(targetReq);
-            const p2HasTarget = gameState.p2Hand.includes(targetReq);
-            const prepHasTarget = gameState.prepTable.includes(targetReq);
-
-            let drawnCard;
-            if (!p1HasTarget && !p2HasTarget && !prepHasTarget && targetReq && Math.random() < 0.80) {
-                drawnCard = targetReq;
-            } else {
-                drawnCard = getRandomIngredientKey();
-            }
-
-            hand.push(drawnCard);
-            playSound('drawCard');
-            renderHostUI();
-            syncControllers();
-        }
-
-        function discardHand(playerNum) {
-            dealFullHand(playerNum);
-            playSound('drawCard');
-            showToast(`Player ${playerNum} discarded hand & drew 6 new cards!`);
-            renderHostUI();
-            syncControllers();
-        }
-
         function completeBurgerOrder() {
             if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
             playSound('completeBurger');
@@ -757,8 +691,6 @@
             gameState.currentDay++;
             gameState.dayGoal = gameState.vaultMoney + 80;
             gameState.customerNum = 1;
-            dealFullHand(1);
-            dealFullHand(2);
             spawnNextCustomer();
             showToast(`Day ${gameState.currentDay} Shift Started! Goal: $${gameState.dayGoal}`);
         }
@@ -790,23 +722,10 @@
                     <span class="text-xs font-black text-emerald-400">$${gameState.vaultMoney} Vault</span>
                 </div>
 
-                <div class="my-1 flex-1 flex items-center justify-between gap-2 px-2 relative min-h-0">
-                    <button onclick="simDrawCard(${playerNum})" class="btn-bounce flex flex-col items-center justify-center bg-gradient-to-b from-indigo-600 to-purple-800 border-2 border-indigo-300 rounded-xl w-20 h-28 text-white card-shadow shrink-0">
-                        <span class="text-2xl mb-1">📥</span>
-                        <span class="text-[10px] font-black">Deck</span>
-                        <span class="text-[8px] text-indigo-200">-$5 Cash</span>
-                    </button>
-
-                    <div id="sim-drop-zone" onclick="showToast('Tap a card below to play it!')" class="flex-1 h-28 border-2 border-dashed border-purple-400/60 rounded-2xl bg-purple-950/40 flex flex-col items-center justify-center p-1 text-center cursor-pointer">
-                        <span class="text-purple-200 text-[10px] font-black">DROP ZONE</span>
-                        <span class="text-xs font-black text-amber-300 mt-0.5">${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
-                    </div>
-
-                    <button onclick="simDiscardHand(${playerNum})" class="btn-bounce flex flex-col items-center justify-center bg-gradient-to-b from-rose-600 to-red-800 border-2 border-rose-300 rounded-xl w-20 h-28 text-white card-shadow shrink-0">
-                        <span class="text-2xl mb-1">🗑️</span>
-                        <span class="text-[10px] font-black">Pile</span>
-                        <span class="text-[8px] text-rose-200">Buang All</span>
-                    </button>
+                <div class="my-2 flex-1 flex flex-col items-center justify-center bg-purple-950/40 border border-purple-700/40 rounded-2xl p-2 text-center">
+                    <span class="text-[10px] text-purple-300 font-bold uppercase mb-0.5">TARGET SEKARANG</span>
+                    <span class="text-sm font-black text-amber-300">${target ? target.emoji + ' ' + target.name : 'Selesai!'}</span>
+                    <span class="text-[9px] text-purple-200 mt-1">Tap kartu di bawah untuk memasukkan ke burger!</span>
                 </div>
 
                 <div class="wood-tray rounded-t-2xl p-2 pt-2.5 shrink-0">
@@ -818,7 +737,7 @@
                                     <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full card-shadow btn-bounce h-20 rounded-xl border-2 p-1 flex flex-col items-center justify-between shadow" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
                                         <span class="text-lg font-black">${ing.emoji}</span>
                                         <span class="text-[8px] font-black leading-tight text-center">${ing.name}</span>
-                                        <span class="text-[7px] bg-black/20 px-1 py-0.5 rounded font-black">PLAY</span>
+                                        <span class="text-[7px] bg-black/20 px-1 py-0.5 rounded font-black">TAP</span>
                                     </button>
                                     <button onclick="simPrepCard(${playerNum}, ${idx})" class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow z-10">
                                         +PREP
@@ -833,8 +752,6 @@
 
         function simPlayCard(pNum, idx) { playCard(pNum, idx); renderSimulatedPhone(); }
         function simPrepCard(pNum, idx) { placeCardOnPrepTable(pNum, idx); renderSimulatedPhone(); }
-        function simDrawCard(pNum) { drawCard(pNum); renderSimulatedPhone(); }
-        function simDiscardHand(pNum) { discardHand(pNum); renderSimulatedPhone(); }
 
         function syncControllers() {
             const stateSync = {
@@ -857,8 +774,6 @@
         function handleControllerInput(data) {
             if (data.type === 'PLAY_CARD') playCard(data.player, data.cardIndex);
             else if (data.type === 'PREP_CARD') placeCardOnPrepTable(data.player, data.cardIndex);
-            else if (data.type === 'DRAW_CARD') drawCard(data.player);
-            else if (data.type === 'DISCARD_HAND') discardHand(data.player);
         }
 
         function renderHostUI() {
@@ -937,21 +852,20 @@
             const hand = playerNum === 1 ? syncState.p1Hand : syncState.p2Hand;
 
             const target = syncState.currentTarget;
-            document.getElementById('ctrl-target-ingredient').innerText = target ? `${target.emoji} ${target.name}` : 'Finished!';
-            document.getElementById('drop-target-text').innerText = target ? `Target Next: ${target.emoji} ${target.name}` : 'Finished!';
+            document.getElementById('ctrl-target-display').innerText = target ? `${target.emoji} ${target.name}` : 'Finished!';
             document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
 
             const container = document.getElementById('ctrl-hand-container');
             container.innerHTML = hand.map((ingKey, idx) => {
                 const ing = INGREDIENTS[ingKey];
                 return `
-                    <div class="relative draggable-card-wrapper" data-index="${idx}">
-                        <div class="card-shadow btn-bounce w-full h-24 rounded-2xl border-3 p-1.5 flex flex-col items-center justify-between text-white shadow-lg cursor-grab active:cursor-grabbing select-none"
+                    <div class="relative">
+                        <div class="card-shadow btn-bounce w-full h-24 rounded-2xl border-3 p-1.5 flex flex-col items-center justify-between text-white shadow-lg cursor-pointer select-none"
                              style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
                              onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
                             <div class="w-full flex justify-between items-center px-1 opacity-80">
                                 <span class="text-[9px] font-black">#${idx+1}</span>
-                                <span class="text-[8px] uppercase font-bold">CARD</span>
+                                <span class="text-[8px] uppercase font-bold">TAP</span>
                             </div>
                             <span class="text-3xl">${ing.emoji}</span>
                             <span class="text-[10px] font-black text-center leading-none mb-1">${ing.name}</span>
@@ -963,95 +877,6 @@
                     </div>
                 `;
             }).join('');
-
-            attachPointerDragListeners();
-        }
-
-        function setupDropZoneListeners() {
-            const dropZone = document.getElementById('drop-zone');
-            if (!dropZone) return;
-
-            dropZone.addEventListener('dragover', (e) => e.preventDefault());
-        }
-
-        // Pointer/Touch Drag and Drop system
-        function attachPointerDragListeners() {
-            const cardElements = document.querySelectorAll('.draggable-card-wrapper');
-            const dropZone = document.getElementById('drop-zone');
-
-            cardElements.forEach(cardEl => {
-                let startX, startY, initialLeft, initialTop;
-                let isDragging = false;
-                let cardIndex = parseInt(cardEl.getAttribute('data-index'));
-
-                const onPointerDown = (e) => {
-                    // Ignore clicks on prep button
-                    if (e.target.closest('button')) return;
-
-                    isDragging = true;
-                    cardEl.classList.add('dragging-card');
-
-                    const rect = cardEl.getBoundingClientRect();
-                    startX = e.clientX || (e.touches && e.touches[0].clientX);
-                    startY = e.clientY || (e.touches && e.touches[0].clientY);
-
-                    cardEl.style.width = `${rect.width}px`;
-                    cardEl.style.height = `${rect.height}px`;
-                    cardEl.style.left = `${rect.left}px`;
-                    cardEl.style.top = `${rect.top}px`;
-
-                    window.addEventListener('pointermove', onPointerMove);
-                    window.addEventListener('pointerup', onPointerUp);
-                };
-
-                const onPointerMove = (e) => {
-                    if (!isDragging) return;
-
-                    const curX = e.clientX || (e.touches && e.touches[0].clientX);
-                    const curY = e.clientY || (e.touches && e.touches[0].clientY);
-
-                    const deltaX = curX - startX;
-                    const deltaY = curY - startY;
-
-                    cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.1) rotate(3deg)`;
-
-                    // Check hover over drop zone
-                    if (dropZone) {
-                        const dropRect = dropZone.getBoundingClientRect();
-                        if (curX >= dropRect.left && curX <= dropRect.right && curY >= dropRect.top && curY <= dropRect.bottom) {
-                            dropZone.classList.add('drop-target-active');
-                        } else {
-                            dropZone.classList.remove('drop-target-active');
-                        }
-                    }
-                };
-
-                const onPointerUp = (e) => {
-                    if (!isDragging) return;
-                    isDragging = false;
-
-                    window.removeEventListener('pointermove', onPointerMove);
-                    window.removeEventListener('pointerup', onPointerUp);
-
-                    const curX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
-                    const curY = e.clientY || (e.changedTouches && e.changedTouches[0].clientY);
-
-                    if (dropZone) {
-                        dropZone.classList.remove('drop-target-active');
-                        const dropRect = dropZone.getBoundingClientRect();
-                        if (curX >= dropRect.left && curX <= dropRect.right && curY >= dropRect.top && curY <= dropRect.bottom) {
-                            sendControllerAction({ type: 'PLAY_CARD', player: myPlayerNum, cardIndex: cardIndex });
-                        }
-                    }
-
-                    cardEl.classList.remove('dragging-card');
-                    cardEl.style.transform = '';
-                    cardEl.style.left = '';
-                    cardEl.style.top = '';
-                };
-
-                cardEl.addEventListener('pointerdown', onPointerDown);
-            });
         }
 
         function showFloatingText(text, color) {
