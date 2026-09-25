@@ -33,16 +33,14 @@
                         'burger-yellow': '#FFD166',
                         'burger-green': '#06D6A0',
                         'burger-brown': '#7F4F24',
-                        'burger-sauce': '#EE4266',
-                        'kawaii-pink': '#FF85A1',
-                        'kawaii-blue': '#4EA8DE',
+                        'table-purple': '#2D1B4E',
+                        'felt-purple': '#3C2263',
                     },
                     animation: {
                         'bounce-gentle': 'bounceGentle 2s infinite',
                         'pulse-glow': 'pulseGlow 1.5s infinite alternate',
                         'float-up': 'floatUp 0.8s ease-out forwards',
                         'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                        'wiggle': 'wiggle 0.5s ease-in-out infinite',
                     },
                     keyframes: {
                         bounceGentle: {
@@ -60,10 +58,6 @@
                         popIn: {
                             '0%': { opacity: '0', transform: 'scale(0.5)' },
                             '100%': { opacity: '1', transform: 'scale(1)' },
-                        },
-                        wiggle: {
-                            '0%, 100%': { transform: 'rotate(-3deg)' },
-                            '50%': { transform: 'rotate(3deg)' },
                         }
                     }
                 }
@@ -73,51 +67,54 @@
     <style>
         body {
             font-family: 'Fredoka', sans-serif;
-            background-color: #FFF9E6;
+            background-color: #2D1B4E;
             user-select: none;
             -webkit-user-select: none;
             touch-action: manipulation;
+            overflow: hidden;
         }
-        .wood-pattern {
-            background-color: #f3d2a2;
-            background-image: radial-gradient(#e0b77d 15%, transparent 16%), radial-gradient(#e0b77d 15%, transparent 16%);
-            background-size: 30px 30px;
-            background-position: 0 0, 15px 15px;
+        .felt-pattern {
+            background-color: #3C2263;
+            background-image: radial-gradient(#4D2E7C 15%, transparent 16%), radial-gradient(#4D2E7C 15%, transparent 16%);
+            background-size: 24px 24px;
+            background-position: 0 0, 12px 12px;
+        }
+        .wood-tray {
+            background: linear-gradient(180deg, #A0522D 0%, #6A3818 100%);
+            border-top: 6px solid #C8753B;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
         }
         .card-shadow {
-            box-shadow: 0 6px 0px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 0px rgba(0,0,0,0.25), 0 10px 15px rgba(0,0,0,0.3);
         }
         .card-shadow:active {
-            box-shadow: 0 2px 0px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 0px rgba(0,0,0,0.2);
             transform: translateY(4px);
         }
         .btn-bounce {
-            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .btn-bounce:hover {
-            transform: translateY(-2px) scale(1.02);
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .btn-bounce:active {
-            transform: translateY(2px) scale(0.98);
+            transform: scale(0.94);
         }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        .dragging-card {
+            position: fixed !important;
+            z-index: 1000 !important;
+            pointer-events: none !important;
+            transform: scale(1.1) rotate(2deg) !important;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5) !important;
+            transition: none !important;
         }
-        ::-webkit-scrollbar-track {
-            background: #FFE8AD;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #FFB703;
-            border-radius: 10px;
+        .drop-target-active {
+            border-color: #FFD166 !important;
+            background-color: rgba(255, 209, 102, 0.25) !important;
+            transform: scale(1.02);
         }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800">
 
-    <!-- Sound Toggle Floating Button -->
-    <button id="sound-btn" onclick="toggleAudio()" class="fixed top-3 right-3 z-50 bg-white border-4 border-amber-300 shadow-lg rounded-full p-2.5 hover:scale-110 transition cursor-pointer">
+    <button id="sound-btn" onclick="toggleAudio()" class="fixed top-3 right-3 z-50 bg-white/90 backdrop-blur-md border-4 border-amber-300 shadow-lg rounded-full p-2 hover:scale-110 transition cursor-pointer">
         <span id="sound-icon" class="text-xl">🔊</span>
     </button>
 
@@ -126,13 +123,11 @@
         <!-- Top Info Header Bar -->
         <header class="bg-white/95 backdrop-blur-md rounded-2xl border-4 border-amber-200 p-2 md:p-3 shadow-md flex justify-between items-center z-10">
             <div class="flex items-center gap-2 md:gap-4">
-                <!-- Brand / Logo -->
                 <div class="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white px-3 py-1 rounded-xl shadow-inner">
                     <span class="text-xl md:text-2xl animate-bounce">🍔</span>
                     <span class="font-bold text-sm md:text-xl tracking-wide hidden sm:inline">BURGER BUDDIES</span>
                 </div>
                 
-                <!-- Shift Day Progress -->
                 <div class="flex items-center gap-2 bg-amber-50 border-2 border-amber-300 px-3 py-1 rounded-xl">
                     <div class="flex flex-col">
                         <span id="day-tag" class="text-[10px] text-amber-800 font-extrabold uppercase leading-none">DAY 1</span>
@@ -140,7 +135,6 @@
                     </div>
                 </div>
 
-                <!-- Earnings Counter -->
                 <div class="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-300 px-3 py-1 rounded-xl">
                     <span class="text-lg">🪙</span>
                     <div class="flex flex-col">
@@ -148,33 +142,21 @@
                         <span id="vault-money" class="text-sm md:text-xl font-black text-emerald-900 leading-tight">$30</span>
                     </div>
                 </div>
-
-                <!-- Omaha Multiplier Badge -->
-                <div id="omaha-badge" class="hidden animate-pulse bg-gradient-to-r from-red-500 to-amber-500 text-white font-black text-[10px] md:text-xs px-2.5 py-1 rounded-xl shadow border border-yellow-300">
-                    🔥 2X OMAHA ACTIVE!
-                </div>
             </div>
 
-            <!-- Header Controls & Controller Sync -->
             <div class="flex items-center gap-2">
                 <button onclick="toggleQRModal()" class="btn-bounce bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white font-bold px-4 py-2 rounded-xl border-b-4 border-blue-700 shadow flex items-center gap-2 text-xs md:text-sm">
                     <span class="text-lg">📱</span>
-                    <span>Connect Controllers / Simulator</span>
+                    <span>Connect Controllers</span>
                 </button>
             </div>
         </header>
 
         <main class="flex-1 my-2 flex flex-col lg:flex-row gap-4 items-center justify-center relative overflow-hidden">
             
-            <!-- Left Side: Customer Order & Avatar -->
+            <!-- Left Side: Customer Order Display -->
             <div class="w-full lg:w-1/2 flex flex-col items-center justify-center relative px-2">
-                
-                <!-- Customer Speech Bubble Order Display (ENLARGED) -->
-                <div class="relative bg-white border-4 border-slate-800 rounded-3xl p-4 md:p-6 shadow-2xl w-full max-w-xl md:max-w-2xl animate-pop-in">
-                    <!-- Speech bubble point -->
-                    <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[16px] border-t-slate-800"></div>
-                    <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[12px] border-t-white"></div>
-                    
+                <div class="relative bg-white border-4 border-slate-800 rounded-3xl p-5 md:p-6 shadow-2xl w-full max-w-xl md:max-w-2xl animate-pop-in">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-sm md:text-base font-extrabold uppercase tracking-wider text-slate-500">
                             Order #<span id="customer-num">1</span>: <span id="customer-name" class="text-slate-900 font-black">Kawaii Bear</span>
@@ -185,18 +167,15 @@
                         </div>
                     </div>
 
-                    <!-- Customer Patience Bar -->
                     <div class="w-full bg-slate-200 rounded-full h-3.5 mb-4 overflow-hidden border-2 border-slate-300">
                         <div id="patience-bar" class="bg-gradient-to-r from-emerald-400 to-green-500 h-full w-full transition-all duration-300"></div>
                     </div>
 
-                    <!-- Required Ingredient Sequence (MUCH BIGGER) -->
-                    <div class="flex flex-wrap items-center justify-center gap-2.5 py-2" id="recipe-sequence">
-                        <!-- Dynamic SVG Ingredient Badges -->
+                    <div class="flex flex-wrap items-center justify-center gap-3 py-2" id="recipe-sequence">
+                        <!-- Recipe Badges -->
                     </div>
                 </div>
 
-                <!-- Customer Animated Avatar -->
                 <div class="mt-4 flex flex-col items-center">
                     <div id="customer-avatar" class="text-7xl md:text-8xl filter drop-shadow-lg animate-bounce-gentle transition-all duration-300">
                         🐱
@@ -207,36 +186,24 @@
                 </div>
             </div>
 
-            <!-- Right Side: Shared Counter & Stack -->
-            <div class="w-full lg:w-1/2 flex flex-col items-center justify-between h-full min-h-[320px] md:min-h-[400px] wood-pattern rounded-3xl border-4 border-amber-800/30 p-4 shadow-inner relative">
+            <div class="w-full lg:w-1/2 flex flex-col items-center justify-between h-full min-h-[320px] md:min-h-[400px] felt-pattern rounded-3xl border-4 border-purple-900/40 p-4 shadow-inner relative">
                 
-                <!-- Shared Kitchen Counter / Prep Station Buffer -->
-                <div class="w-full bg-amber-950/10 border-2 border-amber-800/40 rounded-2xl p-2.5 flex flex-wrap justify-between items-center gap-2 backdrop-blur-xs">
+                <div class="w-full bg-purple-950/40 border-2 border-purple-700/50 rounded-2xl p-2.5 flex flex-wrap justify-between items-center gap-2 backdrop-blur-xs text-white">
                     <div class="flex items-center gap-2">
                         <span class="text-2xl">🔪</span>
                         <div>
-                            <h4 class="text-xs md:text-sm font-black text-amber-950 uppercase leading-none">Shared Kitchen Counter</h4>
-                            <p class="text-[11px] text-amber-900/90 font-extrabold leading-tight">Place spare ingredients here for either player to use!</p>
+                            <h4 class="text-xs md:text-sm font-black uppercase leading-none text-amber-300">Shared Kitchen Prep Slot</h4>
+                            <p class="text-[11px] text-purple-200 font-extrabold leading-tight">Drop extra cards here for either player to use!</p>
                         </div>
                     </div>
                     
-                    <div class="flex gap-2" id="prep-table-slots">
-                        <!-- 2 Prep Buffer Slots -->
-                    </div>
+                    <div class="flex gap-2" id="prep-table-slots"></div>
                 </div>
 
-                <!-- Floating Feedback Popups Container -->
                 <div id="floating-text-container" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
 
-                <!-- Cutting Board / Counter Stack -->
                 <div class="relative w-full max-w-sm flex flex-col items-center justify-end h-full mt-2">
-                    
-                    <!-- Assembled Burger Stack -->
-                    <div id="burger-stack" class="flex flex-col-reverse items-center justify-start w-full z-10 transition-all">
-                        <!-- Ingredient layers stacked dynamically -->
-                    </div>
-
-                    <!-- Serving Plate Base -->
+                    <div id="burger-stack" class="flex flex-col-reverse items-center justify-start w-full z-10 transition-all"></div>
                     <div class="w-64 md:w-72 h-8 bg-gradient-to-r from-slate-200 via-white to-slate-200 rounded-full border-b-4 border-slate-300 shadow-xl flex items-center justify-center mt-[-8px]">
                         <div class="w-56 md:w-64 h-3.5 bg-sky-100/70 rounded-full border border-sky-200"></div>
                     </div>
@@ -245,71 +212,75 @@
         </main>
     </div>
 
-    <!-- LANDSCAPE MOBILE CONTROLLER SCREEN -->
-    <div id="controller-screen" class="hidden h-full w-full bg-slate-900 text-white p-2.5 flex-col justify-between overflow-hidden">
-        <!-- Landscape Controller Header / Info Bar -->
-        <header class="bg-slate-800 border-2 border-slate-700 rounded-2xl px-3 py-1.5 flex justify-between items-center shadow-lg shrink-0">
-            <div class="flex items-center gap-2.5">
+    <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-2 flex flex-col justify-between overflow-hidden select-none">
+        
+        <!-- Header Bar -->
+        <header class="bg-purple-950/80 border-2 border-purple-700/60 rounded-2xl px-3 py-1.5 flex justify-between items-center shadow-lg shrink-0">
+            <div class="flex items-center gap-2">
                 <span id="ctrl-player-tag" class="bg-blue-500 font-black px-2.5 py-0.5 rounded-xl text-xs uppercase">Player 1</span>
-                <span id="ctrl-room-tag" class="text-[10px] text-slate-400 font-mono">Room: ---</span>
+                <span id="ctrl-room-tag" class="text-[10px] text-purple-300 font-mono">Room: ---</span>
             </div>
-            <div class="flex items-center gap-3">
-                <div class="text-right">
-                    <span class="text-[9px] text-slate-400 uppercase font-extrabold block leading-none">Current Target</span>
-                    <span id="ctrl-target-ingredient" class="text-xs sm:text-sm font-black text-amber-400 leading-tight">🍔 Bun</span>
-                </div>
+            <div class="bg-emerald-950/80 border border-emerald-500/50 px-3 py-0.5 rounded-xl flex items-center gap-1.5">
+                <span class="text-xs">🪙 Vault:</span>
+                <span id="ctrl-vault-amount" class="text-sm font-black text-emerald-400">$30</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-purple-300 uppercase font-black">Target:</span>
+                <span id="ctrl-target-ingredient" class="text-xs sm:text-sm font-black text-amber-300 bg-purple-900/90 border border-amber-400/40 px-2 py-0.5 rounded-lg">🍞 Bun</span>
             </div>
         </header>
 
-        <!-- Main Horizontal Layout Area for Landscape View -->
-        <div class="my-2 flex-1 grid grid-cols-12 gap-2 min-h-0 overflow-y-auto items-stretch">
-            <!-- Left Side Controls: Vault, Draw, Discard -->
-            <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-2 flex flex-col justify-between gap-1.5 min-w-0">
-                <div class="bg-slate-900/90 p-1.5 rounded-xl border border-slate-700 text-center shrink-0">
-                    <span class="text-[9px] text-emerald-400 uppercase font-black block leading-none">Vault</span>
-                    <span id="ctrl-vault-amount" class="text-sm font-black text-white">$30</span>
-                </div>
+        <!-- Center Playing Table (Deck, Drop Zone, Discard Pile) -->
+        <div class="my-1.5 flex-1 flex items-center justify-between gap-3 px-4 relative min-h-0">
+            
+            <!-- Left: Deck Stack (Draw Card) -->
+            <button id="ctrl-draw-btn" class="btn-bounce relative flex flex-col items-center justify-center bg-gradient-to-b from-indigo-600 to-purple-800 border-3 border-indigo-300 rounded-2xl w-24 h-32 card-shadow group cursor-pointer shrink-0">
+                <span class="absolute -top-2.5 bg-amber-400 text-purple-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-600 shadow">Deck</span>
+                <div class="text-3xl mb-1 group-hover:scale-110 transition">📥</div>
+                <span class="text-[11px] font-black text-amber-200">Ambil Kartu</span>
+                <span class="text-[9px] text-indigo-200 font-bold">-$5 Cash</span>
+                <span class="text-lg absolute bottom-1 right-2 opacity-50">👆</span>
+            </button>
 
-                <div class="flex flex-col gap-2 flex-1 justify-center min-h-0">
-                    <button id="ctrl-draw-btn" class="btn-bounce bg-amber-400 hover:bg-amber-500 active:scale-95 border-b-4 border-amber-600 text-slate-950 font-black p-2 rounded-xl flex items-center justify-center gap-1.5 shadow min-h-[42px] shrink-0">
-                        <span class="text-base leading-none">📥</span>
-                        <span class="text-[11px] font-black uppercase whitespace-nowrap">Draw (-$5)</span>
-                    </button>
-                    <button id="ctrl-discard-btn" class="btn-bounce bg-rose-600 hover:bg-rose-700 active:scale-95 border-b-4 border-rose-800 text-white font-black p-2 rounded-xl flex items-center justify-center gap-1.5 shadow min-h-[42px] shrink-0">
-                        <span class="text-base leading-none">🗑️</span>
-                        <span class="text-[11px] font-black uppercase whitespace-nowrap">Discard All</span>
-                    </button>
-                </div>
+            <!-- Center: Drag Target Drop Zone -->
+            <div id="drop-zone" class="flex-1 max-w-lg h-32 border-4 border-dashed border-purple-400/60 rounded-3xl bg-purple-950/40 flex flex-col items-center justify-center p-2 text-center transition-all duration-200 relative">
+                <span id="drop-zone-badge" class="bg-purple-800/80 text-purple-200 text-xs font-black px-4 py-1 rounded-full border border-purple-500/50 mb-1">
+                    Seret / Drag Kartu Ke Sini
+                </span>
+                <span id="drop-target-text" class="text-sm sm:text-base font-black text-amber-300">
+                    Target Next: 🍞 Bun
+                </span>
             </div>
 
-            <!-- Center Hand Cards Grid -->
-            <div class="col-span-6 bg-slate-800/50 border border-slate-700/60 rounded-2xl p-2 flex flex-col justify-center min-w-0">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1 text-center block leading-none shrink-0">Your Hand</span>
-                <div id="ctrl-hand-grid" class="grid grid-cols-3 gap-1.5 flex-1 items-center"></div>
-            </div>
-
-            <!-- Right Side Specialty Slot -->
-            <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-2xl p-2 flex flex-col justify-center items-center min-w-0">
-                <span class="text-[9px] font-bold uppercase tracking-wider text-amber-400 mb-1 text-center block leading-none shrink-0">Specialty</span>
-                <div id="ctrl-specialty-container" class="w-full flex-1 flex items-center justify-center"></div>
-            </div>
+            <!-- Right: Pile Stack (Discard All) -->
+            <button id="ctrl-discard-btn" class="btn-bounce relative flex flex-col items-center justify-center bg-gradient-to-b from-rose-600 to-red-800 border-3 border-rose-300 rounded-2xl w-24 h-32 card-shadow group cursor-pointer shrink-0">
+                <span class="absolute -top-2.5 bg-rose-300 text-rose-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-500 shadow">Pile</span>
+                <div class="text-3xl mb-1 group-hover:scale-110 transition">🗑️</div>
+                <span class="text-[11px] font-black text-white">Buang Semua</span>
+                <span class="text-[9px] text-rose-200 font-bold">Discard Hand</span>
+            </button>
         </div>
 
-        <div class="text-[9px] text-slate-400 font-extrabold text-center shrink-0">
-            🔄 Mobile Controller (Landscape Mode)
+        <div class="wood-tray rounded-t-3xl p-2 pt-3 shadow-2xl relative shrink-0">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-black text-[10px] px-3 py-0.5 rounded-full border border-amber-600 shadow">
+                KARTU KAMU (MAX 6)
+            </div>
+
+            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 max-w-4xl mx-auto items-center min-h-[110px]">
+                <!-- 6 Hand Cards rendered dynamically -->
+            </div>
         </div>
     </div>
 
-    <!-- QR Modal -->
     <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl border-4 border-amber-300 p-5 max-w-lg w-full text-center shadow-2xl relative animate-pop-in">
             <button onclick="toggleQRModal()" class="absolute top-3 right-3 bg-slate-200 hover:bg-slate-300 rounded-full w-8 h-8 font-extrabold text-slate-700">✕</button>
             
             <h2 class="text-xl font-black text-slate-800 mb-1">📱 Connect Phone Controllers</h2>
-            <p class="text-xs text-slate-500 mb-3">Scan QR code on mobile devices or use the Built-in Simulator!</p>
+            <p class="text-xs text-slate-500 mb-3">Scan QR code with your mobile phones!</p>
 
             <div id="websocket-warning" class="hidden mb-3 p-2 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-[11px] text-left font-semibold">
-                ⚠️ <span>External WebSockets are blocked inside preview sandboxes. Open preview in a new window to scan with real phones, or test with the <b>Simulator</b> below!</span>
+                ⚠️ External WebSockets are blocked inside preview sandboxes. Open preview in a new window to scan with real phones, or test with the <b>Simulator</b> below!
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -318,7 +289,7 @@
                     <div id="qrcode-p1" class="p-1.5 bg-white rounded-xl shadow border border-blue-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
                     <span id="p1-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
                     <button onclick="launchSimulatedPhone(1)" class="mt-2 w-full btn-bounce bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
-                        📲 Test P1 Phone Simulator
+                        📲 Test P1 Controller Simulator
                     </button>
                 </div>
 
@@ -327,7 +298,7 @@
                     <div id="qrcode-p2" class="p-1.5 bg-white rounded-xl shadow border border-pink-100 flex items-center justify-center min-h-[110px] min-w-[110px]"></div>
                     <span id="p2-peer-status" class="text-[10px] font-bold text-slate-500 mt-1">Waiting for scan...</span>
                     <button onclick="launchSimulatedPhone(2)" class="mt-2 w-full btn-bounce bg-pink-600 hover:bg-pink-700 text-white font-black text-xs py-1.5 rounded-xl shadow">
-                        📲 Test P2 Phone Simulator
+                        📲 Test P2 Controller Simulator
                     </button>
                 </div>
             </div>
@@ -338,28 +309,25 @@
         </div>
     </div>
 
-    <!-- SIMULATED MOBILE PHONE OVERLAY (LANDSCAPE ORIENTED) -->
     <div id="simulated-phone-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-2 hidden">
-        <div class="relative w-full max-w-2xl h-[360px] bg-slate-900 border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
-            <div class="bg-slate-800 px-3 py-1.5 flex justify-between items-center border-b border-slate-700 shrink-0">
+        <div class="relative w-full max-w-2xl h-[380px] felt-pattern border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-slate-900 px-3 py-1.5 flex justify-between items-center border-b border-slate-700 shrink-0">
                 <div class="flex items-center gap-2">
                     <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                     <span id="sim-phone-title" class="text-xs font-black text-amber-400">P1 Mobile Controller (Landscape)</span>
                 </div>
-                <span class="text-[10px] text-slate-400 font-bold">📱 Landscape Simulator</span>
                 <button onclick="closeSimulatedPhone()" class="bg-slate-700 hover:bg-slate-600 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
             </div>
 
-            <div id="sim-phone-viewport" class="flex-1 overflow-y-auto p-2 flex flex-col justify-between min-h-0"></div>
+            <div id="sim-phone-viewport" class="flex-1 overflow-hidden p-2 flex flex-col justify-between min-h-0"></div>
         </div>
     </div>
 
-    <!-- DAY SHIFT COMPLETE MODAL -->
     <div id="day-complete-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-gradient-to-b from-amber-400 to-orange-500 text-white rounded-3xl border-4 border-yellow-200 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
             <span class="text-6xl block mb-2 animate-bounce">🎉</span>
             <h2 class="text-3xl font-black mb-1">SHIFT COMPLETED!</h2>
-            <p id="day-complete-subtitle" class="text-sm font-bold text-amber-100 mb-4">You reached the daily earnings goal!</p>
+            <p class="text-sm font-bold text-amber-100 mb-4">You reached the daily earnings goal!</p>
             
             <div class="bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl p-4 mb-5 text-left text-sm space-y-2">
                 <div class="flex justify-between font-extrabold">
@@ -382,40 +350,19 @@
         </div>
     </div>
 
-    <!-- CUSTOM MYSTERY BOX REWARD MODAL -->
-    <div id="mystery-modal" class="fixed inset-0 bg-purple-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-gradient-to-b from-purple-800 to-indigo-900 text-white rounded-3xl border-4 border-purple-400 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
-            <span class="text-5xl block mb-2 animate-bounce">🎁</span>
-            <h2 class="text-2xl font-black mb-1">MYSTERY BOX REWARD</h2>
-            <p id="mystery-subtitle" class="text-xs text-purple-200 mb-4">Choose 1 bonus reward to activate:</p>
-            <div id="mystery-options" class="grid grid-cols-1 gap-2.5"></div>
-        </div>
-    </div>
-
-    <!-- CUSTOM NOTIFICATION TOAST -->
     <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl border-2 border-amber-400 shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-4 text-xs md:text-sm">
         Message Text
     </div>
 
     <script>
+        // REDUCED INGREDIENTS LIST (6 ONLY)
         const INGREDIENTS = {
-            bun_bottom: { name: 'Bottom Bun', emoji: '🍞', color: '#D4A373', borderColor: '#BC6C25', textColor: '#FFF' },
-            patty: { name: 'Burger Patty', emoji: '🥩', color: '#6F1D1B', borderColor: '#432818', textColor: '#FFF' },
-            lettuce: { name: 'Crispy Lettuce', emoji: '🥬', color: '#52B788', borderColor: '#2D6A4F', textColor: '#FFF' },
-            tomato: { name: 'Fresh Tomato', emoji: '🍅', color: '#E63946', borderColor: '#9B2226', textColor: '#FFF' },
-            cheese: { name: 'Melted Cheese', emoji: '🧀', color: '#FFB703', borderColor: '#FB8500', textColor: '#000' },
-            sauce: { name: 'Tomato Sauce', emoji: '🥫', color: '#D62828', borderColor: '#800F2F', textColor: '#FFF' },
-            bacon: { name: 'Crispy Bacon', emoji: '🥓', color: '#B5179E', borderColor: '#7209B7', textColor: '#FFF' },
-            pickle: { name: 'Sour Pickle', emoji: '🥒', color: '#70E000', borderColor: '#38B000', textColor: '#000' },
-            bun_top: { name: 'Top Bun', emoji: '🍔', color: '#E9C46A', borderColor: '#F4A261', textColor: '#000' }
-        };
-
-        const SPECIALTIES = {
-            brainwash: { name: 'Brainwash', emoji: '🌀', desc: 'Reroll order using active cards', color: 'from-purple-500 to-indigo-600', borderColor: 'border-purple-300' },
-            golden: { name: 'Golden Card', emoji: '🌟', desc: 'Wildcard for current step', color: 'from-amber-400 to-yellow-500', borderColor: 'border-amber-200' },
-            omaha: { name: 'Omaha Sauce', emoji: '🔥', desc: 'Double (2x) burger payout', color: 'from-red-500 to-rose-600', borderColor: 'border-red-300' },
-            restock: { name: 'Restock', emoji: '🔄', desc: 'Refill both players hands', color: 'from-cyan-500 to-blue-600', borderColor: 'border-cyan-200' },
-            mystery: { name: 'Mystery Box', emoji: '🎁', desc: 'Choose 1 bonus reward', color: 'from-pink-500 to-rose-500', borderColor: 'border-pink-300' }
+            bun: { name: 'Bun', emoji: '🍞', color: '#E9C46A', borderColor: '#F4A261', textColor: '#4A2800' },
+            patty: { name: 'Beef Patty', emoji: '🥩', color: '#6F1D1B', borderColor: '#432818', textColor: '#FFFFFF' },
+            chicken: { name: 'Crispy Chicken', emoji: '🍗', color: '#E07A5F', borderColor: '#9A3A19', textColor: '#FFFFFF' },
+            bacon: { name: 'Crispy Bacon', emoji: '🥓', color: '#B5179E', borderColor: '#7209B7', textColor: '#FFFFFF' },
+            tomato: { name: 'Fresh Tomato', emoji: '🍅', color: '#E63946', borderColor: '#9B2226', textColor: '#FFFFFF' },
+            lettuce: { name: 'Crispy Lettuce', emoji: '🥬', color: '#52B788', borderColor: '#2D6A4F', textColor: '#FFFFFF' }
         };
 
         const CUSTOMERS = [
@@ -437,14 +384,10 @@
             currentStep: 0,
             patience: 100,
             patienceTimer: null,
-            omahaMultiplier: 1,
             p1Hand: [],
             p2Hand: [],
-            p1Specialty: null,
-            p2Specialty: null,
-            prepTable: [null, null], // Shared 2-slot kitchen buffer
+            prepTable: [null, null],
             burgerStack: [],
-            onScreenHandsVisible: true,
             isAudioMuted: false
         };
 
@@ -472,7 +415,6 @@
                 if (type === 'playCard') synth.triggerAttackRelease("C5", "8n");
                 else if (type === 'completeBurger') polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
                 else if (type === 'drawCard') synth.triggerAttackRelease("G4", "16n");
-                else if (type === 'specialty') polySynth.triggerAttackRelease(["E5", "A5", "C6"], "8n");
                 else if (type === 'error') synth.triggerAttackRelease("A2", "8n");
             } catch(e) {}
         }
@@ -521,34 +463,21 @@
 
             try {
                 peer = new Peer(roomCode);
-                
-                peer.on('open', (id) => {
-                    generateQRCodes(id);
-                });
-
+                peer.on('open', (id) => generateQRCodes(id));
                 peer.on('error', (err) => {
                     document.getElementById('websocket-warning').classList.remove('hidden');
-                    document.getElementById('p1-peer-status').innerText = '⚠️ Network restricted. Use Simulator!';
-                    document.getElementById('p2-peer-status').innerText = '⚠️ Network restricted. Use Simulator!';
+                    document.getElementById('p1-peer-status').innerText = '⚠️ Sandbox Block. Use Simulator!';
+                    document.getElementById('p2-peer-status').innerText = '⚠️ Sandbox Block. Use Simulator!';
                 });
 
                 peer.on('connection', (conn) => {
-                    conn.on('data', (data) => {
-                        handleControllerInput(data);
-                    });
+                    conn.on('data', (data) => handleControllerInput(data));
                     conn.on('open', () => {
                         if (conn.metadata && conn.metadata.player) {
-                            if (conn.metadata.player === 1) {
-                                p1Conn = conn;
-                                document.getElementById('p1-peer-status').innerText = '🟢 Phone Connected!';
-                                document.getElementById('p1-status').innerText = '📱 Mobile';
-                            } else {
-                                p2Conn = conn;
-                                document.getElementById('p2-peer-status').innerText = '🟢 Phone Connected!';
-                                document.getElementById('p2-status').innerText = '📱 Mobile';
-                            }
+                            if (conn.metadata.player === 1) p1Conn = conn;
+                            else p2Conn = conn;
                             syncControllers();
-                            showToast(`Player ${conn.metadata.player} Mobile Controller Connected!`);
+                            showToast(`Player ${conn.metadata.player} Phone Connected!`);
                         }
                     });
                 });
@@ -556,8 +485,9 @@
                 document.getElementById('websocket-warning').classList.remove('hidden');
             }
 
-            dealInitialHand(1);
-            dealInitialHand(2);
+            // Fill full 6 cards on init
+            dealFullHand(1);
+            dealFullHand(2);
             spawnNextCustomer();
             renderHostUI();
         }
@@ -568,7 +498,6 @@
             
             document.getElementById('host-screen').classList.add('hidden');
             document.getElementById('controller-screen').classList.remove('hidden');
-            document.getElementById('controller-screen').style.display = 'flex';
             
             const tag = document.getElementById('ctrl-player-tag');
             tag.innerText = `Player ${playerNum}`;
@@ -582,28 +511,16 @@
                 peer = new Peer();
                 peer.on('open', () => {
                     hostConn = peer.connect(room, { metadata: { player: playerNum } });
-                    
-                    hostConn.on('open', () => {
-                        showToast(`Connected to Host Game!`);
-                    });
-
+                    hostConn.on('open', () => showToast(`Connected to Host Game!`));
                     hostConn.on('data', (data) => {
-                        if (data.type === 'STATE_SYNC') {
-                            renderMobileControllerUI(data.state);
-                        }
+                        if (data.type === 'STATE_SYNC') renderMobileControllerUI(data.state);
                     });
-
-                    hostConn.on('close', () => {
-                        showToast('Disconnected from host.');
-                    });
-                });
-
-                peer.on('error', (err) => {
-                    showToast('Connection error. Host unreachable.');
                 });
             } catch(e) {
                 showToast('PeerJS error');
             }
+
+            setupDropZoneListeners();
         }
 
         function sendControllerAction(actionData) {
@@ -615,47 +532,45 @@
         }
 
         function getRandomIngredientKey() {
-            const keys = Object.keys(INGREDIENTS).filter(k => k !== 'bun_top' && k !== 'bun_bottom');
+            const keys = Object.keys(INGREDIENTS);
             return keys[Math.floor(Math.random() * keys.length)];
         }
 
-        function getRandomSpecialtyKey() {
-            const keys = Object.keys(SPECIALTIES);
-            return keys[Math.floor(Math.random() * keys.length)];
+        function dealFullHand(playerNum) {
+            const hand = [];
+            for (let i = 0; i < 6; i++) {
+                hand.push(getRandomIngredientKey());
+            }
+            if (playerNum === 1) gameState.p1Hand = hand;
+            else gameState.p2Hand = hand;
         }
 
-        // Smart Recipe Generator: Guarantees 60-80% of ingredients exist across P1 hand, P2 hand, or Prep board so customers aren't impossible!
         function spawnNextCustomer() {
             const customerObj = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
             gameState.currentCustomer = customerObj;
             
-            // Collect available ingredient cards currently held across players and prep buffer
             const availableInHands = [...gameState.p1Hand, ...gameState.p2Hand, ...gameState.prepTable.filter(x => x !== null)];
-            const fillerOptions = Object.keys(INGREDIENTS).filter(k => k !== 'bun_top' && k !== 'bun_bottom');
+            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
 
-            // Recipe length scales slightly with Day progression
             let numFillers = 2 + Math.floor(Math.random() * 2);
             if (gameState.currentDay >= 3) numFillers += 1;
 
-            const newRecipe = ['bun_bottom'];
+            const newRecipe = ['bun'];
 
             for (let i = 0; i < numFillers; i++) {
-                // 70% chance to pick an ingredient that at least one player holds
-                const usableCards = availableInHands.filter(k => k !== 'bun_bottom' && k !== 'bun_top');
+                const usableCards = availableInHands.filter(k => k !== 'bun');
                 if (usableCards.length > 0 && Math.random() < 0.75) {
-                    const picked = usableCards[Math.floor(Math.random() * usableCards.length)];
-                    newRecipe.push(picked);
+                    newRecipe.push(usableCards[Math.floor(Math.random() * usableCards.length)]);
                 } else {
                     newRecipe.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
                 }
             }
 
-            newRecipe.push('bun_top');
+            newRecipe.push('bun');
 
             gameState.recipe = newRecipe;
             gameState.currentStep = 0;
             gameState.burgerStack = [];
-            gameState.omahaMultiplier = 1;
             gameState.patience = 100;
 
             if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
@@ -683,17 +598,6 @@
             }, 1400);
         }
 
-        function dealInitialHand(playerNum) {
-            const hand = ['bun_bottom', 'bun_top', getRandomIngredientKey(), getRandomIngredientKey()];
-            if (playerNum === 1) {
-                gameState.p1Hand = hand;
-                gameState.p1Specialty = getRandomSpecialtyKey();
-            } else {
-                gameState.p2Hand = hand;
-                gameState.p2Specialty = getRandomSpecialtyKey();
-            }
-        }
-
         function playCard(playerNum, cardIndex) {
             const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
             if (cardIndex < 0 || cardIndex >= hand.length) return;
@@ -705,7 +609,7 @@
                 hand.splice(cardIndex, 1);
                 gameState.burgerStack.push(playedIngredient);
                 gameState.currentStep++;
-                gameState.patience = Math.min(100, gameState.patience + 10); // Reward patience bonus for correct step
+                gameState.patience = Math.min(100, gameState.patience + 10);
                 
                 playSound('playCard');
                 showFloatingText(`+ Correct!`, '#06D6A0');
@@ -728,14 +632,14 @@
 
             const emptySlotIndex = gameState.prepTable.findIndex(slot => slot === null);
             if (emptySlotIndex === -1) {
-                showToast("Kitchen Prep Table is full! Use or trash a slot.");
+                showToast("Kitchen Prep Table is full!");
                 return;
             }
 
             const card = hand.splice(cardIndex, 1)[0];
             gameState.prepTable[emptySlotIndex] = card;
             playSound('drawCard');
-            showToast(`Player ${playerNum} placed ${INGREDIENTS[card].name} on Shared Prep Table!`);
+            showToast(`Player ${playerNum} placed ${INGREDIENTS[card].name} on Prep Table!`);
 
             renderHostUI();
             syncControllers();
@@ -778,17 +682,6 @@
             }
         }
 
-        function discardSingleCard(playerNum, cardIndex) {
-            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            if (cardIndex < 0 || cardIndex >= hand.length) return;
-
-            const card = hand.splice(cardIndex, 1)[0];
-            showToast(`Discarded 1 ${INGREDIENTS[card].name}`);
-            renderHostUI();
-            syncControllers();
-        }
-
-        // Smart Anti-RNG Draw System
         function drawCard(playerNum) {
             if (gameState.vaultMoney < 5) {
                 showToast("Not enough money in Vault ($5 needed)!");
@@ -804,14 +697,12 @@
 
             gameState.vaultMoney -= 5;
 
-            // Check if either player currently holds the active step requirement
             const targetReq = gameState.recipe[gameState.currentStep];
             const p1HasTarget = gameState.p1Hand.includes(targetReq);
             const p2HasTarget = gameState.p2Hand.includes(targetReq);
             const prepHasTarget = gameState.prepTable.includes(targetReq);
 
             let drawnCard;
-            // Pity System: If NO ONE has the needed card, give 80% chance to draw the required target ingredient!
             if (!p1HasTarget && !p2HasTarget && !prepHasTarget && targetReq && Math.random() < 0.80) {
                 drawnCard = targetReq;
             } else {
@@ -825,104 +716,9 @@
         }
 
         function discardHand(playerNum) {
-            const newHand = [getRandomIngredientKey(), getRandomIngredientKey(), getRandomIngredientKey(), getRandomIngredientKey()];
-            if (playerNum === 1) gameState.p1Hand = newHand;
-            else gameState.p2Hand = newHand;
-
+            dealFullHand(playerNum);
             playSound('drawCard');
-            showToast(`Player ${playerNum} discarded hand & drew new cards!`);
-            renderHostUI();
-            syncControllers();
-        }
-
-        function playSpecialtyCard(playerNum) {
-            const specialty = playerNum === 1 ? gameState.p1Specialty : gameState.p2Specialty;
-            if (!specialty) return;
-
-            playSound('specialty');
-
-            if (specialty === 'brainwash') {
-                showToast(`🌀 Brainwash! Rerolling customer order to match active cards!`);
-                spawnNextCustomer();
-            } else if (specialty === 'golden') {
-                showToast(`🌟 Golden Card! Auto-filling current ingredient!`);
-                const currentReq = gameState.recipe[gameState.currentStep];
-                gameState.burgerStack.push(currentReq);
-                gameState.currentStep++;
-                if (gameState.currentStep >= gameState.recipe.length) {
-                    completeBurgerOrder();
-                }
-            } else if (specialty === 'omaha') {
-                showToast(`🔥 Omaha Sauce Activated! 2X Payout!`);
-                gameState.omahaMultiplier = 2;
-            } else if (specialty === 'restock') {
-                showToast(`🔄 Restock! Refilling both players' hands!`);
-                dealInitialHand(1);
-                dealInitialHand(2);
-            } else if (specialty === 'mystery') {
-                openMysteryBoxModal(playerNum);
-            }
-
-            if (playerNum === 1) {
-                gameState.p1Specialty = null;
-                setTimeout(() => {
-                    gameState.p1Specialty = getRandomSpecialtyKey();
-                    renderHostUI();
-                    syncControllers();
-                }, 3500);
-            } else {
-                gameState.p2Specialty = null;
-                setTimeout(() => {
-                    gameState.p2Specialty = getRandomSpecialtyKey();
-                    renderHostUI();
-                    syncControllers();
-                }, 3500);
-            }
-
-            renderHostUI();
-            syncControllers();
-        }
-
-        function openMysteryBoxModal(playerNum) {
-            const modal = document.getElementById('mystery-modal');
-            const optionsContainer = document.getElementById('mystery-options');
-            document.getElementById('mystery-subtitle').innerText = `Player ${playerNum} opened a Mystery Box! Choose 1 reward:`;
-
-            const choices = [
-                { id: 'money', title: '🪙 +$25 Cash', desc: 'Add instant bonus cash to Vault' },
-                { id: 'golden', title: '🌟 Golden Step', desc: 'Instantly fulfill current ingredient' },
-                { id: 'omaha', title: '🔥 Omaha Sauce', desc: 'Multiply burger payout 2x' }
-            ];
-
-            optionsContainer.innerHTML = choices.map(c => `
-                <button onclick="applyMysteryChoice(${playerNum}, '${c.id}')" class="btn-bounce bg-white/10 hover:bg-white/20 border-2 border-purple-300 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
-                    <span class="text-base font-black mb-0.5">${c.title}</span>
-                    <span class="text-[11px] text-purple-200">${c.desc}</span>
-                </button>
-            `).join('');
-
-            modal.classList.remove('hidden');
-        }
-
-        function applyMysteryChoice(playerNum, choiceId) {
-            document.getElementById('mystery-modal').classList.add('hidden');
-            playSound('specialty');
-
-            if (choiceId === 'money') {
-                gameState.vaultMoney += 25;
-                showToast(`+$25 Cash Bonus Received!`);
-            } else if (choiceId === 'golden') {
-                const currentReq = gameState.recipe[gameState.currentStep];
-                gameState.burgerStack.push(currentReq);
-                gameState.currentStep++;
-                if (gameState.currentStep >= gameState.recipe.length) {
-                    completeBurgerOrder();
-                }
-            } else if (choiceId === 'omaha') {
-                gameState.omahaMultiplier = 2;
-                showToast(`2X Omaha Multiplier Applied!`);
-            }
-
+            showToast(`Player ${playerNum} discarded hand & drew 6 new cards!`);
             renderHostUI();
             syncControllers();
         }
@@ -931,24 +727,16 @@
             if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
             playSound('completeBurger');
 
-            const baseValue = gameState.recipe.length * 6;
-            const payout = baseValue * gameState.omahaMultiplier;
+            const payout = gameState.recipe.length * 7;
             gameState.vaultMoney += payout;
 
-            confetti({
-                particleCount: 80,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
 
             showFloatingText(`+$${payout} SOLD! 🍔`, '#FFD166');
             showToast(`Burger Completed! Earned $${payout}!`);
 
-            // Check if Daily earnings goal has been met!
             if (gameState.vaultMoney >= gameState.dayGoal) {
-                setTimeout(() => {
-                    openDayCompleteModal();
-                }, 1200);
+                setTimeout(() => openDayCompleteModal(), 1200);
             } else {
                 setTimeout(() => {
                     gameState.customerNum++;
@@ -969,8 +757,8 @@
             gameState.currentDay++;
             gameState.dayGoal = gameState.vaultMoney + 80;
             gameState.customerNum = 1;
-            dealInitialHand(1);
-            dealInitialHand(2);
+            dealFullHand(1);
+            dealFullHand(2);
             spawnNextCustomer();
             showToast(`Day ${gameState.currentDay} Shift Started! Goal: $${gameState.dayGoal}`);
         }
@@ -992,48 +780,45 @@
         function renderSimulatedPhone() {
             const playerNum = activeSimPlayer;
             const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            const specialtyKey = playerNum === 1 ? gameState.p1Specialty : gameState.p2Specialty;
             const target = gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null;
 
             const viewport = document.getElementById('sim-phone-viewport');
             viewport.innerHTML = `
-                <div class="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 mb-1 flex justify-between items-center text-xs shrink-0">
-                    <div>
-                        <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2 py-0.5 rounded text-[10px] uppercase">Player ${playerNum}</span>
-                        <span class="text-slate-400 text-[10px] ml-2 font-mono">Vault: $${gameState.vaultMoney}</span>
-                    </div>
-                    <div class="text-right flex items-center gap-1.5">
-                        <span class="text-[10px] text-slate-400 block">Target:</span>
-                        <span class="font-black text-amber-400 text-xs">${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
-                    </div>
+                <div class="bg-purple-950/80 border border-purple-700/60 rounded-xl px-2.5 py-1 mb-1 flex justify-between items-center text-xs shrink-0 text-white">
+                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-2 py-0.5 rounded text-[10px] uppercase">Player ${playerNum}</span>
+                    <span class="text-xs font-black text-amber-300">Target: ${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
+                    <span class="text-xs font-black text-emerald-400">$${gameState.vaultMoney} Vault</span>
                 </div>
 
-                <div class="flex-1 grid grid-cols-12 gap-2 items-stretch min-h-0">
-                    <!-- Left Side Actions -->
-                    <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-xl p-1.5 flex flex-col justify-between gap-1.5">
-                        <div class="bg-slate-900/90 p-1 rounded-lg border border-slate-700 text-center shrink-0">
-                            <span class="text-[8px] text-emerald-400 uppercase font-black block leading-none">Vault</span>
-                            <span class="text-xs font-black text-white">$${gameState.vaultMoney}</span>
-                        </div>
-                        <div class="flex flex-col gap-1.5 flex-1 justify-center">
-                            <button onclick="simDrawCard(${playerNum})" class="btn-bounce bg-amber-400 hover:bg-amber-500 border-b-2 border-amber-600 text-slate-950 font-black p-1.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow min-h-[38px]">
-                                <span>📥 Draw (-$5)</span>
-                            </button>
-                            <button onclick="simDiscardHand(${playerNum})" class="btn-bounce bg-rose-600 hover:bg-rose-700 border-b-2 border-rose-800 text-white font-black p-1.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow min-h-[38px]">
-                                <span>🗑️ Discard All</span>
-                            </button>
-                        </div>
+                <div class="my-1 flex-1 flex items-center justify-between gap-2 px-2 relative min-h-0">
+                    <button onclick="simDrawCard(${playerNum})" class="btn-bounce flex flex-col items-center justify-center bg-gradient-to-b from-indigo-600 to-purple-800 border-2 border-indigo-300 rounded-xl w-20 h-28 text-white card-shadow shrink-0">
+                        <span class="text-2xl mb-1">📥</span>
+                        <span class="text-[10px] font-black">Deck</span>
+                        <span class="text-[8px] text-indigo-200">-$5 Cash</span>
+                    </button>
+
+                    <div id="sim-drop-zone" onclick="showToast('Tap a card below to play it!')" class="flex-1 h-28 border-2 border-dashed border-purple-400/60 rounded-2xl bg-purple-950/40 flex flex-col items-center justify-center p-1 text-center cursor-pointer">
+                        <span class="text-purple-200 text-[10px] font-black">DROP ZONE</span>
+                        <span class="text-xs font-black text-amber-300 mt-0.5">${target ? target.emoji + ' ' + target.name : 'Finished!'}</span>
                     </div>
 
-                    <!-- Center Cards Grid (Landscape 3x2) -->
-                    <div class="col-span-6 bg-slate-800/50 border border-slate-700/60 rounded-xl p-1.5 grid grid-cols-3 gap-1.5 items-center">
+                    <button onclick="simDiscardHand(${playerNum})" class="btn-bounce flex flex-col items-center justify-center bg-gradient-to-b from-rose-600 to-red-800 border-2 border-rose-300 rounded-xl w-20 h-28 text-white card-shadow shrink-0">
+                        <span class="text-2xl mb-1">🗑️</span>
+                        <span class="text-[10px] font-black">Pile</span>
+                        <span class="text-[8px] text-rose-200">Buang All</span>
+                    </button>
+                </div>
+
+                <div class="wood-tray rounded-t-2xl p-2 pt-2.5 shrink-0">
+                    <div id="sim-hand-container" class="grid grid-cols-6 gap-1.5 items-center">
                         ${hand.map((ingKey, idx) => {
                             const ing = INGREDIENTS[ingKey];
                             return `
-                                <div class="relative group h-full flex flex-col justify-center">
-                                    <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full card-shadow btn-bounce h-16 rounded-xl border-2 p-1 flex flex-col items-center justify-between text-white shadow" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                                        <span class="text-lg leading-none mt-0.5">${ing.emoji}</span>
-                                        <span class="text-[9px] font-black leading-none">${ing.name}</span>
+                                <div class="relative group">
+                                    <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full card-shadow btn-bounce h-20 rounded-xl border-2 p-1 flex flex-col items-center justify-between shadow" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
+                                        <span class="text-lg font-black">${ing.emoji}</span>
+                                        <span class="text-[8px] font-black leading-tight text-center">${ing.name}</span>
+                                        <span class="text-[7px] bg-black/20 px-1 py-0.5 rounded font-black">PLAY</span>
                                     </button>
                                     <button onclick="simPrepCard(${playerNum}, ${idx})" class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow z-10">
                                         +PREP
@@ -1041,21 +826,6 @@
                                 </div>
                             `;
                         }).join('')}
-                    </div>
-
-                    <!-- Right Side Specialty Slot -->
-                    <div class="col-span-3 bg-slate-800/90 border border-slate-700 rounded-xl p-1.5 flex flex-col items-center justify-center">
-                        ${specialtyKey ? `
-                            <button onclick="simPlaySpecialty(${playerNum})" class="w-full card-shadow btn-bounce bg-gradient-to-r ${SPECIALTIES[specialtyKey].color} border-2 ${SPECIALTIES[specialtyKey].borderColor} text-white p-1.5 rounded-xl flex flex-col items-center justify-center shadow text-center h-28">
-                                <span class="text-2xl mb-1">${SPECIALTIES[specialtyKey].emoji}</span>
-                                <h4 class="font-black text-[10px] leading-tight">${SPECIALTIES[specialtyKey].name}</h4>
-                                <span class="bg-white/20 font-black text-[8px] px-1.5 py-0.5 rounded mt-1">USE</span>
-                            </button>
-                        ` : `
-                            <div class="w-full h-28 bg-slate-800 border border-dashed border-slate-700 p-1.5 rounded-xl text-center text-slate-500 font-bold text-[9px] flex flex-col items-center justify-center">
-                                ⌛ Refilling...
-                            </div>
-                        `}
                     </div>
                 </div>
             `;
@@ -1065,7 +835,6 @@
         function simPrepCard(pNum, idx) { placeCardOnPrepTable(pNum, idx); renderSimulatedPhone(); }
         function simDrawCard(pNum) { drawCard(pNum); renderSimulatedPhone(); }
         function simDiscardHand(pNum) { discardHand(pNum); renderSimulatedPhone(); }
-        function simPlaySpecialty(pNum) { playSpecialtyCard(pNum); renderSimulatedPhone(); }
 
         function syncControllers() {
             const stateSync = {
@@ -1074,9 +843,7 @@
                     vaultMoney: gameState.vaultMoney,
                     currentTarget: gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null,
                     p1Hand: gameState.p1Hand,
-                    p2Hand: gameState.p2Hand,
-                    p1Specialty: gameState.p1Specialty,
-                    p2Specialty: gameState.p2Specialty
+                    p2Hand: gameState.p2Hand
                 }
             };
             if (p1Conn && p1Conn.open) p1Conn.send(stateSync);
@@ -1092,8 +859,6 @@
             else if (data.type === 'PREP_CARD') placeCardOnPrepTable(data.player, data.cardIndex);
             else if (data.type === 'DRAW_CARD') drawCard(data.player);
             else if (data.type === 'DISCARD_HAND') discardHand(data.player);
-            else if (data.type === 'PLAY_SPECIALTY') playSpecialtyCard(data.player);
-            else if (data.type === 'SELECT_MYSTERY') applyMysteryChoice(data.player, data.choice);
         }
 
         function renderHostUI() {
@@ -1107,18 +872,13 @@
                 document.getElementById('customer-avatar').innerText = gameState.currentCustomer.emoji;
             }
 
-            const omahaBadge = document.getElementById('omaha-badge');
-            if (gameState.omahaMultiplier > 1) omahaBadge.classList.remove('hidden');
-            else omahaBadge.classList.add('hidden');
-
-            const baseVal = gameState.recipe.length * 6;
-            document.getElementById('burger-value').innerText = `$${baseVal * gameState.omahaMultiplier}`;
+            const baseVal = gameState.recipe.length * 7;
+            document.getElementById('burger-value').innerText = `$${baseVal}`;
 
             const patienceBar = document.getElementById('patience-bar');
             patienceBar.style.width = `${gameState.patience}%`;
             patienceBar.className = gameState.patience < 30 ? "bg-gradient-to-r from-red-500 to-rose-600 h-full transition-all duration-300" : "bg-gradient-to-r from-emerald-400 to-green-500 h-full transition-all duration-300";
 
-            // Render Larger Recipe Badges for TV / Host Screen
             const recipeSeq = document.getElementById('recipe-sequence');
             recipeSeq.innerHTML = gameState.recipe.map((ingKey, idx) => {
                 const ing = INGREDIENTS[ingKey];
@@ -1137,16 +897,15 @@
                 `;
             }).join('');
 
-            // Render Kitchen Prep Table Slots
             const prepSlots = document.getElementById('prep-table-slots');
             prepSlots.innerHTML = gameState.prepTable.map((cardKey, idx) => {
                 if (cardKey) {
                     const ing = INGREDIENTS[cardKey];
                     return `
-                        <div class="flex items-center gap-1.5 bg-white border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow">
+                        <div class="flex items-center gap-1.5 bg-white border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow text-slate-900">
                             <button onclick="useCardFromPrepTable(${idx})" class="btn-bounce flex items-center gap-1.5">
                                 <span class="text-lg">${ing.emoji}</span>
-                                <span class="text-xs font-black text-slate-900">${ing.name}</span>
+                                <span class="text-xs font-black">${ing.name}</span>
                                 <span class="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded">USE</span>
                             </button>
                             <button onclick="trashPrepSlot(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-black ml-1">✕</button>
@@ -1154,7 +913,7 @@
                     `;
                 } else {
                     return `
-                        <div class="border-2 border-dashed border-amber-800/30 rounded-xl px-3 py-1.5 text-xs text-amber-900/60 font-bold flex items-center justify-center">
+                        <div class="border-2 border-dashed border-purple-500/50 rounded-xl px-3 py-1.5 text-xs text-purple-300 font-bold flex items-center justify-center">
                             Empty Prep Slot
                         </div>
                     `;
@@ -1173,92 +932,126 @@
             }).join('');
         }
 
-        function renderHandCards(playerNum, hand, specialtyKey, standardContainerId, specialtyContainerId) {
-            const container = document.getElementById(standardContainerId);
-            const specContainer = document.getElementById(specialtyContainerId);
-
-            container.innerHTML = hand.map((ingKey, idx) => {
-                const ing = INGREDIENTS[ingKey];
-                return `
-                    <div class="relative group flex-shrink-0">
-                        <button onclick="playCard(${playerNum}, ${idx})" class="card-shadow btn-bounce w-18 md:w-22 h-20 md:h-24 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 cursor-pointer transition-all"
-                                style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                            <span class="text-xl md:text-2xl">${ing.emoji}</span>
-                            <span class="text-[9px] md:text-[10px] font-black leading-tight text-center">${ing.name}</span>
-                            <span class="text-[8px] opacity-80 uppercase font-bold">Play</span>
-                        </button>
-                        <button onclick="placeCardOnPrepTable(${playerNum}, ${idx})" title="Send to Prep Table" class="absolute -top-1 -right-1 bg-amber-400 hover:bg-amber-500 border border-amber-600 text-slate-900 text-[8px] font-black px-1 rounded-md shadow">
-                            +PREP
-                        </button>
-                    </div>
-                `;
-            }).join('');
-
-            if (specialtyKey) {
-                const spec = SPECIALTIES[specialtyKey];
-                specContainer.innerHTML = `
-                    <button onclick="playSpecialtyCard(${playerNum})" class="card-shadow btn-bounce bg-gradient-to-b ${spec.color} border-2 ${spec.borderColor} text-white w-18 md:w-22 h-20 md:h-24 rounded-2xl p-1.5 flex flex-col items-center justify-between shadow-md">
-                        <span class="text-xl">${spec.emoji}</span>
-                        <span class="text-[9px] font-black text-center leading-tight">${spec.name}</span>
-                        <span class="text-[7px] bg-white/20 px-1 py-0.5 rounded-full font-bold uppercase">USE</span>
-                    </button>
-                `;
-            } else {
-                specContainer.innerHTML = `
-                    <div class="w-18 md:w-22 h-20 md:h-24 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-1.5">
-                        <span class="text-lg animate-spin">⏳</span>
-                        <span class="text-[8px] font-bold mt-0.5 text-center">Refilling...</span>
-                    </div>
-                `;
-            }
-        }
-
         function renderMobileControllerUI(syncState) {
             const playerNum = myPlayerNum;
             const hand = playerNum === 1 ? syncState.p1Hand : syncState.p2Hand;
-            const specialtyKey = playerNum === 1 ? syncState.p1Specialty : syncState.p2Specialty;
 
             const target = syncState.currentTarget;
             document.getElementById('ctrl-target-ingredient').innerText = target ? `${target.emoji} ${target.name}` : 'Finished!';
+            document.getElementById('drop-target-text').innerText = target ? `Target Next: ${target.emoji} ${target.name}` : 'Finished!';
             document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
 
-            const handGrid = document.getElementById('ctrl-hand-grid');
-            handGrid.innerHTML = hand.map((ingKey, idx) => {
+            const container = document.getElementById('ctrl-hand-container');
+            container.innerHTML = hand.map((ingKey, idx) => {
                 const ing = INGREDIENTS[ingKey];
                 return `
-                    <div class="relative group">
-                        <button onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})" 
-                                class="card-shadow btn-bounce w-full h-16 rounded-xl border-2 p-1 flex flex-col items-center justify-between text-white shadow-md active:scale-95"
-                                style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                            <span class="text-xl">${ing.emoji}</span>
-                            <span class="text-[9px] font-black text-center leading-none">${ing.name}</span>
-                        </button>
-                        <button onclick="sendControllerAction({type:'PREP_CARD', player:${playerNum}, cardIndex:${idx}})" 
-                                class="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[7px] font-black px-1 py-0.5 rounded border border-amber-600 shadow">
+                    <div class="relative draggable-card-wrapper" data-index="${idx}">
+                        <div class="card-shadow btn-bounce w-full h-24 rounded-2xl border-3 p-1.5 flex flex-col items-center justify-between text-white shadow-lg cursor-grab active:cursor-grabbing select-none"
+                             style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
+                             onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
+                            <div class="w-full flex justify-between items-center px-1 opacity-80">
+                                <span class="text-[9px] font-black">#${idx+1}</span>
+                                <span class="text-[8px] uppercase font-bold">CARD</span>
+                            </div>
+                            <span class="text-3xl">${ing.emoji}</span>
+                            <span class="text-[10px] font-black text-center leading-none mb-1">${ing.name}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); sendControllerAction({type:'PREP_CARD', player:${playerNum}, cardIndex:${idx}})" 
+                                class="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-900 text-[8px] font-black px-1.5 py-0.5 rounded-full border border-amber-600 shadow z-10">
                             +PREP
                         </button>
                     </div>
                 `;
             }).join('');
 
-            const specContainer = document.getElementById('ctrl-specialty-container');
-            if (specialtyKey) {
-                const spec = SPECIALTIES[specialtyKey];
-                specContainer.innerHTML = `
-                    <button onclick="sendControllerAction({type:'PLAY_SPECIALTY', player:${playerNum}})" 
-                            class="card-shadow btn-bounce w-full bg-gradient-to-b ${spec.color} border-2 ${spec.borderColor} text-white p-2 rounded-xl flex flex-col items-center justify-center shadow-lg h-28 text-center">
-                        <span class="text-2xl mb-1">${spec.emoji}</span>
-                        <h3 class="font-black text-[10px] leading-tight">${spec.name}</h3>
-                        <span class="bg-white/20 font-black text-[8px] px-1.5 py-0.5 rounded mt-1">USE</span>
-                    </button>
-                `;
-            } else {
-                specContainer.innerHTML = `
-                    <div class="w-full h-28 bg-slate-800 border border-dashed border-slate-700 p-2 rounded-xl text-center text-slate-500 font-bold text-[9px] flex flex-col items-center justify-center">
-                        ⌛ Specialty refilling...
-                    </div>
-                `;
-            }
+            attachPointerDragListeners();
+        }
+
+        function setupDropZoneListeners() {
+            const dropZone = document.getElementById('drop-zone');
+            if (!dropZone) return;
+
+            dropZone.addEventListener('dragover', (e) => e.preventDefault());
+        }
+
+        // Pointer/Touch Drag and Drop system
+        function attachPointerDragListeners() {
+            const cardElements = document.querySelectorAll('.draggable-card-wrapper');
+            const dropZone = document.getElementById('drop-zone');
+
+            cardElements.forEach(cardEl => {
+                let startX, startY, initialLeft, initialTop;
+                let isDragging = false;
+                let cardIndex = parseInt(cardEl.getAttribute('data-index'));
+
+                const onPointerDown = (e) => {
+                    // Ignore clicks on prep button
+                    if (e.target.closest('button')) return;
+
+                    isDragging = true;
+                    cardEl.classList.add('dragging-card');
+
+                    const rect = cardEl.getBoundingClientRect();
+                    startX = e.clientX || (e.touches && e.touches[0].clientX);
+                    startY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                    cardEl.style.width = `${rect.width}px`;
+                    cardEl.style.height = `${rect.height}px`;
+                    cardEl.style.left = `${rect.left}px`;
+                    cardEl.style.top = `${rect.top}px`;
+
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUp);
+                };
+
+                const onPointerMove = (e) => {
+                    if (!isDragging) return;
+
+                    const curX = e.clientX || (e.touches && e.touches[0].clientX);
+                    const curY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                    const deltaX = curX - startX;
+                    const deltaY = curY - startY;
+
+                    cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.1) rotate(3deg)`;
+
+                    // Check hover over drop zone
+                    if (dropZone) {
+                        const dropRect = dropZone.getBoundingClientRect();
+                        if (curX >= dropRect.left && curX <= dropRect.right && curY >= dropRect.top && curY <= dropRect.bottom) {
+                            dropZone.classList.add('drop-target-active');
+                        } else {
+                            dropZone.classList.remove('drop-target-active');
+                        }
+                    }
+                };
+
+                const onPointerUp = (e) => {
+                    if (!isDragging) return;
+                    isDragging = false;
+
+                    window.removeEventListener('pointermove', onPointerMove);
+                    window.removeEventListener('pointerup', onPointerUp);
+
+                    const curX = e.clientX || (e.changedTouches && e.changedTouches[0].clientX);
+                    const curY = e.clientY || (e.changedTouches && e.changedTouches[0].clientY);
+
+                    if (dropZone) {
+                        dropZone.classList.remove('drop-target-active');
+                        const dropRect = dropZone.getBoundingClientRect();
+                        if (curX >= dropRect.left && curX <= dropRect.right && curY >= dropRect.top && curY <= dropRect.bottom) {
+                            sendControllerAction({ type: 'PLAY_CARD', player: myPlayerNum, cardIndex: cardIndex });
+                        }
+                    }
+
+                    cardEl.classList.remove('dragging-card');
+                    cardEl.style.transform = '';
+                    cardEl.style.left = '';
+                    cardEl.style.top = '';
+                };
+
+                cardEl.addEventListener('pointerdown', onPointerDown);
+            });
         }
 
         function showFloatingText(text, color) {
@@ -1281,22 +1074,7 @@
         }
 
         function toggleQRModal() {
-            const modal = document.getElementById('qr-modal');
-            modal.classList.toggle('hidden');
-        }
-
-        function toggleOnscreenHands() {
-            gameState.onScreenHandsVisible = !gameState.onScreenHandsVisible;
-            const container = document.getElementById('onscreen-hands-container');
-            const btnText = document.getElementById('onscreen-toggle-text');
-
-            if (gameState.onScreenHandsVisible) {
-                container.classList.remove('hidden');
-                btnText.innerText = '📺 Desktop Hands';
-            } else {
-                container.classList.add('hidden');
-                btnText.innerText = '📺 Show Hands';
-            }
+            document.getElementById('qr-modal').classList.toggle('hidden');
         }
     </script>
 </body>
