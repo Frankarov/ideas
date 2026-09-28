@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zombie Convoy Co-op (Real QR Mobile Controllers)</title>
+    <title>Zombie Convoy Co-op (Dual-Device Mobile Controllers)</title>
     <!-- Tailwind CSS for modern UI styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for icons -->
@@ -40,31 +40,31 @@
 </head>
 <body class="h-screen w-screen flex flex-col justify-between select-none">
 
-    <header class="bg-slate-950/95 border-b border-red-950/50 p-3 flex justify-between items-center z-20 shadow-2xl backdrop-blur-md">
-        <div class="flex items-center space-x-3">
-            <div class="bg-gradient-to-br from-red-600 to-amber-700 p-2.5 rounded-xl text-white shadow-lg border border-red-500/30">
-                <i class="fa-solid fa-truck-monster text-xl animate-pulse"></i>
+    <header class="bg-slate-950/95 border-b border-red-950/50 p-2 sm:p-3 flex justify-between items-center z-20 shadow-2xl backdrop-blur-md">
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <div class="bg-gradient-to-br from-red-600 to-amber-700 p-2 rounded-xl text-white shadow-lg border border-red-500/30">
+                <i class="fa-solid fa-truck-monster text-lg sm:text-xl animate-pulse"></i>
             </div>
             <div>
-                <h1 class="pixel-font text-2xl tracking-wider text-red-500 font-extrabold drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]">ZOMBIE CONVOY: DUAL QR MOBILE</h1>
-                <p class="text-xs text-slate-400">Co-op Survival with Real Scannable QR Controllers</p>
+                <h1 class="pixel-font text-xl sm:text-2xl tracking-wider text-red-500 font-extrabold drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]">ZOMBIE CONVOY</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400">Desktop Display + Mobile Remote Controls</p>
             </div>
         </div>
 
         <!-- Status Metrics -->
-        <div class="flex items-center space-x-4 text-sm">
-            <div class="bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 flex items-center space-x-2 shadow-inner">
+        <div class="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm">
+            <div class="bg-slate-900/90 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border border-slate-800 flex items-center space-x-1.5 shadow-inner">
                 <i class="fa-solid fa-road text-amber-500"></i>
-                <span class="text-slate-400 text-xs">Distance:</span>
+                <span class="text-slate-400 hidden sm:inline text-xs">Distance:</span>
                 <span id="hud-distance" class="font-bold text-amber-400 font-mono">0 m</span>
             </div>
-            <div class="bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-800 flex items-center space-x-2 shadow-inner">
+            <div class="bg-slate-900/90 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border border-slate-800 flex items-center space-x-1.5 shadow-inner">
                 <i class="fa-solid fa-skull text-red-500"></i>
-                <span class="text-slate-400 text-xs">Slain:</span>
+                <span class="text-slate-400 hidden sm:inline text-xs">Slain:</span>
                 <span id="hud-kills" class="font-bold text-red-400 font-mono">0</span>
             </div>
-            <button onclick="openControllerModal()" class="bg-red-950 hover:bg-red-900 px-3 py-1.5 rounded-xl border border-red-600 text-xs text-red-300 font-bold flex items-center space-x-1.5">
-                <i class="fa-solid fa-qrcode"></i><span>Scan Real QR</span>
+            <button onclick="openControllerModal()" class="bg-red-950 hover:bg-red-900 px-3 py-1.5 rounded-xl border border-red-600 text-xs text-red-300 font-bold flex items-center space-x-1.5 shadow-lg">
+                <i class="fa-solid fa-qrcode"></i><span>Mobile Controllers</span>
             </button>
         </div>
     </header>
@@ -73,172 +73,125 @@
         <!-- Canvas Layer -->
         <canvas id="gameCanvas" class="w-full h-full absolute inset-0 z-0 cursor-crosshair"></canvas>
 
-        <!-- Role Selection Modal / Overlay -->
-        <div id="roleModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center z-30">
-            <div class="bg-slate-900/95 border border-red-900/40 p-8 rounded-2xl max-w-lg w-full shadow-2xl text-center space-y-6 relative overflow-hidden">
+        <!-- Role / Mode Selection Modal -->
+        <div id="roleModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center z-30 p-4">
+            <div class="bg-slate-900/95 border border-red-900/40 p-6 sm:p-8 rounded-2xl max-w-lg w-full shadow-2xl text-center space-y-4 sm:space-y-6 relative overflow-hidden">
                 <div class="absolute -top-12 -right-12 w-32 h-32 bg-red-600/10 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="inline-block bg-red-950/50 p-4 rounded-2xl border border-red-500/30 text-red-500 mb-1 shadow-inner">
-                    <i class="fa-solid fa-people-arrows text-4xl"></i>
+                <div class="inline-block bg-red-950/50 p-3 sm:p-4 rounded-2xl border border-red-500/30 text-red-500 mb-1 shadow-inner">
+                    <i class="fa-solid fa-laptop text-3xl sm:text-4xl"></i>
                 </div>
-                <h2 class="pixel-font text-3xl text-red-500 font-bold tracking-wide">SELECT YOUR ROLE</h2>
-                <p class="text-sm text-slate-300">Drive the armored bus forward while avoiding road obstacles. Gun down chasing zombies behind and static hordes ahead!</p>
+                <h2 class="pixel-font text-2xl sm:text-3xl text-red-500 font-bold tracking-wide">DESKTOP GAME + MOBILE CONTROLLERS</h2>
+                <p class="text-xs sm:text-sm text-slate-300">Keep this browser screen open as your game monitor. Scan the QR codes with your smartphones to use them as dedicated Driver and Gunner controllers!</p>
                 
-                <div class="grid grid-cols-2 gap-4 pt-2">
-                    <button onclick="selectRole('driver')" class="bg-gradient-to-br from-blue-950/80 to-blue-900/40 hover:from-blue-900 hover:to-blue-800 p-5 rounded-xl border border-blue-500/30 shadow-lg transition transform hover:-translate-y-1 text-left flex flex-col justify-between group">
-                        <div>
-                            <div class="text-blue-400 mb-2 group-hover:scale-110 transition-transform"><i class="fa-solid fa-arrows-up-down-left-right text-2xl"></i></div>
-                            <h3 class="font-bold text-base text-white">PLAYER 1: DRIVER</h3>
-                            <p class="text-xs text-blue-200/70 mt-1">Steer UP, DOWN, LEFT & RIGHT within road boundaries.</p>
-                        </div>
-                        <span class="mt-4 text-xs bg-blue-900/60 px-2.5 py-1 rounded text-blue-300 self-start border border-blue-500/30 font-mono">WASD / Arrows</span>
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button onclick="openControllerModal()" class="flex-1 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-400/30 text-sm flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-qrcode text-lg"></i><span>Show Mobile QR Controllers</span>
                     </button>
-
-                    <button onclick="selectRole('gunner')" class="bg-gradient-to-br from-red-950/80 to-red-900/40 hover:from-red-900 hover:to-red-800 p-5 rounded-xl border border-red-500/30 shadow-lg transition transform hover:-translate-y-1 text-left flex flex-col justify-between group">
-                        <div>
-                            <div class="text-red-400 mb-2 group-hover:scale-110 transition-transform"><i class="fa-solid fa-crosshairs text-2xl"></i></div>
-                            <h3 class="font-bold text-base text-white">PLAYER 2: GUNNER</h3>
-                            <p class="text-xs text-red-200/70 mt-1">Aim & 360° blast chasing zombies and ahead obstacles.</p>
-                        </div>
-                        <span class="mt-4 text-xs bg-red-900/60 px-2.5 py-1 rounded text-red-300 self-start border border-red-500/30 font-mono">Mouse Aim / Joystick</span>
-                    </button>
-                </div>
-
-                <div class="flex space-x-3">
-                    <button onclick="selectRole('both')" class="flex-1 bg-gradient-to-r from-red-700 to-amber-700 hover:from-red-600 hover:to-amber-600 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-500/40 transition">
-                        <i class="fa-solid fa-gamepad mr-2"></i> Play Solo (Both Roles)
-                    </button>
-                    <button onclick="openControllerModal()" class="bg-slate-800 hover:bg-slate-700 px-4 py-3.5 rounded-xl font-bold text-slate-200 border border-slate-700 transition">
-                        <i class="fa-solid fa-qrcode mr-1"></i> Scan QR
+                    <button onclick="startSoloPlay()" class="bg-slate-800 hover:bg-slate-700 px-5 py-3.5 rounded-xl font-bold text-slate-200 border border-slate-700 text-sm">
+                        <i class="fa-solid fa-gamepad mr-2"></i> Play Solo (Keyboard)
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Real QR Code Mobile Controller Scan Modal -->
-        <div id="controllerModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50">
-            <div class="bg-slate-900 border border-red-600/50 p-8 rounded-2xl max-w-xl w-full shadow-2xl text-center space-y-6 relative">
+        <!-- QR Code Controller Modal -->
+        <div id="controllerModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div class="bg-slate-900 border border-red-600/50 p-6 sm:p-8 rounded-2xl max-w-xl w-full shadow-2xl text-center space-y-4 relative">
                 <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <h3 class="pixel-font text-2xl text-red-500 font-bold"><i class="fa-solid fa-qrcode mr-2"></i>REAL QR CODE MOBILE CONTROLLERS</h3>
+                    <h3 class="pixel-font text-xl sm:text-2xl text-red-500 font-bold"><i class="fa-solid fa-qrcode mr-2"></i>MOBILE CONTROLLER QR CODES</h3>
                     <button onclick="closeControllerModal()" class="text-slate-400 hover:text-white text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <p class="text-xs text-slate-300">Scan these real QR codes with your smartphones to open dedicated mobile controller web views. Player 1 gets steering pads, Player 2 gets an aiming touch joystick!</p>
+                <p class="text-xs text-slate-300">Scan these real QR codes with two separate phones. Phone 1 will become the P1 Driver pad, Phone 2 will become the P2 Gunner joystick!</p>
                 
-                <div class="grid grid-cols-2 gap-6 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div class="bg-slate-950 p-4 rounded-xl border border-blue-900/40 flex flex-col items-center space-y-3">
-                        <span class="text-xs font-bold text-blue-400 font-mono">PLAYER 1: DRIVER QR</span>
-                        <!-- Real QR Container -->
-                        <div id="qrcode-p1" class="bg-white p-2.5 rounded-lg shadow-inner flex items-center justify-center w-36 h-36 border border-blue-500/30"></div>
-                        <button onclick="activateMobileController('driver')" class="w-full bg-blue-900 hover:bg-blue-800 text-blue-200 py-2 rounded-lg text-xs font-bold border border-blue-600 transition">
-                            Simulate P1 Mobile Link
+                        <span class="text-xs font-bold text-blue-400 font-mono">PHONE 1: P1 DRIVER</span>
+                        <div id="qrcode-p1" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-blue-500/30"></div>
+                        <button onclick="simulateRemoteController('driver')" class="w-full bg-blue-900 hover:bg-blue-800 text-blue-200 py-2 rounded-lg text-xs font-bold border border-blue-600">
+                            Simulate P1 Driver Here
                         </button>
                     </div>
 
                     <div class="bg-slate-950 p-4 rounded-xl border border-red-900/40 flex flex-col items-center space-y-3">
-                        <span class="text-xs font-bold text-red-400 font-mono">PLAYER 2: GUNNER QR</span>
-                        <!-- Real QR Container -->
-                        <div id="qrcode-p2" class="bg-white p-2.5 rounded-lg shadow-inner flex items-center justify-center w-36 h-36 border border-red-500/30"></div>
-                        <button onclick="activateMobileController('gunner')" class="w-full bg-red-900 hover:bg-red-800 text-red-200 py-2 rounded-lg text-xs font-bold border border-red-600 transition">
-                            Simulate P2 Mobile Link
+                        <span class="text-xs font-bold text-red-400 font-mono">PHONE 2: P2 GUNNER</span>
+                        <div id="qrcode-p2" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-red-500/30"></div>
+                        <button onclick="simulateRemoteController('gunner')" class="w-full bg-red-900 hover:bg-red-800 text-red-200 py-2 rounded-lg text-xs font-bold border border-red-600">
+                            Simulate P2 Gunner Here
                         </button>
                     </div>
-                </div>
-
-                <div class="bg-slate-950 p-3 rounded-xl text-xs text-amber-400 font-mono border border-amber-500/20">
-                    <i class="fa-solid fa-circle-info mr-1"></i> QR codes encode the live session controller URL. Scanning instantly triggers touch controllers.
                 </div>
             </div>
         </div>
 
         <!-- Game Over Modal -->
-        <div id="gameOverModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-40">
-            <div class="bg-slate-900 border border-red-600/50 p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-5 hazard-glow">
+        <div id="gameOverModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-40 p-4">
+            <div class="bg-slate-900 border border-red-600/50 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-5 hazard-glow">
                 <div class="inline-block bg-red-950/80 p-4 rounded-2xl border border-red-500/40 text-red-500">
                     <i class="fa-solid fa-skull-crossbones text-4xl"></i>
                 </div>
-                <h2 class="pixel-font text-3xl text-red-500 font-bold tracking-wider">CONVOY DESTROYED</h2>
-                <p class="text-slate-300 text-sm">The undead swarmed the armor and breached the cabin. Survivors fell.</p>
+                <h2 class="pixel-font text-2xl sm:text-3xl text-red-500 font-bold tracking-wider">CONVOY DESTROYED</h2>
+                <p class="text-slate-300 text-xs sm:text-sm">The undead swarmed the armored bus and breached the cabin. Survivors fell.</p>
                 
-                <div class="bg-slate-950 p-4 rounded-xl text-left space-y-2 text-sm border border-slate-800 font-mono">
+                <div class="bg-slate-950 p-4 rounded-xl text-left space-y-2 text-xs sm:text-sm border border-slate-800 font-mono">
                     <div class="flex justify-between"><span class="text-slate-400">Distance Travelled:</span> <span id="end-distance" class="font-bold text-amber-400">0 m</span></div>
                     <div class="flex justify-between"><span class="text-slate-400">Zombies Eliminated:</span> <span id="end-kills" class="font-bold text-red-400">0</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Scrap Recovered:</span> <span id="end-scrap" class="font-bold text-yellow-400">0</span></div>
                 </div>
 
-                <button onclick="restartGame()" class="w-full bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-400/30 transition">
+                <button onclick="restartGame()" class="w-full bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-400/30 text-sm">
                     <i class="fa-solid fa-rotate-right mr-2"></i> Deploy New Convoy
                 </button>
             </div>
         </div>
 
-        <!-- Virtual Mobile Touch Controllers (Shown if Mobile or Simulated) -->
-        <div id="virtualTouchControls" class="hidden absolute inset-0 pointer-events-none z-15 flex justify-between items-end p-6">
-            <!-- P1 Driver Directional Controls (Left side) -->
-            <div class="grid grid-cols-3 gap-2 pointer-events-auto w-48 h-48">
+        <!-- Remote Controller UI Overlay (When simulated or opened directly on mobile controller view) -->
+        <div id="remoteControllerUI" class="hidden absolute inset-0 pointer-events-none z-15 flex justify-between items-end p-4 sm:p-6">
+            <div id="remoteDriverPad" class="grid grid-cols-3 gap-2 pointer-events-auto w-48 h-48">
                 <div></div>
-                <button id="btnSteerUp" class="bg-blue-900/80 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center">
-                    <i class="fa-solid fa-arrow-up"></i>
-                </button>
+                <button id="btnSteerUp" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-up"></i></button>
                 <div></div>
-                <button id="btnSteerLeft" class="bg-blue-900/80 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center">
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-                <div class="flex items-center justify-center text-blue-300 text-[10px] font-mono">DRIVE</div>
-                <button id="btnSteerRight" class="bg-blue-900/80 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
+                <button id="btnSteerLeft" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-left"></i></button>
+                <div class="flex items-center justify-center text-blue-300 text-[10px] font-mono font-bold">DRIVE</div>
+                <button id="btnSteerRight" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-right"></i></button>
                 <div></div>
-                <button id="btnSteerDown" class="bg-blue-900/80 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center">
-                    <i class="fa-solid fa-arrow-down"></i>
-                </button>
+                <button id="btnSteerDown" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-down"></i></button>
                 <div></div>
             </div>
 
-            <!-- P2 Gunner Virtual Joystick (Right side) -->
-            <div id="joystickBase" class="relative w-36 h-36 bg-red-950/40 border-2 border-red-500/50 rounded-full pointer-events-auto flex items-center justify-center backdrop-blur-sm">
+            <div id="remoteGunnerJoystick" class="relative w-36 h-36 bg-red-950/50 border-2 border-red-500/60 rounded-full pointer-events-auto flex items-center justify-center backdrop-blur-sm shadow-2xl">
                 <div id="joystickKnob" class="absolute w-16 h-16 bg-gradient-to-br from-red-600 to-amber-600 border border-red-400 rounded-full shadow-2xl cursor-pointer"></div>
-                <div class="absolute text-[10px] text-red-300 font-mono bottom-2">GUNNER JOYSTICK</div>
+                <div class="absolute text-[10px] text-red-300 font-mono bottom-2 font-bold">AIM & FIRE</div>
             </div>
         </div>
 
-        <!-- In-game Persistent Dashboard HUD -->
-        <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none z-10">
-            <!-- Vehicle Status Bar -->
-            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-3 w-72">
-                <div class="flex justify-between items-center text-xs font-bold text-slate-300 font-mono">
+        <!-- Status Bars on Game Display -->
+        <div class="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row justify-between items-center pointer-events-none z-10 gap-2">
+            <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
+                <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
                     <span class="flex items-center space-x-1.5"><i class="fa-solid fa-shield-halved text-amber-500"></i><span>BUS INTEGRITY</span></span>
                     <span id="truck-hp-text">100 / 100</span>
                 </div>
-                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 shadow-inner">
+                <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 shadow-inner">
                     <div id="truck-hp-bar" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all duration-300" style="width: 100%;"></div>
-                </div>
-
-                <div class="flex justify-between items-center text-xs font-bold text-slate-300 font-mono">
-                    <span class="flex items-center space-x-1.5"><i class="fa-solid fa-gauge-high text-blue-400"></i><span>ROAD VELOCITY</span></span>
-                    <span id="truck-speed-text">SPINNING FAST</span>
-                </div>
-                <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800 shadow-inner">
-                    <div id="truck-fuel-bar" class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full transition-all duration-150" style="width: 100%;"></div>
                 </div>
             </div>
 
-            <!-- Gunner Status Bar -->
-            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-3 w-72">
-                <div class="flex justify-between items-center text-xs font-bold text-slate-300 font-mono">
+            <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
+                <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
                     <span class="flex items-center space-x-1.5"><i class="fa-solid fa-gun text-red-500"></i><span>HEAVY TURRET</span></span>
-                    <span id="gun-ammo-text">35 / 35</span>
+                    <span id="gun-ammo-text">500 / 500</span>
                 </div>
-                <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 shadow-inner">
+                <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 shadow-inner">
                     <div id="gun-ammo-bar" class="bg-gradient-to-r from-red-600 to-orange-500 h-full transition-all duration-150" style="width: 100%;"></div>
                 </div>
-                <div class="flex justify-between text-xs text-slate-400 font-mono">
-                    <span>Role: <strong id="current-role-label" class="text-amber-400">Both</strong></span>
+                <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                    <span>Mode: <strong id="current-mode-label" class="text-amber-400">Desktop / Solo</strong></span>
                     <span id="reload-status" class="text-emerald-400 font-bold">READY</span>
                 </div>
             </div>
         </div>
 
         <!-- Custom Notification Banner -->
-        <div id="notificationBanner" class="absolute top-20 bg-red-600/90 text-white font-bold px-5 py-2.5 rounded-xl shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-30 border border-red-400/40 pixel-font tracking-wide">
+        <div id="notificationBanner" class="absolute top-16 bg-red-600/90 text-white font-bold px-4 py-2 rounded-xl shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-30 border border-red-400/40 pixel-font text-xs tracking-wide">
             Notification
         </div>
     </main>
@@ -250,99 +203,93 @@
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (truck.x === 0 || truck.x === 200) {
+            if (truck.x === 0) {
                 truck.x = canvas.width / 2 - 75;
-                truck.y = canvas.height / 2;
+                truck.y = canvas.height / 2 - 37;
             }
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // Generate Real QR Codes on Load
         window.addEventListener('DOMContentLoaded', () => {
             const currentUrl = window.location.href.split('#')[0];
-            
-            // Clear prior contents if any
             document.getElementById('qrcode-p1').innerHTML = '';
             document.getElementById('qrcode-p2').innerHTML = '';
 
             new QRCode(document.getElementById("qrcode-p1"), {
-                text: currentUrl + "?role=driver",
-                width: 128,
-                height: 128,
+                text: currentUrl + "?controller=driver",
+                width: 130,
+                height: 130,
                 colorDark : "#000000",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.M
             });
 
             new QRCode(document.getElementById("qrcode-p2"), {
-                text: currentUrl + "?role=gunner",
-                width: 128,
-                height: 128,
+                text: currentUrl + "?controller=gunner",
+                width: 130,
+                height: 130,
                 colorDark : "#000000",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.M
             });
 
-            // Check URL query params for auto role selection
             const urlParams = new URLSearchParams(window.location.search);
-            const qrRole = urlParams.get('role');
-            if (qrRole === 'driver' || qrRole === 'gunner') {
-                activateMobileController(qrRole);
+            const controllerRole = urlParams.get('controller');
+            if (controllerRole === 'driver' || controllerRole === 'gunner') {
+                setupStandaloneController(controllerRole);
             }
         });
 
-        // Game State Variables
+        function setupStandaloneController(role) {
+            document.querySelector('header').style.display = 'none';
+            document.getElementById('roleModal').style.display = 'none';
+            document.getElementById('remoteControllerUI').classList.remove('hidden');
+            
+            if (role === 'driver') {
+                document.getElementById('remoteGunnerJoystick').style.display = 'none';
+                document.getElementById('remoteDriverPad').style.width = '260px';
+                document.getElementById('remoteDriverPad').style.height = '260px';
+            } else {
+                document.getElementById('remoteDriverPad').style.display = 'none';
+                document.getElementById('remoteGunnerJoystick').style.width = '260px';
+                document.getElementById('remoteGunnerJoystick').style.height = '260px';
+            }
+            document.body.style.background = '#020617';
+            canvas.style.display = 'none';
+        }
+
         let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
-        let assignedRole = 'both'; // 'driver', 'gunner', 'both'
         let distance = 0;
         let kills = 0;
-        let animTick = 0;
-        let mobileControlsActive = false;
 
-        // Armored Bus
         const truck = {
             x: 0,
             y: 0,
             width: 150,
             height: 75,
-            speed: 0.8,
+            speed: 0.35, // Slower actual speed
             hp: 100,
             maxHp: 100,
             turretAngle: 0
         };
 
-        // Input States
-        const keys = {
-            w: false, s: false, a: false, d: false,
-            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-            Space: false, R: false
-        };
+        const keys = { w: false, s: false, a: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
-        const mouse = {
-            x: 0,
-            y: 0,
-            isDown: false
-        };
-
-        // Joystick State for Mobile Gunner
         const joystick = {
             active: false,
             startX: 0,
             startY: 0,
-            currentX: 0,
-            currentY: 0,
             angle: 0,
             power: 0
         };
 
-        // Weapon State
         const weapon = {
-            ammo: 150,
-            maxAmmo: 150,
+            ammo: 2000,
+            maxAmmo: 2000,
             reloadTime: 0,
             reloadDuration: 40,
             fireCooldown: 0,
-            fireRate: 5
+            fireRate: 3
         };
 
         let zombies = [];
@@ -350,89 +297,75 @@
         let roadObstacles = [];
         let powerUps = [];
 
-        // Keyboard Event Listeners
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = true;
-            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = true;
-            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = true;
-            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = true;
-            if (e.key === ' ') keys.Space = true;
-            if (e.key === 'r' || e.key === 'R') reloadWeapon();
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = false;
-            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = false;
-            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = false;
-            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = false;
-            if (e.key === ' ') keys.Space = false;
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (!mobileControlsActive) {
-                const rect = canvas.getBoundingClientRect();
-                mouse.x = e.clientX - rect.left;
-                mouse.y = e.clientY - rect.top;
-            }
-        });
-
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 0 && !mobileControlsActive) mouse.isDown = true;
-        });
-
-        window.addEventListener('mouseup', () => {
-            mouse.isDown = false;
-        });
-
-        // Setup Virtual Touch Controls for Mobile
+        // Controller Setup Listeners
         const btnUp = document.getElementById('btnSteerUp');
         const btnDown = document.getElementById('btnSteerDown');
         const btnLeft = document.getElementById('btnSteerLeft');
         const btnRight = document.getElementById('btnSteerRight');
 
-        btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); keys.w = true; });
-        btnUp.addEventListener('touchend', (e) => { e.preventDefault(); keys.w = false; });
-        btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); keys.s = true; });
-        btnDown.addEventListener('touchend', (e) => { e.preventDefault(); keys.s = false; });
-        btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys.a = true; });
-        btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys.a = false; });
-        btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys.d = true; });
-        btnRight.addEventListener('touchend', (e) => { e.preventDefault(); keys.d = false; });
+        ['touchstart', 'mousedown'].forEach(evt => {
+            if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); keys.w = true; });
+            if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); keys.s = true; });
+            if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); keys.a = true; });
+            if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); keys.d = true; });
+        });
 
-        // Joystick Touch Listeners
-        const joystickBase = document.getElementById('joystickBase');
+        ['touchend', 'mouseup', 'mouseleave'].forEach(evt => {
+            if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); keys.w = false; });
+            if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); keys.s = false; });
+            if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); keys.a = false; });
+            if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); keys.d = false; });
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp') keys.w = true;
+            if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = true;
+            if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp') keys.w = false;
+            if (e.key === 's' || e.key === 'ArrowDown') keys.s = false;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = false;
+            if (e.key === 'd' || e.key === 'ArrowRight') keys.d = false;
+        });
+
+        const joystickBase = document.getElementById('remoteGunnerJoystick');
         const joystickKnob = document.getElementById('joystickKnob');
 
-        joystickBase.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = joystickBase.getBoundingClientRect();
-            joystick.active = true;
-            joystick.startX = rect.left + rect.width / 2;
-            joystick.startY = rect.top + rect.height / 2;
-            updateJoystick(touch.clientX, touch.clientY);
-        });
-
-        joystickBase.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (joystick.active) {
+        if(joystickBase) {
+            joystickBase.addEventListener('touchstart', (e) => {
+                e.preventDefault();
                 const touch = e.touches[0];
+                const rect = joystickBase.getBoundingClientRect();
+                joystick.active = true;
+                joystick.startX = rect.left + rect.width / 2;
+                joystick.startY = rect.top + rect.height / 2;
                 updateJoystick(touch.clientX, touch.clientY);
-            }
-        });
+            });
 
-        joystickBase.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            joystick.active = false;
-            joystick.power = 0;
-            joystickKnob.style.transform = `translate(0px, 0px)`;
-        });
+            joystickBase.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (joystick.active) {
+                    const touch = e.touches[0];
+                    updateJoystick(touch.clientX, touch.clientY);
+                }
+            });
+
+            joystickBase.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystick.active = false;
+                joystick.power = 0;
+                joystickKnob.style.transform = `translate(0px, 0px)`;
+            });
+        }
 
         function updateJoystick(clientX, clientY) {
             const dx = clientX - joystick.startX;
             const dy = clientY - joystick.startY;
             const dist = Math.hypot(dx, dy);
-            const maxRadius = 45;
+            const maxRadius = 50;
 
             const angle = Math.atan2(dy, dx);
             joystick.angle = angle;
@@ -441,10 +374,8 @@
             const limitedDist = Math.min(dist, maxRadius);
             const knobX = Math.cos(angle) * limitedDist;
             const knobY = Math.sin(angle) * limitedDist;
-            joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
-
+            if(joystickKnob) joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
             truck.turretAngle = angle;
-            mouse.isDown = true;
         }
 
         function openControllerModal() {
@@ -455,20 +386,22 @@
             document.getElementById('controllerModal').classList.add('hidden');
         }
 
-        function activateMobileController(type) {
-            mobileControlsActive = true;
-            document.getElementById('virtualTouchControls').classList.remove('hidden');
+        function simulateRemoteController(type) {
+            document.getElementById('remoteControllerUI').classList.remove('hidden');
             closeControllerModal();
             document.getElementById('roleModal').classList.add('hidden');
-            assignedRole = type;
-            document.getElementById('current-role-label').innerText = type.toUpperCase() + ' (MOBILE)';
+            document.getElementById('current-mode-label').innerText = 'Simulated Mobile ' + type.toUpperCase();
+            if (type === 'driver') {
+                document.getElementById('remoteGunnerJoystick').style.display = 'none';
+            } else {
+                document.getElementById('remoteDriverPad').style.display = 'none';
+            }
             startGame();
         }
 
-        function selectRole(role) {
-            assignedRole = role;
+        function startSoloPlay() {
             document.getElementById('roleModal').classList.add('hidden');
-            document.getElementById('current-role-label').innerText = role.toUpperCase();
+            document.getElementById('current-mode-label').innerText = 'Solo Keyboard Mode';
             startGame();
         }
 
@@ -478,10 +411,11 @@
             kills = 0;
             truck.hp = 100;
             truck.x = canvas.width / 2 - 75;
-            truck.y = canvas.height / 2;
+            truck.y = canvas.height / 2 - 37;
             zombies = [];
             particles = [];
             roadObstacles = [];
+            powerUps = [];
             weapon.ammo = weapon.maxAmmo;
         }
 
@@ -494,16 +428,7 @@
             const banner = document.getElementById('notificationBanner');
             banner.innerText = text;
             banner.style.opacity = '1';
-            setTimeout(() => {
-                banner.style.opacity = '0';
-            }, 2000);
-        }
-
-        function reloadWeapon() {
-            if (weapon.reloadTime === 0 && weapon.ammo < weapon.maxAmmo) {
-                weapon.reloadTime = weapon.reloadDuration;
-                showNotification("RELOADING TURRET...");
-            }
+            setTimeout(() => { banner.style.opacity = '0'; }, 2000);
         }
 
         let infiniteAmmoTimer = 0;
@@ -511,28 +436,27 @@
         function shootTurret() {
             if (weapon.reloadTime > 0) return;
             if (weapon.ammo <= 0 && infiniteAmmoTimer <= 0) {
-                reloadWeapon();
+                weapon.reloadTime = weapon.reloadDuration;
+                showNotification("RELOADING TURRET...");
                 return;
             }
             if (weapon.fireCooldown > 0) return;
 
-            if (infiniteAmmoTimer <= 0) {
-                weapon.ammo--;
-            }
+            if (infiniteAmmoTimer <= 0) weapon.ammo--;
             weapon.fireCooldown = weapon.fireRate;
 
             const turretX = truck.x + truck.width / 2;
             const turretY = truck.y + truck.height / 2 - 15;
 
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 4; i++) {
                 particles.push({
                     x: turretX + Math.cos(truck.turretAngle) * 40,
                     y: turretY + Math.sin(truck.turretAngle) * 40,
-                    vx: (Math.random() - 0.5) * 8 + Math.cos(truck.turretAngle) * 10,
-                    vy: (Math.random() - 0.5) * 8 + Math.sin(truck.turretAngle) * 10,
-                    size: Math.random() * 5 + 2,
+                    vx: (Math.random() - 0.5) * 6 + Math.cos(truck.turretAngle) * 14,
+                    vy: (Math.random() - 0.5) * 6 + Math.sin(truck.turretAngle) * 14,
+                    size: Math.random() * 3 + 2,
                     color: infiniteAmmoTimer > 0 ? '#38bdf8' : '#fbbf24',
-                    life: 12
+                    life: 10
                 });
             }
 
@@ -547,17 +471,17 @@
 
                 const distToTurret = Math.hypot(zCenterX - turretX, zCenterY - turretY);
 
-                if (angleDiff < 0.55 && distToTurret < 900) {
-                    z.hp -= 45;
-                    for (let p = 0; p < 6; p++) {
+                if (angleDiff < 0.65 && distToTurret < 900) {
+                    z.hp -= 35;
+                    for (let p = 0; p < 3; p++) {
                         particles.push({
                             x: zCenterX,
                             y: zCenterY,
-                            vx: (Math.random() - 0.5) * 6,
-                            vy: (Math.random() - 0.5) * 6,
-                            size: Math.random() * 6 + 2,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: (Math.random() - 0.5) * 4,
+                            size: Math.random() * 4 + 2,
                             color: '#ef4444',
-                            life: 25
+                            life: 15
                         });
                     }
 
@@ -574,50 +498,40 @@
 
         function updateSpawns() {
             zombieSpawnTimer++;
-            // Progressive difficulty: much faster and denser zombie spawns as distance increases
-            const spawnInterval = Math.max(15, 80 - Math.floor(distance / 150));
+            // Fast-paced high density spawning scaling over time
+            const spawnInterval = Math.max(8, 30 - Math.floor(distance / 80));
             if (zombieSpawnTimer > spawnInterval) {
                 zombieSpawnTimer = 0;
                 
-                const spawnFromAhead = Math.random() > 0.4;
-                const spawnX = spawnFromAhead ? canvas.width + 120 : -120;
                 const roadY = canvas.height / 2 - 250;
                 const roadHeight = 500;
-                const spawnY = roadY + 40 + Math.random() * (roadHeight - 120);
 
-                let zWidth = 50, zHeight = 60, zHp = 60;
-                
-                if (spawnFromAhead) {
-                    zHp = 90;
-                }
-
+                // 1. Spawn Chasing Zombies from Behind (Left side)
                 zombies.push({
-                    x: spawnX,
-                    y: spawnY,
-                    width: zWidth,
-                    height: zHeight,
-                    hp: zHp,
-                    maxHp: zHp,
-                    speed: spawnFromAhead ? 0 : 0.8,
-                    fromAhead: spawnFromAhead,
-                    color: spawnFromAhead ? '#dc2626' : '#65a30d',
+                    x: -100,
+                    y: roadY + 30 + Math.random() * (roadHeight - 100),
+                    width: 48,
+                    height: 56,
+                    hp: 50,
+                    maxHp: 50,
+                    speed: 1.1,
+                    type: 'chaser',
                     dead: false,
                     attackCooldown: 0,
                     walkAnim: Math.random() * 10
                 });
 
-                // Extra secondary/tertiary spawn during fast-paced waves
-                if (distance > 500 && Math.random() > 0.3) {
+                // 2. Spawn Standing Zombies Ahead (Right side)
+                if (Math.random() > 0.3) {
                     zombies.push({
-                        x: spawnX + (Math.random() * 80 - 40),
-                        y: roadY + 40 + Math.random() * (roadHeight - 120),
-                        width: zWidth,
-                        height: zHeight,
-                        hp: zHp,
-                        maxHp: zHp,
-                        speed: spawnFromAhead ? 0 : 0.8,
-                        fromAhead: spawnFromAhead,
-                        color: spawnFromAhead ? '#dc2626' : '#65a30d',
+                        x: canvas.width + 100 + Math.random() * 200,
+                        y: roadY + 30 + Math.random() * (roadHeight - 100),
+                        width: 48,
+                        height: 56,
+                        hp: 40,
+                        maxHp: 40,
+                        speed: 0, // Standing still
+                        type: 'standing',
                         dead: false,
                         attackCooldown: 0,
                         walkAnim: Math.random() * 10
@@ -630,23 +544,23 @@
                 obstacleSpawnTimer = 0;
                 const roadY = canvas.height / 2 - 250;
                 const roadHeight = 500;
-                const obsHeight = roadHeight / 3;
+                const obsHeight = roadHeight / 3; // covers 1/3 road height
                 const obsX = canvas.width + 150;
                 const obsY = roadY + Math.random() * (roadHeight - obsHeight);
 
                 roadObstacles.push({
                     x: obsX,
                     y: obsY,
-                    width: 90,
+                    width: 100,
                     height: obsHeight
                 });
 
-                // Power-up spawn is now rarer (only 25% chance per obstacle)
-                if (Math.random() < 0.25) {
+                // Rare power-up spawn near obstacle (15% chance)
+                if (Math.random() < 0.15) {
                     const powerUpType = Math.random() > 0.5 ? 'health' : 'ammo';
                     powerUps.push({
                         x: obsX + 30,
-                        y: obsY > roadY + 250 ? obsY - 50 : obsY + obsHeight + 20,
+                        y: obsY > roadY + 200 ? obsY - 50 : obsY + obsHeight + 20,
                         width: 36,
                         height: 36,
                         type: powerUpType
@@ -658,45 +572,36 @@
         function updateGame() {
             if (gameState !== 'PLAYING') return;
 
-            animTick++;
-            distance += truck.speed * 0.08;
+            distance += truck.speed * 0.1;
             if (infiniteAmmoTimer > 0) infiniteAmmoTimer--;
 
             const roadY = canvas.height / 2 - 250;
             const roadHeight = 500;
 
-            if (assignedRole === 'driver' || assignedRole === 'both') {
-                if (keys.w || keys.ArrowUp) truck.y -= 4.2;
-                if (keys.s || keys.ArrowDown) truck.y += 4.2;
-                if (keys.a || keys.ArrowLeft) truck.x -= 4.2;
-                if (keys.d || keys.ArrowRight) truck.x += 4.2;
-            }
+            // Player 1 Steering (Up, Down, Left, Right within boundaries)
+            if (keys.w || keys.ArrowUp) truck.y -= 4.2;
+            if (keys.s || keys.ArrowDown) truck.y += 4.2;
+            if (keys.a || keys.ArrowLeft) truck.x -= 4.2;
+            if (keys.d || keys.ArrowRight) truck.x += 4.2;
 
-            const minX = 100;
-            const maxX = canvas.width - 300;
+            const minX = 60;
+            const maxX = canvas.width - 240;
             const minY = roadY + 15;
             const maxY = roadY + roadHeight - truck.height - 15;
 
             truck.x = Math.max(minX, Math.min(maxX, truck.x));
             truck.y = Math.max(minY, Math.min(maxY, truck.y));
 
-            if (assignedRole === 'gunner' || assignedRole === 'both') {
-                if (!mobileControlsActive) {
-                    const turretX = truck.x + truck.width / 2;
-                    const turretY = truck.y + truck.height / 2 - 15;
-                    truck.turretAngle = Math.atan2(mouse.y - turretY, mouse.x - turretX);
-                }
+            // Player 2 Turret Aim & Shoot
+            if (joystick.active || mouseIsDown) {
+                shootTurret();
+            }
 
-                if (weapon.reloadTime > 0) {
-                    weapon.reloadTime--;
-                    if (weapon.reloadTime === 0) {
-                        weapon.ammo = weapon.maxAmmo;
-                        showNotification("TURRET RELOADED!");
-                    }
-                } else {
-                    if (mouse.isDown || keys.Space || (mobileControlsActive && joystick.active)) {
-                        shootTurret();
-                    }
+            if (weapon.reloadTime > 0) {
+                weapon.reloadTime--;
+                if (weapon.reloadTime === 0) {
+                    weapon.ammo = weapon.maxAmmo;
+                    showNotification("TURRET RELOADED!");
                 }
             }
 
@@ -709,7 +614,6 @@
                 const p = powerUps[i];
                 p.x -= truck.speed * 2.5;
 
-                // Collision with truck
                 if (
                     p.x < truck.x + truck.width &&
                     p.x + p.width > truck.x &&
@@ -720,19 +624,20 @@
                         truck.hp = Math.min(truck.maxHp, truck.hp + 35);
                         showNotification("POWER-UP: +35 BUS HP!");
                     } else {
-                        infiniteAmmoTimer = 350; // ~6 seconds of infinite ammo
+                        infiniteAmmoTimer = 350; // ~6 seconds infinite ammo
                         weapon.ammo = weapon.maxAmmo;
                         showNotification("POWER-UP: INFINITE AMMO!");
                     }
                     powerUps.splice(i, 1);
                     continue;
                 }
-
                 if (p.x < -100) powerUps.splice(i, 1);
             }
 
+            // Stationary Road Obstacles (Do not move left, stay fixed)
             for (let i = roadObstacles.length - 1; i >= 0; i--) {
                 const obs = roadObstacles[i];
+                // obstacles scroll past as the road moves left
                 obs.x -= truck.speed * 2.5;
 
                 if (
@@ -741,8 +646,8 @@
                     obs.y < truck.y + truck.height &&
                     obs.y + obs.height > truck.y
                 ) {
-                    truck.hp -= 30;
-                    showNotification("CRASHED INTO ROAD BLOCKADE!");
+                    truck.hp -= 25;
+                    showNotification("HIT ROAD BLOCKADE!");
                     roadObstacles.splice(i, 1);
                     if (truck.hp <= 0) triggerGameOver();
                     continue;
@@ -751,6 +656,7 @@
                 if (obs.x < -150) roadObstacles.splice(i, 1);
             }
 
+            // Zombies logic
             for (let i = zombies.length - 1; i >= 0; i--) {
                 const z = zombies[i];
                 if (z.dead) {
@@ -760,17 +666,19 @@
 
                 z.walkAnim += 0.15;
 
-                if (z.fromAhead) {
-                    z.x -= truck.speed * 2.5;
-                } else {
+                if (z.type === 'chaser') {
+                    // Chasing actively from behind
                     const targetX = truck.x + truck.width / 2;
                     const targetY = truck.y + truck.height / 2;
                     const dx = targetX - (z.x + z.width / 2);
                     const dy = targetY - (z.y + z.height / 2);
                     const angle = Math.atan2(dy, dx);
                     
-                    z.x += Math.cos(angle) * (z.speed + truck.speed * 0.3);
+                    z.x += Math.cos(angle) * (z.speed + truck.speed * 0.4);
                     z.y += Math.sin(angle) * z.speed;
+                } else {
+                    // Standing zombies ahead scroll leftwards
+                    z.x -= truck.speed * 2.5;
                 }
 
                 if (
@@ -779,24 +687,16 @@
                     z.y < truck.y + truck.height &&
                     z.y + z.height > truck.y
                 ) {
-                    if (z.fromAhead) {
-                        truck.hp -= 20;
-                        showNotification("HIT STANDING ZOMBIE HORDE!");
-                        z.dead = true;
-                        kills++;
+                    z.attackCooldown++;
+                    if (z.attackCooldown > 35) {
+                        z.attackCooldown = 0;
+                        truck.hp -= 10;
+                        showNotification("ZOMBIE ATTACKING BUS!");
                         if (truck.hp <= 0) triggerGameOver();
-                    } else {
-                        z.attackCooldown++;
-                        if (z.attackCooldown > 40) {
-                            z.attackCooldown = 0;
-                            truck.hp -= 10;
-                            showNotification("ZOMBIES BREACHING BUS!");
-                            if (truck.hp <= 0) triggerGameOver();
-                        }
                     }
                 }
 
-                if (z.x < -300 || z.x > canvas.width + 300) {
+                if (z.x < -150 || z.x > canvas.width + 300) {
                     zombies.splice(i, 1);
                 }
             }
@@ -812,6 +712,18 @@
             updateHUD();
         }
 
+        let mouseIsDown = false;
+        canvas.addEventListener('mousedown', (e) => { mouseIsDown = true; });
+        window.addEventListener('mouseup', () => { mouseIsDown = false; });
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const turretX = truck.x + truck.width / 2;
+            const turretY = truck.y + truck.height / 2 - 15;
+            truck.turretAngle = Math.atan2(mouseY - turretY, mouseX - turretX);
+        });
+
         function updateHUD() {
             document.getElementById('hud-distance').innerText = Math.floor(distance) + ' m';
             document.getElementById('hud-kills').innerText = kills;
@@ -826,14 +738,11 @@
 
             const reloadStatusEl = document.getElementById('reload-status');
             if (infiniteAmmoTimer > 0) {
-                reloadStatusEl.innerText = 'INFINITE AMMO ACTIVE!';
+                reloadStatusEl.innerText = 'INF AMMO';
                 reloadStatusEl.className = 'text-cyan-400 font-bold animate-pulse';
             } else if (weapon.reloadTime > 0) {
-                reloadStatusEl.innerText = 'RELOADING...';
+                reloadStatusEl.innerText = 'RELOADING';
                 reloadStatusEl.className = 'text-amber-400 font-bold animate-pulse';
-            } else if (weapon.ammo === 0) {
-                reloadStatusEl.innerText = 'PRESS R TO RELOAD';
-                reloadStatusEl.className = 'text-red-500 font-bold animate-bounce';
             } else {
                 reloadStatusEl.innerText = 'READY';
                 reloadStatusEl.className = 'text-emerald-400 font-bold';
@@ -853,15 +762,17 @@
             const roadY = canvas.height / 2 - 250;
             const roadHeight = 500;
 
+            // Background
             ctx.fillStyle = '#090d16';
             ctx.fillRect(0, 0, canvas.width, roadY);
             ctx.fillStyle = '#020408';
             ctx.fillRect(0, roadY + roadHeight, canvas.width, canvas.height - (roadY + roadHeight));
 
+            // Wide asphalt road
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(0, roadY, canvas.width, roadHeight);
 
-            // Boundary Lines on top and bottom of the road that cannot be passed
+            // Boundary lines on both ends that cannot be passed
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -871,34 +782,23 @@
             ctx.lineTo(canvas.width, roadY + roadHeight);
             ctx.stroke();
 
-            // Faster visual illusion: Rapid road stripe dash scrolling
+            // Fast road dash visual illusion
             ctx.strokeStyle = '#f59e0b';
             ctx.lineWidth = 6;
-            ctx.setLineDash([80, 40]);
-            ctx.lineDashOffset = (distance * 24) % 120;
+            ctx.setLineDash([90, 40]);
+            ctx.lineDashOffset = (distance * 35) % 130;
             ctx.beginPath();
             ctx.moveTo(0, roadY + roadHeight / 2);
             ctx.lineTo(canvas.width, roadY + roadHeight / 2);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Background motion streak lines
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.lineWidth = 2;
-            for (let i = 0; i < 8; i++) {
-                let streakX = (animTick * 18 + i * 200) % canvas.width;
-                let streakY = roadY + 50 + (i * 55) % (roadHeight - 100);
-                ctx.beginPath();
-                ctx.moveTo(streakX, streakY);
-                ctx.lineTo(streakX + 90, streakY);
-                ctx.stroke();
-            }
-
+            // Render Stationary Road Obstacles (Covering 1/3 road height with roadblock icons)
             roadObstacles.forEach(obs => {
                 ctx.fillStyle = '#450a0a';
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
                 ctx.fillStyle = '#7f1d1d';
-                ctx.fillRect(obs.x + 8, obs.y + 8, obs.width - 16, obs.height - 16);
+                ctx.fillRect(obs.x + 6, obs.y + 6, obs.width - 12, obs.height - 12);
                 
                 ctx.fillStyle = '#f87171';
                 ctx.font = '24px FontAwesome';
@@ -907,6 +807,7 @@
                 ctx.fillText('\uf071', obs.x + obs.width / 2, obs.y + obs.height / 2);
             });
 
+            // Render Power-ups
             powerUps.forEach(p => {
                 ctx.save();
                 ctx.translate(p.x, p.y);
@@ -929,6 +830,7 @@
                 ctx.restore();
             });
 
+            // Render Zombies (Chasers & Standing)
             zombies.forEach(z => {
                 ctx.save();
                 ctx.translate(z.x, z.y);
@@ -936,18 +838,17 @@
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fillRect(4, z.height - 4, z.width - 8, 8);
 
-                ctx.fillStyle = z.color;
+                ctx.fillStyle = z.type === 'chaser' ? '#65a30d' : '#854d0e';
                 ctx.fillRect(4, 12, z.width - 8, z.height - 14);
 
-                ctx.fillStyle = z.fromAhead ? '#f87171' : '#a3e635';
-                ctx.fillRect(8, 0, z.width - 16, 20);
+                ctx.fillStyle = z.type === 'chaser' ? '#a3e635' : '#ca8a04';
+                ctx.fillRect(6, 0, z.width - 12, 18);
 
-                // Zombie / Hazard Icon
                 ctx.fillStyle = '#0f172a';
                 ctx.font = '16px FontAwesome';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(z.fromAhead ? '\uf544' : '\uf714', z.width / 2, z.height / 2);
+                ctx.fillText(z.type === 'chaser' ? '\uf714' : '\uf556', z.width / 2, z.height / 2);
 
                 if (z.hp < z.maxHp) {
                     ctx.fillStyle = '#000';
@@ -1006,6 +907,7 @@
 
             ctx.restore();
 
+            // Particles
             particles.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
