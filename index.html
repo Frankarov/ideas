@@ -3,783 +3,972 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Burger Buddies - 2 Player Co-op Card Game</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
-    <!-- Tone.js for cute audio -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <!-- QRCode.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- PeerJS for WebRTC Mobile Controller Connection -->
+    <title>Co-op Archery Adventure</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Canvas Confetti -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #6fb6e6; /* Sky blue */
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevent scrolling on mobile */
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to canvas when not on UI */
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            user-select: none;
+            backdrop-filter: blur(4px);
+        }
+        
+        .btn:active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        #joystick-area {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: auto;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            top: 40px;
+            left: 40px;
+            pointer-events: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Start / Game Over Screens */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            pointer-events: auto;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .overlay-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: #f1c40f;
+        }
+
+        .overlay-screen p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: #2ecc71;
+            border: none;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+            transition: transform 0.1s;
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+        
+        #remote-controller-ui {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #2c3e50;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            touch-action: none;
+        }
+
+        .role-btn {
+            margin: 10px; padding: 20px 40px; font-size: 20px;
+            background: #3498db; border: none; border-radius: 15px; color: white; width: 80%; max-width: 300px;
+        }
+
+        #p2-remote, #p1-remote { width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center;}
+        
+        #qr-container {
+            margin: 20px auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        #qr-loading { color: #f1c40f; margin-top: 10px; font-weight: bold; }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="score-board">
+            Score: <span id="score">0</span>
+        </div>
+        
+        <div class="mobile-controls">
+            <div class="btn" id="btn-left">←</div>
+            <div class="btn" id="btn-right">→</div>
+            <div class="btn" id="btn-jump">↑</div>
+        </div>
+        
+        <div id="joystick-area">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="overlay-screen">
+        <h1>Co-op Archery</h1>
+        <p><strong>Player 2 (Bottom):</strong> Use <b>WASD</b> or the left buttons to run and jump. Stomp on enemies like Mario!</p>
+        <p><strong>Player 1 (Top):</strong> Use <b>Arrow Keys</b> or the right joystick to aim and shoot arrows!</p>
+        
+        <div id="qr-loading">Generating Controller Link...</div>
+        <div id="qr-container"></div>
+        <p style="font-size: 0.9rem; color: #ccc;">Scan with phone to use as a controller!</p>
+
+        <button class="start-btn" id="start-btn">Play Now</button>
+    </div>
+
+    <div id="game-over-screen" class="overlay-screen hidden">
+        <h1>Game Over!</h1>
+        <p>You got hit by an enemy.</p>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <button class="start-btn" id="restart-btn">Try Again</button>
+    </div>
+
+    <div id="remote-controller-ui" class="hidden">
+        <div id="role-selection" style="text-align: center;">
+            <h2>Select Your Role</h2>
+            <button class="role-btn" id="btn-role-p2">Play as Player 2 (Walker)</button>
+            <button class="role-btn" id="btn-role-p1">Play as Player 1 (Shooter)</button>
+        </div>
+        
+        <div id="p2-remote" class="hidden">
+            <div class="mobile-controls" style="position:relative; bottom:auto; left:auto; transform: scale(1.5);">
+                <div class="btn" id="r-btn-left">←</div>
+                <div class="btn" id="r-btn-right">→</div>
+                <div class="btn" id="r-btn-jump">↑</div>
+            </div>
+        </div>
+
+        <div id="p1-remote" class="hidden">
+            <div id="r-joystick-area" style="width: 200px; height: 200px; background: rgba(255,255,255,0.1); border: 4px solid white; border-radius: 50%; position: relative;">
+                <div id="r-joystick-knob" style="width: 60px; height: 60px; background: white; border-radius: 50%; position: absolute; top: 70px; left: 70px;"></div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        fredoka: ['Fredoka', 'sans-serif'],
-                        nunito: ['Nunito', 'sans-serif'],
-                    },
-                    colors: {
-                        'cream-bg': '#FFF9E6',
-                        'burger-red': '#FF5964',
-                        'burger-yellow': '#FFD166',
-                        'burger-green': '#06D6A0',
-                        'burger-brown': '#7F4F24',
-                        'table-purple': '#2D1B4E',
-                        'felt-purple': '#3C2263',
-                    },
-                    animation: {
-                        'bounce-gentle': 'bounceGentle 2s infinite',
-                        'pulse-glow': 'pulseGlow 1.5s infinite alternate',
-                        'float-up': 'floatUp 0.8s ease-out forwards',
-                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                    },
-                    keyframes: {
-                        bounceGentle: {
-                            '0%, 100%': { transform: 'translateY(-3%)' },
-                            '50%': { transform: 'translateY(0)' },
-                        },
-                        pulseGlow: {
-                            '0%': { boxShadow: '0 0 10px rgba(255, 209, 102, 0.5)' },
-                            '100%': { boxShadow: '0 0 25px rgba(255, 209, 102, 0.9)' },
-                        },
-                        floatUp: {
-                            '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
-                            '100%': { opacity: '0', transform: 'translateY(-60px) scale(1.2)' },
-                        },
-                        popIn: {
-                            '0%': { opacity: '0', transform: 'scale(0.5)' },
-                            '100%': { opacity: '1', transform: 'scale(1)' },
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI Elements
+        const scoreEl = document.getElementById('score');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const finalScoreEl = document.getElementById('final-score');
+        
+        // Joystick UI
+        const joystickArea = document.getElementById('joystick-area');
+        const joystickKnob = document.getElementById('joystick-knob');
+
+        // Networking & Controller Variables
+        const urlParams = new URLSearchParams(window.location.search);
+        const isControllerMode = urlParams.get('mode') === 'controller';
+        const hostPeerId = urlParams.get('host');
+        let peer, peerConnection;
+
+        // Game Constants
+        const GRAVITY = 0.5;
+        const FRICTION = 0.8;
+        let BASE_GROUND_Y = 0;
+        
+        // Game State Variables
+        let isPlaying = false;
+        let animationFrameId;
+        let cameraX = 0;
+        let score = 0;
+        let frames = 0;
+        
+        // Entities
+        let p1, p2, scenery;
+        let platforms = [];
+        let arrows = [];
+        let enemies = [];
+        
+        // Input Tracking
+        const keys = {
+            w: false, a: false, d: false, 
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false
+        };
+
+        let joystick = {
+            active: false,
+            angle: 0,
+            x: 0,
+            y: 0,
+            touchId: null
+        };
+
+        // Resize Handling
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            BASE_GROUND_Y = canvas.height - 80;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        });
+
+        // Touch Controls for Walker (Player 2)
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnJump = document.getElementById('btn-jump');
+
+        const addTouch = (elem, key) => {
+            elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+            elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+        };
+        addTouch(btnLeft, 'a');
+        addTouch(btnRight, 'd');
+        addTouch(btnJump, 'w');
+
+        // Joystick Controls for Shooter (Player 1)
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            joystick.touchId = touch.identifier;
+            joystick.active = true;
+            updateJoystick(touch);
+        });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystick.touchId) {
+                    updateJoystick(e.changedTouches[i]);
+                }
+            }
+        });
+
+        const endJoystick = (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystick.touchId) {
+                    joystick.active = false;
+                    joystick.touchId = null;
+                    joystickKnob.style.transform = `translate(0px, 0px)`;
+                }
+            }
+        };
+        joystickArea.addEventListener('touchend', endJoystick);
+        joystickArea.addEventListener('touchcancel', endJoystick);
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            
+            const distance = Math.min(Math.sqrt(dx*dx + dy*dy), rect.width/2 - 20);
+            joystick.angle = Math.atan2(dy, dx);
+            
+            const knobX = Math.cos(joystick.angle) * distance;
+            const knobY = Math.sin(joystick.angle) * distance;
+            
+            joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+        }
+
+        class Scenery {
+            constructor() {
+                this.clouds = [];
+                for(let i=0; i<10; i++) {
+                    this.clouds.push({
+                        x: Math.random() * canvas.width * 2,
+                        y: Math.random() * (canvas.height / 2),
+                        size: 30 + Math.random() * 50,
+                        speed: 0.1 + Math.random() * 0.3
+                    });
+                }
+            }
+            update(camX) {
+                this.clouds.forEach(cloud => {
+                    cloud.x -= cloud.speed;
+                    if (cloud.x < camX - canvas.width) {
+                        cloud.x = camX + canvas.width + Math.random() * 200;
+                        cloud.y = Math.random() * (canvas.height / 2);
+                    }
+                });
+            }
+            draw(ctx, camX) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                this.clouds.forEach(cloud => {
+                    const drawX = cloud.x - (camX * 0.5); // Parallax effect
+                    ctx.beginPath();
+                    ctx.arc(drawX, cloud.y, cloud.size, 0, Math.PI * 2);
+                    ctx.arc(drawX + cloud.size * 0.5, cloud.y - cloud.size * 0.3, cloud.size * 0.8, 0, Math.PI * 2);
+                    ctx.arc(drawX + cloud.size, cloud.y, cloud.size * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Flat Ground
+                ctx.fillStyle = '#27ae60'; // Grass
+                ctx.fillRect(0, BASE_GROUND_Y, canvas.width, 20);
+                ctx.fillStyle = '#8e44ad'; // Dirt / Underneath
+                ctx.fillRect(0, BASE_GROUND_Y + 20, canvas.width, canvas.height);
+            }
+        }
+
+        class Player2 { // The Walker
+            constructor() {
+                this.width = 40;
+                this.height = 60;
+                this.x = 200;
+                this.y = BASE_GROUND_Y - this.height;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 5;
+                this.isGrounded = false;
+                this.color = '#3498db'; // Blue
+                this.facingRight = true;
+            }
+
+            update() {
+                // Horizontal Movement
+                if (keys.a) { this.vx -= 1.5; this.facingRight = false; }
+                if (keys.d) { this.vx += 1.5; this.facingRight = true; }
+                
+                this.vx *= FRICTION;
+                
+                // Cap speed
+                if (this.vx > this.speed) this.vx = this.speed;
+                if (this.vx < -this.speed) this.vx = -this.speed;
+
+                let nextX = this.x + this.vx;
+                
+                // Prevent going backwards past camera
+                if (nextX < cameraX) {
+                    nextX = cameraX;
+                    this.vx = 0;
+                }
+                this.x = nextX;
+
+                // Vertical Movement & Gravity
+                this.vy += GRAVITY;
+                let nextY = this.y + this.vy;
+
+                // Platform & Ground Collision
+                this.isGrounded = false;
+                
+                if (this.vy > 0) { // Only check if falling down
+                    for (let p of platforms) {
+                        // Check horizontal bounds
+                        if (this.x + this.width > p.x && this.x < p.x + p.width) {
+                            // Check if previously above, and now below platform top
+                            if (this.y + this.height <= p.y + 15 && nextY + this.height >= p.y) {
+                                nextY = p.y - this.height;
+                                this.vy = 0;
+                                this.isGrounded = true;
+                                break;
+                            }
                         }
+                    }
+                }
+
+                // Ground Collision
+                if (!this.isGrounded && nextY + this.height >= BASE_GROUND_Y) {
+                    nextY = BASE_GROUND_Y - this.height;
+                    this.vy = 0;
+                    this.isGrounded = true;
+                }
+
+                this.y = nextY;
+
+                // Jump
+                if (keys.w && this.isGrounded) {
+                    this.vy = -12;
+                    this.isGrounded = false;
+                }
+            }
+
+            draw(ctx, camX) {
+                const drawX = this.x - camX;
+                
+                // Body
+                ctx.fillStyle = this.color;
+                ctx.fillRect(drawX, this.y, this.width, this.height);
+                
+                // Eyes
+                ctx.fillStyle = 'white';
+                if (this.facingRight) {
+                    ctx.fillRect(drawX + 25, this.y + 10, 8, 8);
+                } else {
+                    ctx.fillRect(drawX + 7, this.y + 10, 8, 8);
+                }
+            }
+        }
+
+        class Player1 { // The Shooter (Rides P2)
+            constructor(walker) {
+                this.walker = walker;
+                this.width = 30;
+                this.height = 40;
+                this.color = '#e74c3c'; // Red
+                this.shootCooldown = 0;
+                this.aimAngle = 0;
+            }
+
+            update() {
+                // Stick to the walker's head
+                this.x = this.walker.x + (this.walker.width - this.width) / 2;
+                this.y = this.walker.y - this.height;
+
+                // Calculate Aiming Angle
+                if (joystick.active) {
+                    this.aimAngle = joystick.angle;
+                } else {
+                    let dx = 0, dy = 0;
+                    if (keys.ArrowLeft) dx = -1;
+                    if (keys.ArrowRight) dx = 1;
+                    if (keys.ArrowUp) dy = -1;
+                    if (keys.ArrowDown) dy = 1;
+                    
+                    if (dx !== 0 || dy !== 0) {
+                        this.aimAngle = Math.atan2(dy, dx);
+                    } else {
+                        // Default forward
+                        this.aimAngle = this.walker.facingRight ? 0 : Math.PI;
+                    }
+                }
+
+                // Shooting Logic
+                if (this.shootCooldown > 0) this.shootCooldown--;
+                
+                const isTryingToShoot = joystick.active || keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown;
+                
+                if (isTryingToShoot && this.shootCooldown === 0) {
+                    arrows.push(new Arrow(
+                        this.x + this.width/2, 
+                        this.y + this.height/2, 
+                        this.aimAngle
+                    ));
+                    this.shootCooldown = 25; // Delay between shots
+                }
+            }
+
+            draw(ctx, camX) {
+                const drawX = this.x - camX;
+                
+                // Body
+                ctx.fillStyle = this.color;
+                ctx.fillRect(drawX, this.y, this.width, this.height);
+                
+                // Bow/Arm indicating aim
+                ctx.save();
+                ctx.translate(drawX + this.width/2, this.y + this.height/2);
+                ctx.rotate(this.aimAngle);
+                
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(25, 0);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+
+        class Arrow {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                const speed = 15;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.active = true;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // Very slight arrow drop
+                
+                // Remove if it hits the ground or goes way off screen
+                if (this.y > BASE_GROUND_Y || this.x < cameraX - 200 || this.x > cameraX + canvas.width + 200) {
+                    this.active = false;
+                }
+            }
+
+            draw(ctx, camX) {
+                const drawX = this.x - camX;
+                ctx.save();
+                ctx.translate(drawX, this.y);
+                ctx.rotate(Math.atan2(this.vy, this.vx));
+                
+                ctx.strokeStyle = '#f1c40f'; // Yellowish arrow
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(10, 0);
+                ctx.stroke();
+                
+                // Arrowhead
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(2, -4);
+                ctx.lineTo(2, 4);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+
+        class Enemy {
+            constructor(x) {
+                this.x = x;
+                this.width = 40;
+                this.height = 40;
+                this.y = BASE_GROUND_Y - this.height - 200; // Spawn higher up
+                
+                // Very slow speed
+                this.vx = -0.5 - Math.random() * 0.5; 
+                this.vy = 0;
+                this.active = true;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.vy += GRAVITY;
+                let nextY = this.y + this.vy;
+                
+                // Find floor (Platform or Ground)
+                let floorY = BASE_GROUND_Y;
+                for (let p of platforms) {
+                    if (this.x + this.width > p.x && this.x < p.x + p.width) {
+                        if (this.y + this.height <= p.y + 15 && nextY + this.height >= p.y) {
+                            floorY = p.y;
+                            break;
+                        }
+                    }
+                }
+
+                if (nextY + this.height >= floorY) {
+                    this.y = floorY - this.height;
+                    this.vy = 0;
+                } else {
+                    this.y = nextY;
+                }
+            }
+
+            draw(ctx, camX) {
+                const drawX = this.x - camX;
+                
+                // Draw a simple monster
+                ctx.fillStyle = '#9b59b6'; // Purple enemy
+                ctx.fillRect(drawX, this.y, this.width, this.height);
+                
+                // Angry eyes
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(drawX + 5, this.y + 10, 10, 5);
+                ctx.fillRect(drawX + 25, this.y + 10, 10, 5);
+            }
+        }
+
+        function generatePlatforms(camX) {
+            const farthestX = platforms.length > 0 ? platforms[platforms.length - 1].x : camX;
+            
+            while (farthestX < camX + canvas.width * 2) {
+                const lastX = platforms.length > 0 ? platforms[platforms.length - 1].x : camX + 300;
+                const gap = 150 + Math.random() * 200;
+                const newX = lastX + gap;
+                const width = 100 + Math.random() * 150;
+                
+                // 3 height tiers
+                const heightTier = Math.floor(Math.random() * 3);
+                const newY = BASE_GROUND_Y - (80 + heightTier * 70);
+                
+                platforms.push({ x: newX, y: newY, width: width, height: 20 });
+                if (platforms.length > 30) break; 
+            }
+
+            // Cleanup off-screen platforms
+            platforms = platforms.filter(p => p.x + p.width > camX - 200);
+        }
+
+        function drawPlatforms(ctx, camX) {
+            platforms.forEach(p => {
+                const drawX = p.x - camX;
+                ctx.fillStyle = '#e67e22'; // Wood
+                ctx.fillRect(drawX, p.y, p.width, p.height);
+                ctx.strokeStyle = '#d35400';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(drawX, p.y, p.width, p.height);
+            });
+        }
+
+        function spawnEnemies() {
+            if (frames % 120 === 0) { // Spawn every 2 seconds roughly
+                // Spawn ahead of the camera
+                const spawnX = cameraX + canvas.width + 100;
+                enemies.push(new Enemy(spawnX));
+            }
+        }
+
+        function initGame() {
+            resizeCanvas();
+            p2 = new Player2();
+            p1 = new Player1(p2);
+            scenery = new Scenery();
+            
+            platforms = [];
+            arrows = [];
+            enemies = [];
+            
+            cameraX = 0;
+            score = 0;
+            frames = 0;
+            scoreEl.innerText = '0';
+            
+            generatePlatforms(0);
+            
+            // Clear inputs
+            for(let key in keys) keys[key] = false;
+            joystick.active = false;
+        }
+
+        function checkCollisions() {
+            // Arrow hits Enemy
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                let a = arrows[i];
+                let hit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let e = enemies[j];
+                    if (a.x > e.x && a.x < e.x + e.width && a.y > e.y && a.y < e.y + e.height) {
+                        enemies.splice(j, 1);
+                        hit = true;
+                        score += 10;
+                        scoreEl.innerText = score;
+                        break;
+                    }
+                }
+                if (hit) {
+                    arrows.splice(i, 1);
+                }
+            }
+
+            // Player 2 hits Enemy (Stomp or Die)
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                let e = enemies[j];
+                // Box collision
+                if (p2.x < e.x + e.width && p2.x + p2.width > e.x &&
+                    p2.y < e.y + e.height && p2.y + p2.height > e.y) {
+                    
+                    // Did P2 land on top?
+                    if (p2.vy > 0 && p2.y + p2.height < e.y + e.height/2) {
+                        // Stomp!
+                        enemies.splice(j, 1);
+                        p2.vy = -10; // Bounce up
+                        score += 20;
+                        scoreEl.innerText = score;
+                    } else {
+                        // Hit from the side - Game Over
+                        endGame();
                     }
                 }
             }
         }
-    </script>
-    <style>
-        body {
-            font-family: 'Fredoka', sans-serif;
-            background-color: #2D1B4E;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            overflow: hidden;
-        }
-        .felt-pattern {
-            background-color: #3C2263;
-            background-image: radial-gradient(#4D2E7C 15%, transparent 16%), radial-gradient(#4D2E7C 15%, transparent 16%);
-            background-size: 24px 24px;
-            background-position: 0 0, 12px 12px;
-        }
-        .card-shadow {
-            box-shadow: 0 6px 0px rgba(0,0,0,0.25), 0 10px 15px rgba(0,0,0,0.3);
-        }
-        .card-shadow:active {
-            box-shadow: 0 2px 0px rgba(0,0,0,0.2);
-            transform: translateY(4px);
-        }
-        .btn-bounce {
-            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .btn-bounce:active {
-            transform: scale(0.94);
-        }
-    </style>
-</head>
-<body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800">
 
-    <!-- Sound Toggle Button -->
-    <button id="sound-btn" onclick="toggleAudio()" class="fixed top-3 right-3 z-50 bg-white/90 backdrop-blur-md border-4 border-amber-300 shadow-lg rounded-full p-2 hover:scale-110 transition cursor-pointer">
-        <span id="sound-icon" class="text-xl">🔊</span>
-    </button>
+        function endGame() {
+            isPlaying = false;
+            finalScoreEl.innerText = score;
+            gameOverScreen.classList.remove('hidden');
+        }
 
-    <!-- MAIN HOST TV SCREEN VIEW -->
-    <div id="host-screen" class="h-full w-full flex flex-col justify-between p-2 md:p-4 max-w-7xl mx-auto">
-        
-        <!-- Top Info Header Bar -->
-        <header class="bg-white/95 backdrop-blur-md rounded-2xl border-4 border-amber-200 p-2 md:p-3 shadow-md flex justify-between items-center z-10">
-            <div class="flex items-center gap-2 md:gap-4">
-                <div class="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white px-3 py-1 rounded-xl shadow-inner">
-                    <span class="text-xl md:text-2xl animate-bounce">🍔</span>
-                    <span class="font-bold text-sm md:text-xl tracking-wide hidden sm:inline">BURGER BUDDIES</span>
-                </div>
-                
-                <div class="flex items-center gap-2 bg-amber-50 border-2 border-amber-300 px-3 py-1 rounded-xl">
-                    <div class="flex flex-col">
-                        <span id="day-tag" class="text-[10px] text-amber-800 font-extrabold uppercase leading-none">DAY 1</span>
-                        <span id="day-goal-text" class="text-xs md:text-sm font-black text-amber-900 leading-tight">$0 / $60</span>
-                    </div>
-                </div>
+        function gameLoop() {
+            if (!isPlaying) return;
+            frames++;
 
-                <div class="flex items-center gap-2 bg-emerald-50 border-2 border-emerald-300 px-3 py-1 rounded-xl">
-                    <span class="text-lg">🪙</span>
-                    <div class="flex flex-col">
-                        <span class="text-[10px] text-emerald-800 font-extrabold uppercase leading-none">Vault</span>
-                        <span id="vault-money" class="text-sm md:text-xl font-black text-emerald-900 leading-tight">$30</span>
-                    </div>
-                </div>
-            </div>
+            // Clear Screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            <div class="flex items-center gap-2">
-                <button onclick="toggleQRModal()" class="btn-bounce bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white font-bold px-4 py-2 rounded-xl border-b-4 border-blue-700 shadow flex items-center gap-2 text-xs md:text-sm">
-                    <span class="text-lg">📱</span>
-                    <span>Connect Controllers</span>
-                </button>
-            </div>
-        </header>
+            // Camera Logic (Follow P2)
+            const targetCamX = p2.x - canvas.width * 0.3;
+            cameraX += (targetCamX - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
 
-        <!-- Main Restaurant Stage Area -->
-        <main class="flex-1 my-2 flex flex-col lg:flex-row gap-4 items-center justify-center relative overflow-hidden">
+            generatePlatforms(cameraX);
+            spawnEnemies();
+
+            // Updates
+            scenery.update(cameraX);
+            p2.update();
+            p1.update();
             
-            <!-- Left Side: Customer Order Display -->
-            <div class="w-full lg:w-1/2 flex flex-col items-center justify-center relative px-2">
-                <div class="relative bg-white border-4 border-slate-800 rounded-3xl p-5 md:p-6 shadow-2xl w-full max-w-xl md:max-w-2xl animate-pop-in">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="text-sm md:text-base font-extrabold uppercase tracking-wider text-slate-500">
-                            Order #<span id="customer-num">1</span>: <span id="customer-name" class="text-slate-900 font-black">Kawaii Bear</span>
-                        </span>
-                        <div class="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-black text-sm px-3 py-1 rounded-full border-2 border-emerald-400">
-                            <span>Payout:</span>
-                            <span id="burger-value" class="text-base md:text-lg font-black">$25</span>
-                        </div>
-                    </div>
-
-                    <div class="w-full bg-slate-200 rounded-full h-3.5 mb-4 overflow-hidden border-2 border-slate-300">
-                        <div id="patience-bar" class="bg-gradient-to-r from-emerald-400 to-green-500 h-full w-full transition-all duration-300"></div>
-                    </div>
-
-                    <!-- Customer Recipe Sequence Badges -->
-                    <div class="flex flex-wrap items-center justify-center gap-3 py-2" id="recipe-sequence">
-                        <!-- Recipe Badges dynamically generated here -->
-                    </div>
-                </div>
-
-                <!-- Customer Avatar & Speech -->
-                <div class="mt-4 flex flex-col items-center">
-                    <div id="customer-avatar" class="text-7xl md:text-8xl filter drop-shadow-lg animate-bounce-gentle transition-all duration-300">
-                        🐱
-                    </div>
-                    <span id="customer-mood" class="bg-white/95 border-2 border-amber-300 rounded-full px-4 py-1 text-xs md:text-sm font-black text-amber-950 mt-2 shadow-md">
-                        "I'm super hungry! Faster please~"
-                    </span>
-                </div>
-            </div>
-
-            <!-- Right Side: Assembly Plate and Stack Display -->
-            <div class="w-full lg:w-1/2 flex flex-col items-center justify-center h-full min-h-[340px] md:min-h-[420px] felt-pattern rounded-3xl border-4 border-purple-900/40 p-4 shadow-inner relative">
-                
-                <div id="floating-text-container" class="absolute inset-0 pointer-events-none z-30 flex items-center justify-center"></div>
-
-                <div class="relative w-full max-w-sm flex flex-col items-center justify-end h-full mt-2">
-                    <div id="burger-stack" class="flex flex-col-reverse items-center justify-start w-full z-10 transition-all"></div>
-                    <div class="w-64 md:w-72 h-8 bg-gradient-to-r from-slate-200 via-white to-slate-200 rounded-full border-b-4 border-slate-300 shadow-xl flex items-center justify-center mt-[-8px]">
-                        <div class="w-56 md:w-64 h-3.5 bg-sky-100/70 rounded-full border border-sky-200"></div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- MOBILE CONTROLLER SCREEN VIEW (Landscape Focused) -->
-    <div id="controller-screen" class="hidden fixed inset-0 h-full w-full felt-pattern text-white p-3 flex flex-col justify-between overflow-hidden select-none">
-        
-        <!-- Header Bar: Player Info & Vault Money Only -->
-        <header class="bg-purple-950/90 border-2 border-purple-700/60 rounded-2xl px-5 py-2 flex justify-between items-center shadow-lg shrink-0">
-            <div class="flex items-center gap-3">
-                <span id="ctrl-player-tag" class="bg-blue-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide">Player 1</span>
-            </div>
-            <div class="bg-emerald-950/80 border border-emerald-500/50 px-4 py-1.5 rounded-xl flex items-center gap-2">
-                <span class="text-xs text-emerald-300 font-bold uppercase">Vault:</span>
-                <span id="ctrl-vault-amount" class="text-base sm:text-lg font-black text-emerald-400">$30</span>
-            </div>
-        </header>
-
-        <!-- Main Cards Area: Clean 6-Card Landscape View -->
-        <main class="flex-1 my-3 flex items-center justify-center min-h-0">
-            <div id="ctrl-hand-container" class="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-6xl h-full items-center">
-                <!-- Hand Cards rendered dynamically -->
-            </div>
-        </main>
-    </div>
-
-    <!-- LARGE QR CODE CONNECTION MODAL -->
-    <div id="qr-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl border-4 border-amber-300 p-6 max-w-3xl w-full text-center shadow-2xl relative animate-pop-in">
-            <button onclick="toggleQRModal()" class="absolute top-4 right-4 bg-slate-200 hover:bg-slate-300 rounded-full w-9 h-9 font-extrabold text-slate-700 text-lg">✕</button>
+            arrows.forEach(a => a.update());
+            arrows = arrows.filter(a => a.active);
             
-            <h2 class="text-2xl font-black text-slate-800 mb-1">📱 Connect Mobile Controllers</h2>
-            <p class="text-xs sm:text-sm text-slate-500 mb-4">Scan QR code with your smartphones to join!</p>
+            enemies.forEach(e => e.update());
+            enemies = enemies.filter(e => e.x > cameraX - 200); // Remove old enemies
 
-            <div id="websocket-warning" class="hidden mb-4 p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs text-left font-semibold">
-                ⚠️ External WebSockets are blocked inside preview sandboxes. Open preview in a new window to scan with real phones, or test with the <b>Simulator</b> below!
-            </div>
+            checkCollisions();
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <!-- Player 1 QR Code Block -->
-                <div class="flex flex-col items-center bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
-                    <span class="bg-blue-500 text-white font-black px-4 py-1 rounded-full text-xs mb-2">PLAYER 1</span>
-                    <div id="qrcode-p1" class="p-2 bg-white rounded-2xl shadow border-2 border-blue-100 flex items-center justify-center min-h-[230px] min-w-[230px]"></div>
-                    <span id="p1-peer-status" class="text-xs font-bold text-slate-500 mt-2">Waiting for scan...</span>
-                    <button onclick="launchSimulatedPhone(1)" class="mt-3 w-full btn-bounce bg-blue-600 hover:bg-blue-700 text-white font-black text-xs py-2 rounded-xl shadow">
-                        📲 Test P1 Controller Simulator
-                    </button>
-                </div>
-
-                <!-- Player 2 QR Code Block -->
-                <div class="flex flex-col items-center bg-pink-50 border-2 border-pink-200 rounded-2xl p-4">
-                    <span class="bg-pink-500 text-white font-black px-4 py-1 rounded-full text-xs mb-2">PLAYER 2</span>
-                    <div id="qrcode-p2" class="p-2 bg-white rounded-2xl shadow border-2 border-pink-100 flex items-center justify-center min-h-[230px] min-w-[230px]"></div>
-                    <span id="p2-peer-status" class="text-xs font-bold text-slate-500 mt-2">Waiting for scan...</span>
-                    <button onclick="launchSimulatedPhone(2)" class="mt-3 w-full btn-bounce bg-pink-600 hover:bg-pink-700 text-white font-black text-xs py-2 rounded-xl shadow">
-                        📲 Test P2 Controller Simulator
-                    </button>
-                </div>
-            </div>
-
-            <button onclick="toggleQRModal()" class="mt-5 w-full btn-bounce bg-amber-400 hover:bg-amber-500 border-b-4 border-amber-600 text-slate-900 font-black py-3 rounded-2xl shadow text-base">
-                Ready to Play!
-            </button>
-        </div>
-    </div>
-
-    <!-- SIMULATED PHONE CONTROLLER MODAL -->
-    <div id="simulated-phone-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-2 hidden">
-        <div class="relative w-full max-w-3xl h-[390px] felt-pattern border-8 border-slate-800 rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
-            <div class="bg-slate-900 px-4 py-2 flex justify-between items-center border-b border-slate-700 shrink-0">
-                <div class="flex items-center gap-2">
-                    <div class="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-                    <span id="sim-phone-title" class="text-xs font-black text-amber-400">P1 Mobile Controller (Landscape)</span>
-                </div>
-                <button onclick="closeSimulatedPhone()" class="bg-slate-700 hover:bg-slate-600 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
-            </div>
-
-            <div id="sim-phone-viewport" class="flex-1 overflow-hidden p-3 flex flex-col justify-between min-h-0"></div>
-        </div>
-    </div>
-
-    <!-- SHIFT COMPLETE MODAL -->
-    <div id="day-complete-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-gradient-to-b from-amber-400 to-orange-500 text-white rounded-3xl border-4 border-yellow-200 p-6 max-w-md w-full text-center shadow-2xl animate-pop-in">
-            <span class="text-6xl block mb-2 animate-bounce">🎉</span>
-            <h2 class="text-3xl font-black mb-1">SHIFT COMPLETED!</h2>
-            <p class="text-sm font-bold text-amber-100 mb-4">You reached the daily earnings goal!</p>
+            // Draws
+            scenery.draw(ctx, cameraX);
+            drawPlatforms(ctx, cameraX);
             
-            <div class="bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl p-4 mb-5 text-left text-sm space-y-2">
-                <div class="flex justify-between font-extrabold">
-                    <span>Day Level:</span>
-                    <span id="summary-day-num">Day 1</span>
-                </div>
-                <div class="flex justify-between font-extrabold">
-                    <span>Vault Revenue:</span>
-                    <span id="summary-vault-amount">$60</span>
-                </div>
-                <div class="flex justify-between font-extrabold text-yellow-200">
-                    <span>Next Shift Target:</span>
-                    <span id="summary-next-target">$120</span>
-                </div>
-            </div>
+            enemies.forEach(e => e.draw(ctx, cameraX));
+            p2.draw(ctx, cameraX);
+            p1.draw(ctx, cameraX);
+            arrows.forEach(a => a.draw(ctx, cameraX));
 
-            <button onclick="startNextDayShift()" class="w-full btn-bounce bg-slate-900 hover:bg-slate-800 text-amber-400 border-b-4 border-black font-black text-lg py-3 rounded-2xl shadow-xl">
-                Start Next Day Shift! 🚀
-            </button>
-        </div>
-    </div>
-
-    <!-- TOAST NOTIFICATION -->
-    <div id="toast-message" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl border-2 border-amber-400 shadow-2xl transition-all duration-300 opacity-0 pointer-events-none translate-y-4 text-xs md:text-sm">
-        Message Text
-    </div>
-
-    <script>
-        // 6 INGREDIENTS ONLY
-        const INGREDIENTS = {
-            bun: { name: 'Bun', emoji: '🍞', color: '#E9C46A', borderColor: '#F4A261', textColor: '#4A2800' },
-            patty: { name: 'Beef Patty', emoji: '🥩', color: '#6F1D1B', borderColor: '#432818', textColor: '#FFFFFF' },
-            chicken: { name: 'Crispy Chicken', emoji: '🍗', color: '#E07A5F', borderColor: '#9A3A19', textColor: '#FFFFFF' },
-            bacon: { name: 'Crispy Bacon', emoji: '🥓', color: '#B5179E', borderColor: '#7209B7', textColor: '#FFFFFF' },
-            tomato: { name: 'Fresh Tomato', emoji: '🍅', color: '#E63946', borderColor: '#9B2226', textColor: '#FFFFFF' },
-            lettuce: { name: 'Crispy Lettuce', emoji: '🥬', color: '#52B788', borderColor: '#2D6A4F', textColor: '#FFFFFF' }
-        };
-
-        const CUSTOMERS = [
-            { name: 'Kawaii Bear', emoji: '🐻' },
-            { name: 'Cute Bunny', emoji: '🐰' },
-            { name: 'Lazy Cat', emoji: '🐱' },
-            { name: 'Shiba Inu', emoji: '🐕' },
-            { name: 'Happy Panda', emoji: '🐼' },
-            { name: 'Fancy Piggy', emoji: '🐷' }
-        ];
-
-        let gameState = {
-            currentDay: 1,
-            dayGoal: 60,
-            vaultMoney: 30,
-            customerNum: 1,
-            currentCustomer: null,
-            recipe: [],
-            currentStep: 0,
-            patience: 100,
-            patienceTimer: null,
-            p1Hand: [],
-            p2Hand: [],
-            burgerStack: [],
-            isAudioMuted: false
-        };
-
-        let peer = null;
-        let p1Conn = null;
-        let p2Conn = null;
-        let hostConn = null;
-        let isControllerRole = false;
-        let myPlayerNum = 1;
-        let roomCode = null;
-
-        let synth, polySynth;
-        function initAudio() {
-            if (!synth) {
-                synth = new Tone.Synth().toDestination();
-                polySynth = new Tone.PolySynth().toDestination();
-                Tone.start();
-            }
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        function playSound(type) {
-            if (gameState.isAudioMuted) return;
-            try {
-                initAudio();
-                if (type === 'playCard') synth.triggerAttackRelease("C5", "8n");
-                else if (type === 'completeBurger') polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
-                else if (type === 'drawCard') synth.triggerAttackRelease("G4", "16n");
-                else if (type === 'error') synth.triggerAttackRelease("A2", "8n");
-            } catch(e) {}
-        }
+        // Setup Buttons
+        startBtn.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            initGame();
+            isPlaying = true;
+            gameLoop();
+        });
 
-        function toggleAudio() {
-            gameState.isAudioMuted = !gameState.isAudioMuted;
-            document.getElementById('sound-icon').innerText = gameState.isAudioMuted ? '🔇' : '🔊';
-        }
+        restartBtn.addEventListener('click', () => {
+            gameOverScreen.classList.add('hidden');
+            initGame();
+            isPlaying = true;
+            gameLoop();
+        });
 
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const role = urlParams.get('role');
-            const room = urlParams.get('room');
-            const player = urlParams.get('player');
+        // Initial render just to show background before start
+        initGame();
+        scenery.draw(ctx, cameraX);
 
-            if (role === 'controller' && room && player) {
-                initControllerMode(room, parseInt(player));
-            } else {
-                initHostMode();
-            }
-        };
+        // --- MULTIPLAYER / PHONE CONTROLLER LOGIC ---
+        if (isControllerMode) {
+            // Setup Mobile Controller View
+            document.getElementById('gameCanvas').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('remote-controller-ui').classList.remove('hidden');
 
-        function generateQRCodes(roomId) {
-            const baseUrl = window.location.href.split('?')[0];
-            const urlP1 = `${baseUrl}?role=controller&room=${roomId}&player=1`;
-            const urlP2 = `${baseUrl}?role=controller&room=${roomId}&player=2`;
-
-            const qrContainerP1 = document.getElementById('qrcode-p1');
-            const qrContainerP2 = document.getElementById('qrcode-p2');
-            
-            if (qrContainerP1) {
-                qrContainerP1.innerHTML = '';
-                new QRCode(qrContainerP1, { text: urlP1, width: 220, height: 220 });
-            }
-            if (qrContainerP2) {
-                qrContainerP2.innerHTML = '';
-                new QRCode(qrContainerP2, { text: urlP2, width: 220, height: 220 });
-            }
-        }
-
-        function initHostMode() {
-            document.getElementById('host-screen').classList.remove('hidden');
-            document.getElementById('controller-screen').classList.add('hidden');
-
-            roomCode = 'burger-' + Math.random().toString(36).substring(2, 7);
-
-            try {
-                peer = new Peer(roomCode);
-                peer.on('open', (id) => generateQRCodes(id));
-                peer.on('error', (err) => {
-                    document.getElementById('websocket-warning').classList.remove('hidden');
-                    document.getElementById('p1-peer-status').innerText = '⚠️ Sandbox Block. Use Simulator!';
-                    document.getElementById('p2-peer-status').innerText = '⚠️ Sandbox Block. Use Simulator!';
+            peer = new Peer();
+            peer.on('open', (id) => {
+                peerConnection = peer.connect(hostPeerId);
+                peerConnection.on('open', () => {
+                    console.log("Connected to Host Game!");
+                    document.querySelector('#role-selection h2').innerText = "Connected! Select Role:";
                 });
+            });
 
-                peer.on('connection', (conn) => {
-                    conn.on('data', (data) => handleControllerInput(data));
-                    conn.on('open', () => {
-                        if (conn.metadata && conn.metadata.player) {
-                            if (conn.metadata.player === 1) p1Conn = conn;
-                            else p2Conn = conn;
-                            syncControllers();
-                            showToast(`Player ${conn.metadata.player} Phone Connected!`);
-                        }
-                    });
-                });
-            } catch(e) {
-                document.getElementById('websocket-warning').classList.remove('hidden');
-            }
+            // Handle Role Selection
+            document.getElementById('btn-role-p2').addEventListener('click', () => {
+                document.getElementById('role-selection').style.display = 'none';
+                document.getElementById('p2-remote').classList.remove('hidden');
+            });
+            document.getElementById('btn-role-p1').addEventListener('click', () => {
+                document.getElementById('role-selection').style.display = 'none';
+                document.getElementById('p1-remote').classList.remove('hidden');
+            });
 
-            spawnNextCustomer();
-            renderHostUI();
-        }
-
-        function initControllerMode(room, playerNum) {
-            isControllerRole = true;
-            myPlayerNum = playerNum;
-            
-            document.getElementById('host-screen').classList.add('hidden');
-            document.getElementById('controller-screen').classList.remove('hidden');
-            
-            const tag = document.getElementById('ctrl-player-tag');
-            tag.innerText = `Player ${playerNum}`;
-            tag.className = playerNum === 1 ? 'bg-blue-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide' : 'bg-pink-500 font-black px-4 py-1.5 rounded-xl text-sm uppercase tracking-wide';
-
-            try {
-                peer = new Peer();
-                peer.on('open', () => {
-                    hostConn = peer.connect(room, { metadata: { player: playerNum } });
-                    hostConn.on('open', () => showToast(`Connected to Host Game!`));
-                    hostConn.on('data', (data) => {
-                        if (data.type === 'STATE_SYNC') renderMobileControllerUI(data.state);
-                    });
-                });
-            } catch(e) {
-                showToast('PeerJS connection failed');
-            }
-        }
-
-        function sendControllerAction(actionData) {
-            if (hostConn && hostConn.open) {
-                hostConn.send(actionData);
-            } else {
-                handleControllerInput(actionData);
-            }
-        }
-
-        function generateRecipeIngredientsPool(count) {
-            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
-            const pool = [];
-            for (let i = 0; i < count; i++) {
-                if (i === 0 || i === count - 1) {
-                    pool.push('bun');
-                } else {
-                    pool.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
-                }
-            }
-            return pool;
-        }
-
-        function fillPlayerHandFromRecipe(playerNum) {
-            const neededIngredients = gameState.recipe.slice(gameState.currentStep);
-            const extraPool = generateRecipeIngredientsPool(12);
-            const combinedPool = [...neededIngredients, ...extraPool];
-
-            const targetHand = [];
-            for (let i = 0; i < 6; i++) {
-                if (combinedPool.length > 0) {
-                    const pickIndex = Math.floor(Math.random() * Math.min(combinedPool.length, 6));
-                    targetHand.push(combinedPool.splice(pickIndex, 1)[0]);
-                } else {
-                    targetHand.push('bun');
-                }
-            }
-
-            if (playerNum === 1) gameState.p1Hand = targetHand;
-            else gameState.p2Hand = targetHand;
-        }
-
-        function spawnNextCustomer() {
-            const customerObj = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
-            gameState.currentCustomer = customerObj;
-
-            let numFillers = 2 + Math.floor(Math.random() * 2);
-            if (gameState.currentDay >= 3) numFillers += 1;
-
-            const fillerOptions = ['patty', 'chicken', 'bacon', 'tomato', 'lettuce'];
-            const newRecipe = ['bun'];
-            for (let i = 0; i < numFillers; i++) {
-                newRecipe.push(fillerOptions[Math.floor(Math.random() * fillerOptions.length)]);
-            }
-            newRecipe.push('bun');
-
-            gameState.recipe = newRecipe;
-            gameState.currentStep = 0;
-            gameState.burgerStack = [];
-            gameState.patience = 100;
-
-            fillPlayerHandFromRecipe(1);
-            fillPlayerHandFromRecipe(2);
-
-            if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
-            gameState.patienceTimer = setInterval(() => {
-                gameState.patience -= 1.2;
-                if (gameState.patience <= 0) {
-                    gameState.patience = 0;
-                    clearInterval(gameState.patienceTimer);
-                    customerLeaveAngry();
-                }
-                renderHostUI();
-            }, 1000);
-
-            renderHostUI();
-            syncControllers();
-        }
-
-        function customerLeaveAngry() {
-            playSound('error');
-            showToast(`${gameState.currentCustomer.name} ran out of patience! 😿`);
-            gameState.vaultMoney = Math.max(0, gameState.vaultMoney - 5);
-            setTimeout(() => {
-                gameState.customerNum++;
-                spawnNextCustomer();
-            }, 1400);
-        }
-
-        function playCard(playerNum, cardIndex) {
-            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-            if (cardIndex < 0 || cardIndex >= hand.length) return;
-
-            const playedIngredient = hand[cardIndex];
-            const requiredIngredient = gameState.recipe[gameState.currentStep];
-
-            if (playedIngredient === requiredIngredient) {
-                hand.splice(cardIndex, 1);
-                gameState.burgerStack.push(playedIngredient);
-                gameState.currentStep++;
-                gameState.patience = Math.min(100, gameState.patience + 10);
-                
-                playSound('playCard');
-                showFloatingText(`+ Correct!`, '#06D6A0');
-
-                if (hand.length === 0) {
-                    fillPlayerHandFromRecipe(playerNum);
-                    showToast(`Player ${playerNum} hand refreshed with new cards!`);
-                }
-
-                if (gameState.currentStep >= gameState.recipe.length) {
-                    completeBurgerOrder();
-                }
-            } else {
-                playSound('error');
-                showFloatingText(`Wrong Ingredient!`, '#EF4444');
-            }
-
-            renderHostUI();
-            syncControllers();
-        }
-
-        function completeBurgerOrder() {
-            if (gameState.patienceTimer) clearInterval(gameState.patienceTimer);
-            playSound('completeBurger');
-
-            const payout = gameState.recipe.length * 7;
-            gameState.vaultMoney += payout;
-
-            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-
-            showFloatingText(`+$${payout} SOLD! 🍔`, '#FFD166');
-            showToast(`Burger Completed! Earned $${payout}!`);
-
-            if (gameState.vaultMoney >= gameState.dayGoal) {
-                setTimeout(() => openDayCompleteModal(), 1200);
-            } else {
-                setTimeout(() => {
-                    gameState.customerNum++;
-                    spawnNextCustomer();
-                }, 1600);
-            }
-        }
-
-        function openDayCompleteModal() {
-            document.getElementById('summary-day-num').innerText = `Day ${gameState.currentDay}`;
-            document.getElementById('summary-vault-amount').innerText = `$${gameState.vaultMoney}`;
-            document.getElementById('summary-next-target').innerText = `$${gameState.dayGoal + 80}`;
-            document.getElementById('day-complete-modal').classList.remove('hidden');
-        }
-
-        function startNextDayShift() {
-            document.getElementById('day-complete-modal').classList.add('hidden');
-            gameState.currentDay++;
-            gameState.dayGoal = gameState.vaultMoney + 80;
-            gameState.customerNum = 1;
-            spawnNextCustomer();
-            showToast(`Day ${gameState.currentDay} Shift Started! Goal: $${gameState.dayGoal}`);
-        }
-
-        let activeSimPlayer = 1;
-
-        function launchSimulatedPhone(playerNum) {
-            activeSimPlayer = playerNum;
-            document.getElementById('qr-modal').classList.add('hidden');
-            document.getElementById('simulated-phone-modal').classList.remove('hidden');
-            document.getElementById('sim-phone-title').innerText = `Player ${playerNum} Mobile Controller`;
-            renderSimulatedPhone();
-        }
-
-        function closeSimulatedPhone() {
-            document.getElementById('simulated-phone-modal').classList.add('hidden');
-        }
-
-        function renderSimulatedPhone() {
-            const playerNum = activeSimPlayer;
-            const hand = playerNum === 1 ? gameState.p1Hand : gameState.p2Hand;
-
-            const viewport = document.getElementById('sim-phone-viewport');
-            viewport.innerHTML = `
-                <div class="bg-purple-950/90 border border-purple-700/60 rounded-xl px-4 py-2 mb-2 flex justify-between items-center text-xs shrink-0 text-white">
-                    <span class="${playerNum === 1 ? 'bg-blue-500' : 'bg-pink-500'} font-black px-3 py-1 rounded-lg text-xs uppercase">Player ${playerNum}</span>
-                    <span class="text-xs font-black text-emerald-400">Vault: $${gameState.vaultMoney}</span>
-                </div>
-
-                <div class="flex-1 flex items-center justify-center p-1 min-h-0">
-                    <div id="sim-hand-container" class="grid grid-cols-6 gap-2 w-full h-full items-center">
-                        ${hand.map((ingKey, idx) => {
-                            const ing = INGREDIENTS[ingKey];
-                            return `
-                                <button onclick="simPlayCard(${playerNum}, ${idx})" class="w-full h-full min-h-[140px] card-shadow btn-bounce rounded-2xl border-2 p-2 flex flex-col items-center justify-between shadow-lg cursor-pointer" style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                                    <span class="text-3xl font-black mt-1">${ing.emoji}</span>
-                                    <span class="text-xs font-black leading-tight text-center">${ing.name}</span>
-                                    <span class="text-[9px] bg-black/20 px-2 py-0.5 rounded-md font-black">TAP</span>
-                                </button>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        function simPlayCard(pNum, idx) { playCard(pNum, idx); renderSimulatedPhone(); }
-
-        function syncControllers() {
-            const stateSync = {
-                type: 'STATE_SYNC',
-                state: {
-                    vaultMoney: gameState.vaultMoney,
-                    currentTarget: gameState.recipe[gameState.currentStep] ? INGREDIENTS[gameState.recipe[gameState.currentStep]] : null,
-                    p1Hand: gameState.p1Hand,
-                    p2Hand: gameState.p2Hand
+            // Map Remote Walker Buttons
+            const sendKey = (key, state) => {
+                if(peerConnection && peerConnection.open) {
+                    peerConnection.send({ type: 'key', key: key, state: state });
                 }
             };
-            if (p1Conn && p1Conn.open) p1Conn.send(stateSync);
-            if (p2Conn && p2Conn.open) p2Conn.send(stateSync);
+            const bindRemoteBtn = (id, key) => {
+                const btn = document.getElementById(id);
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); btn.style.background = 'rgba(255,255,255,0.6)'; sendKey(key, true); });
+                btn.addEventListener('touchend', (e) => { e.preventDefault(); btn.style.background = ''; sendKey(key, false); });
+            };
+            bindRemoteBtn('r-btn-left', 'a');
+            bindRemoteBtn('r-btn-right', 'd');
+            bindRemoteBtn('r-btn-jump', 'w');
 
-            if (isControllerRole) {
-                renderMobileControllerUI(stateSync.state);
+            // Map Remote Shooter Joystick
+            const rJoystickArea = document.getElementById('r-joystick-area');
+            const rJoystickKnob = document.getElementById('r-joystick-knob');
+            let rTouchId = null;
+
+            const sendJoystick = (active, angle) => {
+                if(peerConnection && peerConnection.open) {
+                    peerConnection.send({ type: 'joystick', active: active, angle: angle });
+                }
             }
 
-            if (!document.getElementById('simulated-phone-modal').classList.contains('hidden')) {
-                renderSimulatedPhone();
+            rJoystickArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                rTouchId = e.changedTouches[0].identifier;
+                updateRemoteJoystick(e.changedTouches[0]);
+            });
+            rJoystickArea.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === rTouchId) {
+                        updateRemoteJoystick(e.changedTouches[i]);
+                    }
+                }
+            });
+            const endRemoteJoystick = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === rTouchId) {
+                        rTouchId = null;
+                        rJoystickKnob.style.transform = `translate(0px, 0px)`;
+                        sendJoystick(false, 0);
+                    }
+                }
+            };
+            rJoystickArea.addEventListener('touchend', endRemoteJoystick);
+            rJoystickArea.addEventListener('touchcancel', endRemoteJoystick);
+
+            function updateRemoteJoystick(touch) {
+                const rect = rJoystickArea.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                const distance = Math.min(Math.sqrt(dx*dx + dy*dy), rect.width/2 - 30);
+                const angle = Math.atan2(dy, dx);
+                
+                const knobX = Math.cos(angle) * distance;
+                const knobY = Math.sin(angle) * distance;
+                rJoystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+                
+                sendJoystick(true, angle);
             }
+
+        } else {
+            // Setup Host (Desktop Game)
+            peer = new Peer();
+            peer.on('open', (id) => {
+                document.getElementById('qr-loading').style.display = 'none';
+                
+                // Construct URL for the phone to connect to
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('mode', 'controller');
+                currentUrl.searchParams.set('host', id);
+                
+                new QRCode(document.getElementById("qr-container"), {
+                    text: currentUrl.toString(),
+                    width: 150,
+                    height: 150,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.L
+                });
+            });
+
+            peer.on('connection', (conn) => {
+                console.log("A controller connected!");
+                conn.on('data', (data) => {
+                    // Feed network commands directly into the game's input variables
+                    if (data.type === 'key') {
+                        keys[data.key] = data.state;
+                    } else if (data.type === 'joystick') {
+                        joystick.active = data.active;
+                        joystick.angle = data.angle;
+                    }
+                });
+            });
         }
 
-        function handleControllerInput(data) {
-            if (data.type === 'PLAY_CARD') playCard(data.player, data.cardIndex);
-        }
-
-        function renderHostUI() {
-            document.getElementById('day-tag').innerText = `DAY ${gameState.currentDay}`;
-            document.getElementById('day-goal-text').innerText = `$${gameState.vaultMoney} / $${gameState.dayGoal}`;
-            document.getElementById('vault-money').innerText = `$${gameState.vaultMoney}`;
-            document.getElementById('customer-num').innerText = gameState.customerNum;
-            
-            if (gameState.currentCustomer) {
-                document.getElementById('customer-name').innerText = gameState.currentCustomer.name;
-                document.getElementById('customer-avatar').innerText = gameState.currentCustomer.emoji;
-            }
-
-            const baseVal = gameState.recipe.length * 7;
-            document.getElementById('burger-value').innerText = `$${baseVal}`;
-
-            const patienceBar = document.getElementById('patience-bar');
-            patienceBar.style.width = `${gameState.patience}%`;
-            patienceBar.className = gameState.patience < 30 ? "bg-gradient-to-r from-red-500 to-rose-600 h-full transition-all duration-300" : "bg-gradient-to-r from-emerald-400 to-green-500 h-full transition-all duration-300";
-
-            const recipeSeq = document.getElementById('recipe-sequence');
-            recipeSeq.innerHTML = gameState.recipe.map((ingKey, idx) => {
-                const ing = INGREDIENTS[ingKey];
-                const isCurrent = idx === gameState.currentStep;
-                const isDone = idx < gameState.currentStep;
-
-                let borderClass = 'border-slate-300 opacity-60';
-                if (isDone) borderClass = 'border-emerald-500 bg-emerald-50 scale-95';
-                if (isCurrent) borderClass = 'border-amber-400 bg-amber-100 ring-4 ring-amber-300 scale-110 animate-bounce shadow-md';
-
-                return `
-                    <div class="flex items-center gap-2 border-3 ${borderClass} px-3 py-1.5 rounded-2xl transition-all duration-300">
-                        <span class="text-2xl md:text-3xl">${ing.emoji}</span>
-                        <span class="text-sm md:text-base font-black ${isDone ? 'line-through text-slate-400' : 'text-slate-900'}">${ing.name}</span>
-                    </div>
-                `;
-            }).join('');
-
-            const burgerStack = document.getElementById('burger-stack');
-            burgerStack.innerHTML = gameState.burgerStack.map((ingKey) => {
-                const ing = INGREDIENTS[ingKey];
-                return `
-                    <div class="w-48 md:w-56 h-8 md:h-9 my-[-3px] rounded-2xl flex items-center justify-center font-black text-xs md:text-sm border-b-4 shadow-md transition-all animate-pop-in" 
-                         style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}">
-                        <span class="mr-2 text-base">${ing.emoji}</span> ${ing.name}
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderMobileControllerUI(syncState) {
-            const playerNum = myPlayerNum;
-            const hand = playerNum === 1 ? syncState.p1Hand : syncState.p2Hand;
-
-            document.getElementById('ctrl-vault-amount').innerText = `$${syncState.vaultMoney}`;
-
-            const container = document.getElementById('ctrl-hand-container');
-            if (!container) return;
-            container.innerHTML = hand.map((ingKey, idx) => {
-                const ing = INGREDIENTS[ingKey];
-                return `
-                    <button class="card-shadow btn-bounce w-full h-full min-h-[140px] rounded-2xl border-4 p-2 flex flex-col items-center justify-between text-white shadow-xl cursor-pointer select-none"
-                         style="background-color: ${ing.color}; border-color: ${ing.borderColor}; color: ${ing.textColor}"
-                         onclick="sendControllerAction({type:'PLAY_CARD', player:${playerNum}, cardIndex:${idx}})">
-                        <div class="w-full flex justify-between items-center px-1 opacity-80">
-                            <span class="text-[11px] font-black">#${idx+1}</span>
-                            <span class="text-[10px] uppercase font-black bg-black/20 px-2 py-0.5 rounded">TAP</span>
-                        </div>
-                        <span class="text-4xl sm:text-5xl my-auto">${ing.emoji}</span>
-                        <span class="text-xs sm:text-sm font-black text-center leading-tight mb-1">${ing.name}</span>
-                    </button>
-                `;
-            }).join('');
-        }
-
-        function showFloatingText(text, color) {
-            const container = document.getElementById('floating-text-container');
-            const el = document.createElement('div');
-            el.className = 'absolute font-black text-xl md:text-3xl animate-float-up pointer-events-none drop-shadow';
-            el.style.color = color;
-            el.innerText = text;
-            container.appendChild(el);
-            setTimeout(() => el.remove(), 800);
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast-message');
-            toast.innerText = msg;
-            toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
-            }, 2400);
-        }
-
-        function toggleQRModal() {
-            document.getElementById('qr-modal').classList.toggle('hidden');
-        }
     </script>
 </body>
 </html>
