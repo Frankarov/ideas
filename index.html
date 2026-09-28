@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zombie Convoy Co-op (Dual-Device Mobile Controllers)</title>
+    <title>Zombie Convoy Co-op (Dual-Device TV & Mobile Remotes)</title>
     <!-- Tailwind CSS for modern UI styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for icons -->
@@ -40,14 +40,14 @@
 </head>
 <body class="h-screen w-screen flex flex-col justify-between select-none">
 
-    <header class="bg-slate-950/95 border-b border-red-950/50 p-2 sm:p-3 flex justify-between items-center z-20 shadow-2xl backdrop-blur-md">
+    <header id="tvHeader" class="bg-slate-950/95 border-b border-red-950/50 p-2 sm:p-3 flex justify-between items-center z-20 shadow-2xl backdrop-blur-md">
         <div class="flex items-center space-x-2 sm:space-x-3">
             <div class="bg-gradient-to-br from-red-600 to-amber-700 p-2 rounded-xl text-white shadow-lg border border-red-500/30">
-                <i class="fa-solid fa-truck-monster text-lg sm:text-xl animate-pulse"></i>
+                <i class="fa-solid fa-tv text-lg sm:text-xl animate-pulse"></i>
             </div>
             <div>
-                <h1 class="pixel-font text-xl sm:text-2xl tracking-wider text-red-500 font-extrabold drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]">ZOMBIE CONVOY</h1>
-                <p class="text-[10px] sm:text-xs text-slate-400">Desktop Display + Mobile Remote Controls</p>
+                <h1 class="pixel-font text-xl sm:text-2xl tracking-wider text-red-500 font-extrabold drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]">ZOMBIE CONVOY TV</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400">Scan QR Codes to connect Mobile Controllers</p>
             </div>
         </div>
 
@@ -64,62 +64,76 @@
                 <span id="hud-kills" class="font-bold text-red-400 font-mono">0</span>
             </div>
             <button onclick="openControllerModal()" class="bg-red-950 hover:bg-red-900 px-3 py-1.5 rounded-xl border border-red-600 text-xs text-red-300 font-bold flex items-center space-x-1.5 shadow-lg">
-                <i class="fa-solid fa-qrcode"></i><span>Mobile Controllers</span>
+                <i class="fa-solid fa-qrcode"></i><span>Show QR Codes</span>
             </button>
         </div>
     </header>
 
     <main class="relative flex-1 bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
-        <!-- Canvas Layer -->
+        <!-- Canvas Layer for TV -->
         <canvas id="gameCanvas" class="w-full h-full absolute inset-0 z-0 cursor-crosshair"></canvas>
 
-        <!-- Role / Mode Selection Modal -->
-        <div id="roleModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex items-center justify-center z-30 p-4">
-            <div class="bg-slate-900/95 border border-red-900/40 p-6 sm:p-8 rounded-2xl max-w-lg w-full shadow-2xl text-center space-y-4 sm:space-y-6 relative overflow-hidden">
-                <div class="absolute -top-12 -right-12 w-32 h-32 bg-red-600/10 rounded-full blur-2xl pointer-events-none"></div>
-                <div class="inline-block bg-red-950/50 p-3 sm:p-4 rounded-2xl border border-red-500/30 text-red-500 mb-1 shadow-inner">
-                    <i class="fa-solid fa-laptop text-3xl sm:text-4xl"></i>
-                </div>
-                <h2 class="pixel-font text-2xl sm:text-3xl text-red-500 font-bold tracking-wide">DESKTOP GAME + MOBILE CONTROLLERS</h2>
-                <p class="text-xs sm:text-sm text-slate-300">Keep this browser screen open as your game monitor. Scan the QR codes with your smartphones to use them as dedicated Driver and Gunner controllers!</p>
-                
-                <div class="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button onclick="openControllerModal()" class="flex-1 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-400/30 text-sm flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-qrcode text-lg"></i><span>Show Mobile QR Controllers</span>
-                    </button>
-                    <button onclick="startSoloPlay()" class="bg-slate-800 hover:bg-slate-700 px-5 py-3.5 rounded-xl font-bold text-slate-200 border border-slate-700 text-sm">
-                        <i class="fa-solid fa-gamepad mr-2"></i> Play Solo (Keyboard)
-                    </button>
-                </div>
+        <!-- Standalone Mobile Controller View (Only Control Inputs) -->
+        <div id="standaloneControllerView" class="hidden absolute inset-0 bg-slate-950 z-50 flex flex-col items-center justify-between p-6">
+            <div class="text-center space-y-1">
+                <span id="controllerTitleBadge" class="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-blue-950 text-blue-400 border border-blue-600">Mobile Controller</span>
+                <p class="text-xs text-slate-400">Connected to TV Display Session</p>
+            </div>
+
+            <!-- Driver Pad Input Only -->
+            <div id="mobileDriverPad" class="grid grid-cols-3 gap-3 w-72 h-72">
+                <div></div>
+                <button id="mBtnUp" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-up"></i></button>
+                <div></div>
+                <button id="mBtnLeft" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-left"></i></button>
+                <div class="flex items-center justify-center text-blue-300 text-xs font-mono font-bold tracking-widest">STEER</div>
+                <button id="mBtnRight" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-right"></i></button>
+                <div></div>
+                <button id="mBtnDown" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-down"></i></button>
+                <div></div>
+            </div>
+
+            <!-- Gunner Joystick Input Only -->
+            <div id="mobileGunnerJoystick" class="relative w-64 h-64 bg-red-950/40 border-4 border-red-500/60 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-sm">
+                <div id="mJoystickKnob" class="absolute w-24 h-24 bg-gradient-to-br from-red-600 to-amber-600 border-2 border-red-400 rounded-full shadow-2xl cursor-pointer"></div>
+                <div class="absolute text-xs text-red-300 font-mono bottom-4 font-extrabold tracking-widest">DRAG TO AIM & FIRE</div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-center">
+                <span class="text-xs text-slate-400 font-mono">Status: <strong class="text-emerald-400">ACTIVE LINK</strong></span>
             </div>
         </div>
 
-        <!-- QR Code Controller Modal -->
-        <div id="controllerModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <!-- TV QR Code Selection Modal -->
+        <div id="controllerModal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div class="bg-slate-900 border border-red-600/50 p-6 sm:p-8 rounded-2xl max-w-xl w-full shadow-2xl text-center space-y-4 relative">
                 <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <h3 class="pixel-font text-xl sm:text-2xl text-red-500 font-bold"><i class="fa-solid fa-qrcode mr-2"></i>MOBILE CONTROLLER QR CODES</h3>
+                    <h3 class="pixel-font text-xl sm:text-2xl text-red-500 font-bold"><i class="fa-solid fa-qrcode mr-2"></i>SCAN QR FOR MOBILE CONTROLLERS</h3>
                     <button onclick="closeControllerModal()" class="text-slate-400 hover:text-white text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <p class="text-xs text-slate-300">Scan these real QR codes with two separate phones. Phone 1 will become the P1 Driver pad, Phone 2 will become the P2 Gunner joystick!</p>
+                <p class="text-xs text-slate-300">Scan each QR code with two separate phones. Each phone will display <strong class="text-amber-400">only the control inputs</strong> (no game graphics) to command the TV screen!</p>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div class="bg-slate-950 p-4 rounded-xl border border-blue-900/40 flex flex-col items-center space-y-3">
                         <span class="text-xs font-bold text-blue-400 font-mono">PHONE 1: P1 DRIVER</span>
                         <div id="qrcode-p1" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-blue-500/30"></div>
-                        <button onclick="simulateRemoteController('driver')" class="w-full bg-blue-900 hover:bg-blue-800 text-blue-200 py-2 rounded-lg text-xs font-bold border border-blue-600">
-                            Simulate P1 Driver Here
-                        </button>
+                        <a id="link-p1" href="#" target="_blank" class="w-full bg-blue-900 hover:bg-blue-800 text-blue-200 py-2 rounded-lg text-xs font-bold border border-blue-600 text-center">
+                            Open Driver Pad
+                        </a>
                     </div>
 
                     <div class="bg-slate-950 p-4 rounded-xl border border-red-900/40 flex flex-col items-center space-y-3">
                         <span class="text-xs font-bold text-red-400 font-mono">PHONE 2: P2 GUNNER</span>
                         <div id="qrcode-p2" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-red-500/30"></div>
-                        <button onclick="simulateRemoteController('gunner')" class="w-full bg-red-900 hover:bg-red-800 text-red-200 py-2 rounded-lg text-xs font-bold border border-red-600">
-                            Simulate P2 Gunner Here
-                        </button>
+                        <a id="link-p2" href="#" target="_blank" class="w-full bg-red-900 hover:bg-red-800 text-red-200 py-2 rounded-lg text-xs font-bold border border-red-600 text-center">
+                            Open Gunner Joystick
+                        </a>
                     </div>
                 </div>
+
+                <button onclick="closeControllerModal()" class="w-full bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3 rounded-xl font-bold text-white shadow-lg text-sm">
+                    Start TV Convoy Session
+                </button>
             </div>
         </div>
 
@@ -130,7 +144,7 @@
                     <i class="fa-solid fa-skull-crossbones text-4xl"></i>
                 </div>
                 <h2 class="pixel-font text-2xl sm:text-3xl text-red-500 font-bold tracking-wider">CONVOY DESTROYED</h2>
-                <p class="text-slate-300 text-xs sm:text-sm">The undead swarmed the armored bus and breached the cabin. Survivors fell.</p>
+                <p class="text-slate-300 text-xs sm:text-sm">The undead swarmed the armored bus and breached the cabin.</p>
                 
                 <div class="bg-slate-950 p-4 rounded-xl text-left space-y-2 text-xs sm:text-sm border border-slate-800 font-mono">
                     <div class="flex justify-between"><span class="text-slate-400">Distance Travelled:</span> <span id="end-distance" class="font-bold text-amber-400">0 m</span></div>
@@ -143,28 +157,8 @@
             </div>
         </div>
 
-        <!-- Remote Controller UI Overlay (When simulated or opened directly on mobile controller view) -->
-        <div id="remoteControllerUI" class="hidden absolute inset-0 pointer-events-none z-15 flex justify-between items-end p-4 sm:p-6">
-            <div id="remoteDriverPad" class="grid grid-cols-3 gap-2 pointer-events-auto w-48 h-48">
-                <div></div>
-                <button id="btnSteerUp" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-up"></i></button>
-                <div></div>
-                <button id="btnSteerLeft" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-left"></i></button>
-                <div class="flex items-center justify-center text-blue-300 text-[10px] font-mono font-bold">DRIVE</div>
-                <button id="btnSteerRight" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-right"></i></button>
-                <div></div>
-                <button id="btnSteerDown" class="bg-blue-950/90 border-2 border-blue-400 rounded-xl text-white text-xl active:bg-blue-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-arrow-down"></i></button>
-                <div></div>
-            </div>
-
-            <div id="remoteGunnerJoystick" class="relative w-36 h-36 bg-red-950/50 border-2 border-red-500/60 rounded-full pointer-events-auto flex items-center justify-center backdrop-blur-sm shadow-2xl">
-                <div id="joystickKnob" class="absolute w-16 h-16 bg-gradient-to-br from-red-600 to-amber-600 border border-red-400 rounded-full shadow-2xl cursor-pointer"></div>
-                <div class="absolute text-[10px] text-red-300 font-mono bottom-2 font-bold">AIM & FIRE</div>
-            </div>
-        </div>
-
-        <!-- Status Bars on Game Display -->
-        <div class="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row justify-between items-center pointer-events-none z-10 gap-2">
+        <!-- Status Bars on TV Game Display -->
+        <div id="tvHudBars" class="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row justify-between items-center pointer-events-none z-10 gap-2">
             <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
                 <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
                     <span class="flex items-center space-x-1.5"><i class="fa-solid fa-shield-halved text-amber-500"></i><span>BUS INTEGRITY</span></span>
@@ -178,13 +172,13 @@
             <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
                 <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
                     <span class="flex items-center space-x-1.5"><i class="fa-solid fa-gun text-red-500"></i><span>HEAVY TURRET</span></span>
-                    <span id="gun-ammo-text">500 / 500</span>
+                    <span id="gun-ammo-text">50 / 50</span>
                 </div>
                 <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 shadow-inner">
                     <div id="gun-ammo-bar" class="bg-gradient-to-r from-red-600 to-orange-500 h-full transition-all duration-150" style="width: 100%;"></div>
                 </div>
                 <div class="flex justify-between text-[10px] text-slate-400 font-mono">
-                    <span>Mode: <strong id="current-mode-label" class="text-amber-400">Desktop / Solo</strong></span>
+                    <span>Mode: <strong class="text-amber-400">TV Display + Remotes</strong></span>
                     <span id="reload-status" class="text-emerald-400 font-bold">READY</span>
                 </div>
             </div>
@@ -210,13 +204,36 @@
         }
         window.addEventListener('resize', resizeCanvas);
 
+        let isStandaloneController = false;
+        let controllerRole = null;
+
         window.addEventListener('DOMContentLoaded', () => {
-            const currentUrl = window.location.href.split('#')[0];
+            const currentUrl = window.location.href.split('#')[0].split('?')[0];
+            const urlParams = new URLSearchParams(window.location.search);
+            controllerRole = urlParams.get('controller');
+
+            if (controllerRole === 'driver' || controllerRole === 'gunner') {
+                isStandaloneController = true;
+                setupStandaloneController(controllerRole);
+            } else {
+                setupTVDisplay(currentUrl);
+            }
+        });
+
+        function setupTVDisplay(baseUrl) {
+            document.getElementById('standaloneControllerView').style.display = 'none';
+            const driverUrl = baseUrl + "?controller=driver";
+            const gunnerUrl = baseUrl + "?controller=gunner";
+
+            document.getElementById('link-p1.href') ; // placeholder
+            document.getElementById('link-p1').setAttribute('href', driverUrl);
+            document.getElementById('link-p2').setAttribute('href', gunnerUrl);
+
             document.getElementById('qrcode-p1').innerHTML = '';
             document.getElementById('qrcode-p2').innerHTML = '';
 
             new QRCode(document.getElementById("qrcode-p1"), {
-                text: currentUrl + "?controller=driver",
+                text: driverUrl,
                 width: 130,
                 height: 130,
                 colorDark : "#000000",
@@ -225,7 +242,7 @@
             });
 
             new QRCode(document.getElementById("qrcode-p2"), {
-                text: currentUrl + "?controller=gunner",
+                text: gunnerUrl,
                 width: 130,
                 height: 130,
                 colorDark : "#000000",
@@ -233,55 +250,146 @@
                 correctLevel : QRCode.CorrectLevel.M
             });
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const controllerRole = urlParams.get('controller');
-            if (controllerRole === 'driver' || controllerRole === 'gunner') {
-                setupStandaloneController(controllerRole);
-            }
-        });
-
-        function setupStandaloneController(role) {
-            document.querySelector('header').style.display = 'none';
-            document.getElementById('roleModal').style.display = 'none';
-            document.getElementById('remoteControllerUI').classList.remove('hidden');
-            
-            if (role === 'driver') {
-                document.getElementById('remoteGunnerJoystick').style.display = 'none';
-                document.getElementById('remoteDriverPad').style.width = '260px';
-                document.getElementById('remoteDriverPad').style.height = '260px';
-            } else {
-                document.getElementById('remoteDriverPad').style.display = 'none';
-                document.getElementById('remoteGunnerJoystick').style.width = '260px';
-                document.getElementById('remoteGunnerJoystick').style.height = '260px';
-            }
-            document.body.style.background = '#020617';
-            canvas.style.display = 'none';
+            resizeCanvas();
+            startGame();
+            requestAnimationFrame(tvGameLoop);
         }
 
-        let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+        function setupStandaloneController(role) {
+            document.getElementById('tvHeader').style.display = 'none';
+            document.getElementById('controllerModal').style.display = 'none';
+            document.getElementById('tvHudBars').style.display = 'none';
+            canvas.style.display = 'none';
+
+            const view = document.getElementById('standaloneControllerView');
+            view.classList.remove('hidden');
+            view.style.display = 'flex';
+
+            const badge = document.getElementById('controllerTitleBadge');
+            if (role === 'driver') {
+                document.getElementById('mobileGunnerJoystick').style.display = 'none';
+                badge.innerText = 'P1 DRIVER CONTROL PAD';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-blue-950 text-blue-400 border border-blue-600';
+                setupDriverControllerEvents();
+            } else {
+                document.getElementById('mobileDriverPad').style.display = 'none';
+                badge.innerText = 'P2 GUNNER JOYSTICK';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-red-950 text-red-400 border border-red-600';
+                setupGunnerControllerEvents();
+            }
+        }
+
+        const remoteInputs = { w: false, s: false, a: false, d: false, angle: 0, firing: false };
+
+        function setupDriverControllerEvents() {
+            const btnUp = document.getElementById('mBtnUp');
+            const btnDown = document.getElementById('mBtnDown');
+            const btnLeft = document.getElementById('mBtnLeft');
+            const btnRight = document.getElementById('mBtnRight');
+
+            ['touchstart', 'mousedown'].forEach(evt => {
+                if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.w = true; sendInputState(); });
+                if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.s = true; sendInputState(); });
+                if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.a = true; sendInputState(); });
+                if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.d = true; sendInputState(); });
+            });
+
+            ['touchend', 'mouseup', 'mouseleave'].forEach(evt => {
+                if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.w = false; sendInputState(); });
+                if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.s = false; sendInputState(); });
+                if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.a = false; sendInputState(); });
+                if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.d = false; sendInputState(); });
+            });
+        }
+
+        function setupGunnerControllerEvents() {
+            const joystickBase = document.getElementById('mobileGunnerJoystick');
+            const joystickKnob = document.getElementById('mJoystickKnob');
+            let active = false;
+            let startX = 0, startY = 0;
+
+            joystickBase.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = joystickBase.getBoundingClientRect();
+                active = true;
+                startX = rect.left + rect.width / 2;
+                startY = rect.top + rect.height / 2;
+                updateJoy(touch.clientX, touch.clientY);
+            });
+
+            joystickBase.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (active) {
+                    const touch = e.touches[0];
+                    updateJoy(touch.clientX, touch.clientY);
+                }
+            });
+
+            joystickBase.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                active = false;
+                remoteInputs.firing = false;
+                joystickKnob.style.transform = `translate(0px, 0px)`;
+                sendInputState();
+            });
+
+            function updateJoy(clientX, clientY) {
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                const dist = Math.hypot(dx, dy);
+                const maxRadius = 60;
+                const angle = Math.atan2(dy, dx);
+
+                remoteInputs.angle = angle;
+                remoteInputs.firing = true;
+
+                const limitedDist = Math.min(dist, maxRadius);
+                joystickKnob.style.transform = `translate(${Math.cos(angle)*limitedDist}px, ${Math.sin(angle)*limitedDist}px)`;
+                sendInputState();
+            }
+        }
+
+        function sendInputState() {
+            try {
+                localStorage.setItem('zombie_convoy_inputs_' + controllerRole, JSON.stringify(remoteInputs));
+            } catch(err) {}
+        }
+
+        function pollRemoteInputs() {
+            try {
+                const driverData = JSON.parse(localStorage.getItem('zombie_convoy_inputs_driver'));
+                if (driverData) {
+                    keys.w = driverData.w;
+                    keys.s = driverData.s;
+                    keys.a = driverData.a;
+                    keys.d = driverData.d;
+                }
+                const gunnerData = JSON.parse(localStorage.getItem('zombie_convoy_inputs_gunner'));
+                if (gunnerData) {
+                    truck.turretAngle = gunnerData.angle;
+                    gunnerFiring = gunnerData.firing;
+                }
+            } catch(err) {}
+        }
+
+        let gameState = 'PLAYING';
         let distance = 0;
         let kills = 0;
+        let gunnerFiring = false;
 
         const truck = {
             x: 0,
             y: 0,
             width: 150,
             height: 75,
-            speed: 0.35, // Slower actual speed
+            speed: 0.25, // Lower actual speed
             hp: 100,
             maxHp: 100,
             turretAngle: 0
         };
 
-        const keys = { w: false, s: false, a: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-
-        const joystick = {
-            active: false,
-            startX: 0,
-            startY: 0,
-            angle: 0,
-            power: 0
-        };
+        const keys = { w: false, s: false, a: false, d: false };
 
         const weapon = {
             ammo: 50,
@@ -289,7 +397,7 @@
             reloadTime: 0,
             reloadDuration: 40,
             fireCooldown: 0,
-            fireRate: 30 // 30 frames at 60fps = 2 shots per second
+            fireRate: 30 // 2 shots per second at 60fps
         };
 
         let zombies = [];
@@ -297,31 +405,12 @@
         let roadObstacles = [];
         let powerUps = [];
 
-        // Controller Setup Listeners
-        const btnUp = document.getElementById('btnSteerUp');
-        const btnDown = document.getElementById('btnSteerDown');
-        const btnLeft = document.getElementById('btnSteerLeft');
-        const btnRight = document.getElementById('btnSteerRight');
-
-        ['touchstart', 'mousedown'].forEach(evt => {
-            if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); keys.w = true; });
-            if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); keys.s = true; });
-            if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); keys.a = true; });
-            if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); keys.d = true; });
-        });
-
-        ['touchend', 'mouseup', 'mouseleave'].forEach(evt => {
-            if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); keys.w = false; });
-            if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); keys.s = false; });
-            if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); keys.a = false; });
-            if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); keys.d = false; });
-        });
-
         window.addEventListener('keydown', (e) => {
             if (e.key === 'w' || e.key === 'ArrowUp') keys.w = true;
             if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
             if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = true;
             if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
+            if (e.key === ' ') gunnerFiring = true;
         });
 
         window.addEventListener('keyup', (e) => {
@@ -329,54 +418,8 @@
             if (e.key === 's' || e.key === 'ArrowDown') keys.s = false;
             if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = false;
             if (e.key === 'd' || e.key === 'ArrowRight') keys.d = false;
+            if (e.key === ' ') gunnerFiring = false;
         });
-
-        const joystickBase = document.getElementById('remoteGunnerJoystick');
-        const joystickKnob = document.getElementById('joystickKnob');
-
-        if(joystickBase) {
-            joystickBase.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystickBase.getBoundingClientRect();
-                joystick.active = true;
-                joystick.startX = rect.left + rect.width / 2;
-                joystick.startY = rect.top + rect.height / 2;
-                updateJoystick(touch.clientX, touch.clientY);
-            });
-
-            joystickBase.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (joystick.active) {
-                    const touch = e.touches[0];
-                    updateJoystick(touch.clientX, touch.clientY);
-                }
-            });
-
-            joystickBase.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                joystick.active = false;
-                joystick.power = 0;
-                joystickKnob.style.transform = `translate(0px, 0px)`;
-            });
-        }
-
-        function updateJoystick(clientX, clientY) {
-            const dx = clientX - joystick.startX;
-            const dy = clientY - joystick.startY;
-            const dist = Math.hypot(dx, dy);
-            const maxRadius = 50;
-
-            const angle = Math.atan2(dy, dx);
-            joystick.angle = angle;
-            joystick.power = Math.min(dist / maxRadius, 1);
-
-            const limitedDist = Math.min(dist, maxRadius);
-            const knobX = Math.cos(angle) * limitedDist;
-            const knobY = Math.sin(angle) * limitedDist;
-            if(joystickKnob) joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
-            truck.turretAngle = angle;
-        }
 
         function openControllerModal() {
             document.getElementById('controllerModal').classList.remove('hidden');
@@ -384,25 +427,6 @@
 
         function closeControllerModal() {
             document.getElementById('controllerModal').classList.add('hidden');
-        }
-
-        function simulateRemoteController(type) {
-            document.getElementById('remoteControllerUI').classList.remove('hidden');
-            closeControllerModal();
-            document.getElementById('roleModal').classList.add('hidden');
-            document.getElementById('current-mode-label').innerText = 'Simulated Mobile ' + type.toUpperCase();
-            if (type === 'driver') {
-                document.getElementById('remoteGunnerJoystick').style.display = 'none';
-            } else {
-                document.getElementById('remoteDriverPad').style.display = 'none';
-            }
-            startGame();
-        }
-
-        function startSoloPlay() {
-            document.getElementById('roleModal').classList.add('hidden');
-            document.getElementById('current-mode-label').innerText = 'Solo Keyboard Mode';
-            startGame();
         }
 
         function startGame() {
@@ -426,6 +450,7 @@
 
         function showNotification(text) {
             const banner = document.getElementById('notificationBanner');
+            if(!banner) return;
             banner.innerText = text;
             banner.style.opacity = '1';
             setTimeout(() => { banner.style.opacity = '0'; }, 2000);
@@ -472,8 +497,7 @@
                 const distToTurret = Math.hypot(zCenterX - turretX, zCenterY - turretY);
 
                 if (angleDiff < 0.65 && distToTurret < 900) {
-                    // Reduced damage output per shot from 35 to 12
-                    z.hp -= 12;
+                    z.hp -= 12; // Reduced damage output
                     for (let p = 0; p < 3; p++) {
                         particles.push({
                             x: zCenterX,
@@ -499,15 +523,14 @@
 
         function updateSpawns() {
             zombieSpawnTimer++;
-            // Fast-paced high density spawning scaling over time
-            const spawnInterval = Math.max(8, 30 - Math.floor(distance / 80));
+            const spawnInterval = Math.max(12, 35 - Math.floor(distance / 60));
             if (zombieSpawnTimer > spawnInterval) {
                 zombieSpawnTimer = 0;
                 
                 const roadY = canvas.height / 2 - 250;
                 const roadHeight = 500;
 
-                // 1. Spawn Chasing Zombies from Behind (Left side)
+                // 1. Chasing Zombies from Behind (Left side) - Tougher HP, slower speed
                 zombies.push({
                     x: -100,
                     y: roadY + 30 + Math.random() * (roadHeight - 100),
@@ -515,15 +538,14 @@
                     height: 56,
                     hp: 50,
                     maxHp: 50,
-                    speed: 1.1,
+                    speed: 1.0,
                     type: 'chaser',
                     dead: false,
-                    attackCooldown: 0,
-                    walkAnim: Math.random() * 10
+                    attackCooldown: 0
                 });
 
-                // 2. Spawn Standing Zombies Ahead (Right side)
-                if (Math.random() > 0.3) {
+                // 2. Standing Zombies Ahead (Right side, non-moving) - Tougher HP
+                if (Math.random() > 0.4) {
                     zombies.push({
                         x: canvas.width + 100 + Math.random() * 200,
                         y: roadY + 30 + Math.random() * (roadHeight - 100),
@@ -531,17 +553,16 @@
                         height: 56,
                         hp: 40,
                         maxHp: 40,
-                        speed: 0, // Standing still
+                        speed: 0,
                         type: 'standing',
                         dead: false,
-                        attackCooldown: 0,
-                        walkAnim: Math.random() * 10
+                        attackCooldown: 0
                     });
                 }
             }
 
             obstacleSpawnTimer++;
-            if (obstacleSpawnTimer > 700) {
+            if (obstacleSpawnTimer > 900) { // Rarer obstacles
                 obstacleSpawnTimer = 0;
                 const roadY = canvas.height / 2 - 250;
                 const roadHeight = 500;
@@ -573,6 +594,8 @@
         function updateGame() {
             if (gameState !== 'PLAYING') return;
 
+            pollRemoteInputs();
+
             distance += truck.speed * 0.1;
             if (infiniteAmmoTimer > 0) infiniteAmmoTimer--;
 
@@ -580,10 +603,10 @@
             const roadHeight = 500;
 
             // Player 1 Steering (Up, Down, Left, Right within boundaries)
-            if (keys.w || keys.ArrowUp) truck.y -= 4.2;
-            if (keys.s || keys.ArrowDown) truck.y += 4.2;
-            if (keys.a || keys.ArrowLeft) truck.x -= 4.2;
-            if (keys.d || keys.ArrowRight) truck.x += 4.2;
+            if (keys.w) truck.y -= 4.2;
+            if (keys.s) truck.y += 4.2;
+            if (keys.a) truck.x -= 4.2;
+            if (keys.d) truck.x += 4.2;
 
             const minX = 60;
             const maxX = canvas.width - 240;
@@ -593,8 +616,8 @@
             truck.x = Math.max(minX, Math.min(maxX, truck.x));
             truck.y = Math.max(minY, Math.min(maxY, truck.y));
 
-            // Player 2 Turret Aim & Shoot
-            if (joystick.active || mouseIsDown) {
+            // Player 2 Turret Firing
+            if (gunnerFiring) {
                 shootTurret();
             }
 
@@ -635,11 +658,10 @@
                 if (p.x < -100) powerUps.splice(i, 1);
             }
 
-            // Stationary Road Obstacles (Do not move left, stay fixed)
+            // Stationary Road Obstacles (Do not move left)
             for (let i = roadObstacles.length - 1; i >= 0; i--) {
                 const obs = roadObstacles[i];
-                // obstacles scroll past as the road moves left
-                obs.x -= truck.speed * 2.5;
+                // Obstacles stay fixed on road
 
                 if (
                     obs.x < truck.x + truck.width &&
@@ -664,8 +686,6 @@
                     zombies.splice(i, 1);
                     continue;
                 }
-
-                z.walkAnim += 0.15;
 
                 if (z.type === 'chaser') {
                     // Chasing actively from behind
@@ -713,41 +733,23 @@
             updateHUD();
         }
 
-        let mouseIsDown = false;
-        canvas.addEventListener('mousedown', (e) => { mouseIsDown = true; });
-        window.addEventListener('mouseup', () => { mouseIsDown = false; });
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            const turretX = truck.x + truck.width / 2;
-            const turretY = truck.y + truck.height / 2 - 15;
-            truck.turretAngle = Math.atan2(mouseY - turretY, mouseX - turretX);
-        });
-
         function updateHUD() {
-            document.getElementById('hud-distance').innerText = Math.floor(distance) + ' m';
-            document.getElementById('hud-kills').innerText = kills;
+            const distEl = document.getElementById('hud-distance');
+            const killsEl = document.getElementById('hud-kills');
+            if(distEl) distEl.innerText = Math.floor(distance) + ' m';
+            if(killsEl) killsEl.innerText = kills;
 
             const hpPercent = Math.max(0, (truck.hp / truck.maxHp) * 100);
-            document.getElementById('truck-hp-bar').style.width = hpPercent + '%';
-            document.getElementById('truck-hp-text').innerText = Math.ceil(truck.hp) + ' / ' + truck.maxHp;
+            const hpBar = document.getElementById('truck-hp-bar');
+            const hpText = document.getElementById('truck-hp-text');
+            if(hpBar) hpBar.style.width = hpPercent + '%';
+            if(hpText) hpText.innerText = Math.ceil(truck.hp) + ' / ' + truck.maxHp;
 
             const ammoPercent = infiniteAmmoTimer > 0 ? 100 : (weapon.ammo / weapon.maxAmmo) * 100;
-            document.getElementById('gun-ammo-bar').style.width = ammoPercent + '%';
-            document.getElementById('gun-ammo-text').innerText = infiniteAmmoTimer > 0 ? 'INF' : (weapon.ammo + ' / ' + weapon.maxAmmo);
-
-            const reloadStatusEl = document.getElementById('reload-status');
-            if (infiniteAmmoTimer > 0) {
-                reloadStatusEl.innerText = 'INF AMMO';
-                reloadStatusEl.className = 'text-cyan-400 font-bold animate-pulse';
-            } else if (weapon.reloadTime > 0) {
-                reloadStatusEl.innerText = 'RELOADING';
-                reloadStatusEl.className = 'text-amber-400 font-bold animate-pulse';
-            } else {
-                reloadStatusEl.innerText = 'READY';
-                reloadStatusEl.className = 'text-emerald-400 font-bold';
-            }
+            const ammoBar = document.getElementById('gun-ammo-bar');
+            const ammoText = document.getElementById('gun-ammo-text');
+            if(ammoBar) ammoBar.style.width = ammoPercent + '%';
+            if(ammoText) ammoText.innerText = infiniteAmmoTimer > 0 ? 'INF' : (weapon.ammo + ' / ' + weapon.maxAmmo);
         }
 
         function triggerGameOver() {
@@ -773,7 +775,7 @@
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(0, roadY, canvas.width, roadHeight);
 
-            // Boundary lines on both ends that cannot be passed
+            // Boundary lines on both ends
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -783,7 +785,7 @@
             ctx.lineTo(canvas.width, roadY + roadHeight);
             ctx.stroke();
 
-            // Fast road dash visual illusion
+            // High-velocity visual road dashes
             ctx.strokeStyle = '#f59e0b';
             ctx.lineWidth = 6;
             ctx.setLineDash([90, 40]);
@@ -794,7 +796,7 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Render Stationary Road Obstacles (Covering 1/3 road height with roadblock icons)
+            // Render Stationary Road Obstacles (1/3 road height)
             roadObstacles.forEach(obs => {
                 ctx.fillStyle = '#450a0a';
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
@@ -831,7 +833,7 @@
                 ctx.restore();
             });
 
-            // Render Zombies (Chasers & Standing)
+            // Render Zombies
             zombies.forEach(z => {
                 ctx.save();
                 ctx.translate(z.x, z.y);
@@ -917,16 +919,13 @@
             });
         }
 
-        function gameLoop() {
-            updateGame();
-            drawScene();
-            requestAnimationFrame(gameLoop);
+        function tvGameLoop() {
+            if (!isStandaloneController) {
+                updateGame();
+                drawScene();
+                requestAnimationFrame(tvGameLoop);
+            }
         }
-
-        window.onload = function() {
-            resizeCanvas();
-            gameLoop();
-        };
     </script>
 </body>
 </html>
