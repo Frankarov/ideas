@@ -3,26 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Emoji Swap Multiplayer Puzzle</title>
+    <title>Emoji Swap Multiplayer (P2P)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- QR Code Generator Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- PeerJS for Direct P2P WebRTC Connection -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     
     <style>
-        /* Base styles to prevent mobile browser weirdness */
         body {
-            touch-action: none; /* Prevent pull-to-refresh and zooming */
-            user-select: none;  /* Prevent text selection */
+            touch-action: none;
+            user-select: none;
             -webkit-user-select: none;
         }
 
-        /* Smooth tile transitions */
         .tile {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Pulsing animation for selected tiles */
         @keyframes pulse-border-red {
             0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
@@ -39,7 +38,6 @@
         .cursor-p1 { border: 4px solid #ef4444; z-index: 10; box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.5); }
         .cursor-p2 { border: 4px solid #3b82f6; z-index: 10; box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.5); }
         
-        /* Mobile Controller buttons active state */
         .ctrl-btn:active {
             transform: scale(0.95);
             background-color: rgba(255, 255, 255, 0.2);
@@ -48,39 +46,11 @@
 </head>
 <body class="bg-gray-950 text-white min-h-screen font-sans flex flex-col items-center justify-center overflow-hidden">
 
-    <!-- Container for dynamic UI insertion -->
     <div id="app" class="w-full h-full flex items-center justify-center absolute inset-0">
-        <div class="text-2xl animate-pulse text-gray-400">Loading Game Engine...</div>
+        <div class="text-2xl animate-pulse text-gray-400">Initializing P2P Game Engine...</div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // ============================================================================
-        // DEPLOYMENT NOTE FOR GITHUB PAGES:
-        // Replace the default structure below with your actual Firebase Configuration.
-        // ============================================================================
-        const defaultFirebaseConfig = {
-            // INSERT YOUR FIREBASE CONFIG HERE WHEN DEPLOYING TO GITHUB PAGES
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
-        // Auto-detect immersive environment vs standalone
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : defaultFirebaseConfig;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'emoji-swap-multiplayer';
-        
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
+    <script>
         const CATEGORIES = [
             ['🐶', '🐱', '🐭', '🐰'], // Animals
             ['🍎', '🍌', '🍇', '🍉'], // Fruits
@@ -88,14 +58,12 @@
             ['⚽', '🏀', '🏈', '⚾']  // Sports
         ];
 
-        // Generate a flat, shuffled array of all 16 emojis
         function generateShuffledGrid() {
             let emojis = CATEGORIES.flat();
             for (let i = emojis.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
             }
-            // Convert to 4x4 2D array stored as flat arrays or objects for Firestore compatibility
             const grid = [];
             for (let i = 0; i < 4; i++) {
                 grid.push(emojis.slice(i * 4, i * 4 + 4));
@@ -103,30 +71,11 @@
             return grid;
         }
 
-        // Helper to convert 2D array to flat object or arrays for Firestore
-        // Firestore supports arrays, but NOT nested arrays (array inside an array).
-        // A 4x4 grid is an array of 4 arrays, which is a nested array!
-        // We will store grid as an array of 4 strings or flat array of 16 items, or 4 flat sub-arrays.
-        // Wait, an array of 4 arrays is indeed nested. To make Firestore happy, we can store it as 16 items or 4 string rows (e.g. "🍎,🍌,🍇,🍉").
-        function gridToFirestore(grid) {
-            return grid.map(row => row.join(','));
-        }
-
-        function gridFromFirestore(storedGrid) {
-            if (!storedGrid) return generateShuffledGrid();
-            if (Array.isArray(storedGrid) && typeof storedGrid[0] === 'string') {
-                return storedGrid.map(rowStr => rowStr.split(','));
-            }
-            return storedGrid; // fallback
-        }
-
-        // Check if the board has been solved (rows or columns perfectly categorized)
         function checkWin(grid) {
             function getCatIndex(emoji) {
                 return CATEGORIES.findIndex(cat => cat.includes(emoji));
             }
 
-            // Check if rows are perfectly categorized and unique
             let rowsWin = true;
             let usedRowCats = new Set();
             for (let r = 0; r < 4; r++) {
@@ -138,7 +87,6 @@
             }
             if (rowsWin && usedRowCats.size === 4) return true;
 
-            // Check if columns are perfectly categorized and unique
             let colsWin = true;
             let usedColCats = new Set();
             for (let c = 0; c < 4; c++) {
@@ -153,390 +101,399 @@
             return false;
         }
 
-        // Utility to generate a short random session ID
-        function generateSessionId() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
-
-        // Haptic feedback utility
         function vibrate(pattern = 50) {
             if (navigator.vibrate) navigator.vibrate(pattern);
         }
 
-        // Entry Point
-        async function init() {
-            // Ensure Authentication before any Firestore operation (RULE 3)
-            try {
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (err) {
-                document.getElementById('app').innerHTML = `<div class="text-red-500">Auth Error: ${err.message}. Please configure Firebase correctly for GitHub Pages.</div>`;
-                return;
-            }
-
-            // Simple Client-Side Routing based on URL Parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const view = urlParams.get('view');
-            const playerNum = urlParams.get('p');
-            const sessionId = urlParams.get('sid');
-
-            if (view === 'ctrl' && playerNum && sessionId) {
-                initController(playerNum, sessionId);
-            } else {
-                initHost();
-            }
+        function generateRandomId() {
+            return Math.random().toString(36).substring(2, 8);
         }
 
-        async function initHost() {
-            const sid = generateSessionId();
-            const rootRef = collection(db, 'artifacts', appId, 'public', 'data', 'puzzle_sessions');
-            const sessionRef = doc(rootRef, sid);
+        const urlParams = new URLSearchParams(window.location.search);
+        const view = urlParams.get('view');
+        const playerNum = urlParams.get('p');
+        const hostPeerId = urlParams.get('host');
 
-            // Initial Game State (convert grid to Firestore-safe format)
-            const rawGrid = generateShuffledGrid();
-            const initialState = {
+        if (view === 'ctrl' && playerNum && hostPeerId) {
+            initController(playerNum, hostPeerId);
+        } else {
+            initHost();
+        }
+
+        // ==========================================
+        // HOST IMPLEMENTATION (Desktop)
+        // ==========================================
+        function initHost() {
+            const uniqueId = generateRandomId();
+            const p1PeerId = `emoji_host_p1_${uniqueId}`;
+            const p2PeerId = `emoji_host_p2_${uniqueId}`;
+
+            let gameState = {
                 status: 'waiting', // waiting, playing, won
-                grid: gridToFirestore(rawGrid),
+                grid: generateShuffledGrid(),
                 p1: { connected: false, ready: false, cursor: {r: 0, c: 0}, selected: null },
                 p2: { connected: false, ready: false, cursor: {r: 3, c: 3}, selected: null }
             };
 
-            await setDoc(sessionRef, initialState);
+            let p1Connection = null;
+            let p2Connection = null;
 
-            const appDiv = document.getElementById('app');
-            let currentState = null;
-
-            // Generate URLs for Controllers
-            const baseUrl = window.location.origin + window.location.pathname;
-            const p1Url = `${baseUrl}?view=ctrl&p=1&sid=${sid}`;
-            const p2Url = `${baseUrl}?view=ctrl&p=2&sid=${sid}`;
-
-            // Listen to real-time updates from Controllers
-            onSnapshot(sessionRef, (snapshot) => {
-                if (!snapshot.exists()) return;
-                const data = snapshot.data();
-                currentState = data;
-                
-                // Reconstruct 2D grid for local use
-                const currentGrid = gridFromFirestore(data.grid);
-
-                // --- HOST GAME LOGIC ---
-                // Transition to playing if both are ready
-                if (data.status === 'waiting' && data.p1.ready && data.p2.ready) {
-                    updateDoc(sessionRef, { status: 'playing' });
-                    return; // Avoid rendering immediately, wait for next snapshot
+            // Configure PeerJS with alternative STUN servers and robust options to bypass iframe constraints
+            const peerOptions = {
+                host: '0.peerjs.com',
+                port: 443,
+                secure: true,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
                 }
+            };
 
-                // Swap Logic when both have selected
-                if (data.status === 'playing' && data.p1.selected && data.p2.selected) {
-                    let newGrid = JSON.parse(JSON.stringify(currentGrid));
-                    
-                    // Perform Swap
-                    const t1 = newGrid[data.p1.selected.r][data.p1.selected.c];
-                    const t2 = newGrid[data.p2.selected.r][data.p2.selected.c];
-                    
-                    newGrid[data.p1.selected.r][data.p1.selected.c] = t2;
-                    newGrid[data.p2.selected.r][data.p2.selected.c] = t1;
+            let peer1, peer2;
+            try {
+                peer1 = new Peer(p1PeerId, peerOptions);
+                peer2 = new Peer(p2PeerId, peerOptions);
+            } catch(e) {
+                peer1 = new Peer(p1PeerId);
+                peer2 = new Peer(p2PeerId);
+            }
 
-                    // Check win condition
-                    const won = checkWin(newGrid);
-
-                    updateDoc(sessionRef, {
-                        grid: gridToFirestore(newGrid),
-                        'p1.selected': null,
-                        'p2.selected': null,
-                        status: won ? 'won' : 'playing'
-                    });
-                    return;
-                }
-
-                // Render UI based on State
-                renderHostUI(data, sid, p1Url, p2Url, currentGrid);
-            }, (error) => {
-                console.error("Firestore Listen Error:", error);
+            peer1.on('connection', (conn) => {
+                p1Connection = conn;
+                gameState.p1.connected = true;
+                setupConnectionHandlers(conn, 'p1');
+                broadcastState();
             });
-        }
 
-        // Host UI Render Function
-        function renderHostUI(data, sid, p1Url, p2Url, currentGrid) {
-            const appDiv = document.getElementById('app');
-            
-            if (data.status === 'waiting') {
-                appDiv.innerHTML = `
-                    <div class="flex flex-col items-center w-full max-w-4xl p-8 bg-gray-800 rounded-3xl shadow-2xl">
-                        <h1 class="text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
-                        <p class="text-gray-400 mb-12 text-xl">Match 4 emojis of the same category in a row or column!</p>
-                        
-                        <div class="flex flex-row w-full justify-around items-center">
-                            <!-- P1 QR -->
-                            <div class="flex flex-col items-center p-6 bg-gray-700/50 rounded-2xl border-2 ${data.p1.connected ? 'border-red-500' : 'border-gray-600'}">
-                                <h2 class="text-2xl font-bold mb-4 text-red-400">Player 1 (Red)</h2>
-                                <div id="qr-p1" class="bg-white p-2 rounded-xl mb-4"></div>
-                                <div class="h-8">
-                                    ${data.p1.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                      data.p1.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
-                                      '<span class="text-gray-400 animate-pulse">Scan to join...</span>'}
-                                </div>
-                            </div>
+            peer2.on('connection', (conn) => {
+                p2Connection = conn;
+                gameState.p2.connected = true;
+                setupConnectionHandlers(conn, 'p2');
+                broadcastState();
+            });
 
-                            <div class="text-3xl font-bold text-gray-500 mx-4">VS / CO-OP</div>
+            function setupConnectionHandlers(conn, pKey) {
+                conn.on('data', (data) => {
+                    handleControllerAction(pKey, data);
+                });
+                conn.on('close', () => {
+                    gameState[pKey].connected = false;
+                    gameState[pKey].ready = false;
+                    gameState.status = 'waiting';
+                    broadcastState();
+                });
+            }
 
-                            <!-- P2 QR -->
-                            <div class="flex flex-col items-center p-6 bg-gray-700/50 rounded-2xl border-2 ${data.p2.connected ? 'border-blue-500' : 'border-gray-600'}">
-                                <h2 class="text-2xl font-bold mb-4 text-blue-400">Player 2 (Blue)</h2>
-                                <div id="qr-p2" class="bg-white p-2 rounded-xl mb-4"></div>
-                                <div class="h-8">
-                                    ${data.p2.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                      data.p2.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
-                                      '<span class="text-gray-400 animate-pulse">Scan to join...</span>'}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-8 text-sm text-gray-500">Session ID: ${sid}</div>
-                    </div>
-                `;
+            function broadcastState() {
+                if (p1Connection && p1Connection.open) p1Connection.send({ type: 'STATE', state: gameState });
+                if (p2Connection && p2Connection.open) p2Connection.send({ type: 'STATE', state: gameState });
+                renderHostUI();
+            }
 
-                // Render QRs if elements exist and are empty
-                const qr1El = document.getElementById('qr-p1');
-                if (qr1El && qr1El.innerHTML === '') {
-                    new QRCode(qr1El, { text: p1Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
-                }
-                const qr2El = document.getElementById('qr-p2');
-                if (qr2El && qr2El.innerHTML === '') {
-                    new QRCode(qr2El, { text: p2Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
-                }
+            function handleControllerAction(pKey, actionData) {
+                const { action, payload } = actionData;
 
-            } else if (data.status === 'playing' || data.status === 'won') {
-                
-                // Build the grid HTML
-                let gridHtml = '';
-                for (let r = 0; r < 4; r++) {
-                    for (let c = 0; c < 4; c++) {
-                        
-                        // Check cursors and selections
-                        let classes = 'tile w-20 h-20 md:w-28 md:h-28 bg-gray-800 border border-gray-700 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-lg';
-                        let innerHtml = `<span>${currentGrid[r][c]}</span>`;
-
-                        // Overlays for selections and cursors
-                        let overlays = '';
-                        
-                        // Selected states
-                        if (data.p1.selected && data.p1.selected.r === r && data.p1.selected.c === c) {
-                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p1 pointer-events-none"></div>`;
+                if (gameState.status === 'waiting') {
+                    if (action === 'ready') {
+                        gameState[pKey].ready = true;
+                        if (gameState.p1.ready && gameState.p2.ready) {
+                            gameState.status = 'playing';
                         }
-                        if (data.p2.selected && data.p2.selected.r === r && data.p2.selected.c === c) {
-                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p2 pointer-events-none"></div>`;
+                        broadcastState();
+                    }
+                } else if (gameState.status === 'playing') {
+                    if (action === 'move') {
+                        let cursor = gameState[pKey].cursor;
+                        if (payload === 'up') cursor.r = Math.max(0, cursor.r - 1);
+                        if (payload === 'down') cursor.r = Math.min(3, cursor.r + 1);
+                        if (payload === 'left') cursor.c = Math.max(0, cursor.c - 1);
+                        if (payload === 'right') cursor.c = Math.min(3, cursor.c + 1);
+                        broadcastState();
+                    }
+                    if (action === 'select') {
+                        if (gameState[pKey].selected) {
+                            gameState[pKey].selected = null;
+                        } else {
+                            gameState[pKey].selected = { ...gameState[pKey].cursor };
                         }
 
-                        // Cursor states
-                        if (data.p1.cursor.r === r && data.p1.cursor.c === c) {
-                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p1 pointer-events-none"></div>`;
-                        }
-                        if (data.p2.cursor.r === r && data.p2.cursor.c === c) {
-                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p2 pointer-events-none"></div>`;
-                        }
+                        // Check if both selected
+                        if (gameState.p1.selected && gameState.p2.selected) {
+                            let g = gameState.grid;
+                            let t1 = g[gameState.p1.selected.r][gameState.p1.selected.c];
+                            let t2 = g[gameState.p2.selected.r][gameState.p2.selected.c];
 
-                        gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
+                            g[gameState.p1.selected.r][gameState.p1.selected.c] = t2;
+                            g[gameState.p2.selected.r][gameState.p2.selected.c] = t1;
+
+                            gameState.p1.selected = null;
+                            gameState.p2.selected = null;
+
+                            if (checkWin(g)) {
+                                gameState.status = 'won';
+                            }
+                        }
+                        broadcastState();
+                    }
+                } else if (gameState.status === 'won') {
+                    if (action === 'restart') {
+                        gameState.status = 'waiting';
+                        gameState.grid = generateShuffledGrid();
+                        gameState.p1.ready = false;
+                        gameState.p2.ready = false;
+                        gameState.p1.selected = null;
+                        gameState.p2.selected = null;
+                        broadcastState();
                     }
                 }
-
-                // Render Main Board
-                appDiv.innerHTML = `
-                    <div class="flex flex-col items-center">
-                        <div class="mb-8 flex space-x-12">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
-                                <span class="text-xl font-bold text-gray-300">Player 1</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-6 h-6 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
-                                <span class="text-xl font-bold text-gray-300">Player 2</span>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-4 gap-3 md:gap-4 bg-gray-900 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
-                            ${gridHtml}
-                            
-                            ${data.status === 'won' ? `
-                                <div class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-[2rem] flex flex-col items-center justify-center z-50">
-                                    <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-6 drop-shadow-lg">YOU WIN!</h1>
-                                    <p class="text-xl text-gray-300 mb-8">Perfect teamwork!</p>
-                                    <div class="text-gray-500 text-sm animate-pulse">Waiting for controllers to restart...</div>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <div class="mt-8 text-gray-500 text-lg text-center max-w-lg">
-                            Coordination is key! <b>Player 1</b> and <b>Player 2</b> must select a tile. Once both lock in, the emojis will swap.
-                        </div>
-                    </div>
-                `;
             }
+
+            window.renderHostUI = function() {
+                const appDiv = document.getElementById('app');
+                const baseUrl = window.location.origin + window.location.pathname;
+                const p1Url = `${baseUrl}?view=ctrl&p=1&host=${p1PeerId}`;
+                const p2Url = `${baseUrl}?view=ctrl&p=2&host=${p2PeerId}`;
+
+                if (gameState.status === 'waiting') {
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center w-full max-w-4xl p-8 bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl">
+                            <h1 class="text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
+                            <p class="text-gray-400 mb-12 text-xl text-center">Match 4 emojis of the same category in a row or column together!</p>
+                            
+                            <div class="flex flex-col md:flex-row w-full justify-around items-center gap-8">
+                                <!-- P1 QR -->
+                                <div class="flex flex-col items-center p-6 bg-gray-800/80 rounded-2xl border-2 ${gameState.p1.connected ? 'border-red-500' : 'border-gray-700'}">
+                                    <h2 class="text-2xl font-bold mb-4 text-red-400">Player 1 (Red)</h2>
+                                    <div id="qr-p1" class="bg-white p-3 rounded-xl mb-4 shadow-lg"></div>
+                                    <div class="h-8 text-center">
+                                        ${gameState.p1.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
+                                          gameState.p1.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
+                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone...</span>'}
+                                    </div>
+                                </div>
+
+                                <div class="text-3xl font-bold text-gray-600">VS / CO-OP</div>
+
+                                <!-- P2 QR -->
+                                <div class="flex flex-col items-center p-6 bg-gray-800/80 rounded-2xl border-2 ${gameState.p2.connected ? 'border-blue-500' : 'border-gray-700'}">
+                                    <h2 class="text-2xl font-bold mb-4 text-blue-400">Player 2 (Blue)</h2>
+                                    <div id="qr-p2" class="bg-white p-3 rounded-xl mb-4 shadow-lg"></div>
+                                    <div class="h-8 text-center">
+                                        ${gameState.p2.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
+                                          gameState.p2.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
+                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone...</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const qr1El = document.getElementById('qr-p1');
+                    if (qr1El && qr1El.innerHTML === '') {
+                        new QRCode(qr1El, { text: p1Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                    }
+                    const qr2El = document.getElementById('qr-p2');
+                    if (qr2El && qr2El.innerHTML === '') {
+                        new QRCode(qr2El, { text: p2Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                    }
+
+                } else {
+                    let gridHtml = '';
+                    for (let r = 0; r < 4; r++) {
+                        for (let c = 0; c < 4; c++) {
+                            let classes = 'tile w-20 h-20 md:w-28 md:h-28 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-xl';
+                            let innerHtml = `<span>${gameState.grid[r][c]}</span>`;
+                            let overlays = '';
+
+                            if (gameState.p1.selected && gameState.p1.selected.r === r && gameState.p1.selected.c === c) {
+                                overlays += `<div class="absolute inset-0 rounded-2xl selected-p1 pointer-events-none"></div>`;
+                            }
+                            if (gameState.p2.selected && gameState.p2.selected.r === r && gameState.p2.selected.c === c) {
+                                overlays += `<div class="absolute inset-0 rounded-2xl selected-p2 pointer-events-none"></div>`;
+                            }
+                            if (gameState.p1.cursor.r === r && gameState.p1.cursor.c === c) {
+                                overlays += `<div class="absolute inset-0 rounded-2xl cursor-p1 pointer-events-none"></div>`;
+                            }
+                            if (gameState.p2.cursor.r === r && gameState.p2.cursor.c === c) {
+                                overlays += `<div class="absolute inset-0 rounded-2xl cursor-p2 pointer-events-none"></div>`;
+                            }
+
+                            gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
+                        }
+                    }
+
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <div class="mb-8 flex space-x-12">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
+                                    <span class="text-xl font-bold text-gray-300">Player 1</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+                                    <span class="text-xl font-bold text-gray-300">Player 2</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-3 md:gap-4 bg-gray-900/90 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
+                                ${gridHtml}
+                                
+                                ${gameState.status === 'won' ? `
+                                    <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50">
+                                        <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-6 drop-shadow-lg">YOU WIN!</h1>
+                                        <p class="text-xl text-gray-300 mb-4">Amazing teamwork!</p>
+                                        <div class="text-gray-400 text-sm animate-pulse">Press restart on your smartphone controllers to play again</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="mt-8 text-gray-400 text-base text-center max-w-lg">
+                                Each player uses their smartphone controller. Select a tile, and when both players have chosen, they will swap!
+                            </div>
+                        </div>
+                    `;
+                }
+            };
+
+            renderHostUI();
         }
 
-        async function initController(playerNum, sessionId) {
-            const rootRef = collection(db, 'artifacts', appId, 'public', 'data', 'puzzle_sessions');
-            const sessionRef = doc(rootRef, sessionId);
-            const playerKey = playerNum === '1' ? 'p1' : 'p2';
+        // ==========================================
+        // CONTROLLER IMPLEMENTATION (Smartphone)
+        // ==========================================
+        function initController(playerNum, hostPeerId) {
+            const appDiv = document.getElementById('app');
             const themeColor = playerNum === '1' ? 'red' : 'blue';
             const themeHex = playerNum === '1' ? '#ef4444' : '#3b82f6';
             
-            // Mark connected
-            await updateDoc(sessionRef, {
-                [`${playerKey}.connected`]: true
+            document.body.style.backgroundColor = playerNum === '1' ? '#2a0d0d' : '#0d1b2a';
+
+            appDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                    <div class="text-3xl font-black text-${themeColor}-400 mb-4">PLAYER ${playerNum}</div>
+                    <div class="text-lg text-gray-300 animate-pulse">Connecting to Desktop Host...</div>
+                </div>
+            `;
+
+            let clientPeer;
+            try {
+                clientPeer = new Peer({
+                    host: '0.peerjs.com',
+                    port: 443,
+                    secure: true,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
+            } catch(e) {
+                clientPeer = new Peer();
+            }
+
+            let conn = null;
+            let latestState = null;
+
+            clientPeer.on('open', () => {
+                conn = clientPeer.connect(hostPeerId);
+                
+                conn.on('open', () => {
+                    renderControllerScreen('waiting');
+                });
+
+                conn.on('data', (data) => {
+                    if (data.type === 'STATE') {
+                        latestState = data.state;
+                        renderControllerScreen(latestState.status);
+                    }
+                });
+
+                conn.on('close', () => {
+                    appDiv.innerHTML = `<div class="text-red-400 text-xl font-bold">Disconnected from Host.</div>`;
+                });
             });
 
-            // Handle disconnect visually by un-readying (not strictly necessary but good)
-            window.addEventListener('beforeunload', () => {
-                updateDoc(sessionRef, { [`${playerKey}.connected`]: false, [`${playerKey}.ready`]: false });
-            });
-
-            const appDiv = document.getElementById('app');
-            let localState = null;
-
-            onSnapshot(sessionRef, (snapshot) => {
-                if (!snapshot.exists()) {
-                    appDiv.innerHTML = `<div class="text-red-500 text-xl font-bold">Session Ended or Not Found.</div>`;
-                    return;
-                }
-                const data = snapshot.data();
-                localState = data;
-                renderControllerUI(data, playerKey, themeColor, themeHex);
-            }, (error) => {
-                console.error("Firestore Listen Error:", error);
-            });
-
-            // Controller Actions (Globally scoped for HTML onclick bindings)
-            window.ctrlAction = function(action) {
+            window.sendAction = function(action, payload = null) {
                 vibrate(40);
-                if (!localState) return;
-                
-                const pData = localState[playerKey];
-                
-                if (action === 'ready') {
-                    updateDoc(sessionRef, { [`${playerKey}.ready`]: true });
-                }
-                
-                if (localState.status === 'won' && action === 'restart') {
-                    // Reset game
-                    updateDoc(sessionRef, {
-                        status: 'waiting',
-                        grid: gridToFirestore(generateShuffledGrid()),
-                        'p1.ready': false, 'p2.ready': false,
-                        'p1.selected': null, 'p2.selected': null
-                    });
-                }
-
-                if (localState.status === 'playing') {
-                    if (['up', 'down', 'left', 'right'].includes(action)) {
-                        let newR = pData.cursor.r;
-                        let newC = pData.cursor.c;
-                        
-                        if (action === 'up') newR = Math.max(0, newR - 1);
-                        if (action === 'down') newR = Math.min(3, newR + 1);
-                        if (action === 'left') newC = Math.max(0, newC - 1);
-                        if (action === 'right') newC = Math.min(3, newC + 1);
-
-                        updateDoc(sessionRef, { [`${playerKey}.cursor`]: { r: newR, c: newC } });
-                    }
-                    
-                    if (action === 'select') {
-                        if (pData.selected) {
-                            // Cancel selection
-                            updateDoc(sessionRef, { [`${playerKey}.selected`]: null });
-                        } else {
-                            // Lock selection
-                            updateDoc(sessionRef, { [`${playerKey}.selected`]: pData.cursor });
-                        }
-                    }
+                if (conn && conn.open) {
+                    conn.send({ action, payload });
                 }
             };
-        }
 
-        // Render Controller UI
-        function renderControllerUI(data, playerKey, themeColor, themeHex) {
-            const appDiv = document.getElementById('app');
-            const pData = data[playerKey];
-            
-            // Adjust full page background to match player color slightly
-            document.body.style.backgroundColor = playerKey === 'p1' ? '#451a1a' : '#1e3a5f'; // Very dark red/blue
+            function renderControllerScreen(status) {
+                const pKey = `p${playerNum}`;
+                const pData = latestState ? latestState[pKey] : null;
 
-            if (data.status === 'waiting') {
-                appDiv.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                        <div class="mb-10 text-3xl font-black text-${themeColor}-400">PLAYER ${playerKey === 'p1' ? '1' : '2'}</div>
-                        ${pData.ready ? 
-                            `<div class="text-2xl font-bold text-green-400 animate-pulse">Waiting for other player...</div>` :
-                            `<button onclick="ctrlAction('ready')" class="w-64 h-64 rounded-full bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-4xl font-black tracking-widest active:scale-95 transition-transform flex items-center justify-center uppercase">
-                                Start<br>Game
-                             </button>`
-                        }
-                    </div>
-                `;
-            } else if (data.status === 'playing') {
-                const isSelected = pData.selected !== null;
-                
-                appDiv.innerHTML = `
-                    <div class="flex flex-col items-center justify-between h-full w-full py-10 px-4">
-                        <div class="text-xl font-bold text-${themeColor}-300 tracking-widest mb-4 uppercase">
-                            ${isSelected ? 'Waiting for partner...' : 'Select a tile'}
+                if (status === 'waiting') {
+                    const isReady = pData ? pData.ready : false;
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                            <div class="text-3xl font-black text-${themeColor}-400 mb-10">PLAYER ${playerNum}</div>
+                            ${isReady ? 
+                                `<div class="text-2xl font-bold text-green-400 animate-pulse">Waiting for other player...</div>` :
+                                `<button onclick="sendAction('ready')" class="w-64 h-64 rounded-full bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-4xl font-black tracking-widest active:scale-95 transition-transform flex items-center justify-center uppercase">
+                                    Start<br>Game
+                                 </button>`
+                            }
                         </div>
-                        
-                        <!-- D-Pad -->
-                        <div class="grid grid-cols-3 gap-2 w-full max-w-[300px] aspect-square relative">
-                            <!-- Background cross for design -->
-                            <div class="absolute inset-1/3 bg-gray-900 rounded-3xl opacity-50"></div>
-                            
-                            <!-- Top row -->
-                            <div></div>
-                            <button onclick="ctrlAction('up')" class="ctrl-btn bg-gray-700/80 rounded-t-3xl shadow-lg border-t border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▲</button>
-                            <div></div>
-                            
-                            <!-- Middle row -->
-                            <button onclick="ctrlAction('left')" class="ctrl-btn bg-gray-700/80 rounded-l-3xl shadow-lg border-l border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>◀</button>
-                            <div class="bg-gray-800 rounded-lg flex items-center justify-center">
-                                <div class="w-4 h-4 rounded-full bg-${themeColor}-500/50 shadow-[0_0_10px_${themeHex}]"></div>
+                    `;
+                } else if (status === 'playing') {
+                    const isSelected = pData && pData.selected !== null;
+
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-between h-full w-full py-10 px-4">
+                            <div class="text-xl font-bold text-${themeColor}-300 tracking-widest uppercase">
+                                ${isSelected ? 'Waiting for partner...' : 'Select a tile'}
                             </div>
-                            <button onclick="ctrlAction('right')" class="ctrl-btn bg-gray-700/80 rounded-r-3xl shadow-lg border-r border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▶</button>
                             
-                            <!-- Bottom row -->
-                            <div></div>
-                            <button onclick="ctrlAction('down')" class="ctrl-btn bg-gray-700/80 rounded-b-3xl shadow-lg border-b border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▼</button>
-                            <div></div>
-                        </div>
+                            <!-- D-Pad -->
+                            <div class="grid grid-cols-3 gap-2 w-full max-w-[280px] aspect-square relative my-auto">
+                                <div class="absolute inset-1/3 bg-gray-900 rounded-3xl opacity-50"></div>
+                                
+                                <div></div>
+                                <button onclick="sendAction('move', 'up')" class="ctrl-btn bg-gray-800 rounded-t-3xl shadow-lg border-t border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▲</button>
+                                <div></div>
+                                
+                                <button onclick="sendAction('move', 'left')" class="ctrl-btn bg-gray-800 rounded-l-3xl shadow-lg border-l border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>◀</button>
+                                <div class="bg-gray-900 rounded-lg flex items-center justify-center">
+                                    <div class="w-4 h-4 rounded-full bg-${themeColor}-500/50 shadow-[0_0_10px_${themeHex}]"></div>
+                                </div>
+                                <button onclick="sendAction('move', 'right')" class="ctrl-btn bg-gray-800 rounded-r-3xl shadow-lg border-r border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▶</button>
+                                
+                                <div></div>
+                                <button onclick="sendAction('move', 'down')" class="ctrl-btn bg-gray-800 rounded-b-3xl shadow-lg border-b border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▼</button>
+                                <div></div>
+                            </div>
 
-                        <!-- Action Button -->
-                        <div class="mt-12 w-full max-w-[300px]">
-                            <button onclick="ctrlAction('select')" class="w-full py-6 rounded-[2rem] text-3xl font-black text-white shadow-2xl transition-all active:scale-95 ${
-                                isSelected 
-                                ? 'bg-gray-600 shadow-[0_0_20px_rgba(156,163,175,0.5)] border-2 border-gray-400'
-                                : `bg-${themeColor}-600 shadow-[0_0_30px_${themeHex}80] border-2 border-${themeColor}-400`
-                            }">
-                                ${isSelected ? 'CANCEL' : 'SELECT / SWAP'}
+                            <!-- Action Button -->
+                            <div class="w-full max-w-[280px]">
+                                <button onclick="sendAction('select')" class="w-full py-6 rounded-[2rem] text-3xl font-black text-white shadow-2xl transition-all active:scale-95 ${
+                                    isSelected 
+                                    ? 'bg-gray-700 shadow-[0_0_20px_rgba(156,163,175,0.3)] border-2 border-gray-500'
+                                    : `bg-${themeColor}-600 shadow-[0_0_30px_${themeHex}80] border-2 border-${themeColor}-400`
+                                }">
+                                    ${isSelected ? 'CANCEL' : 'SELECT / SWAP'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else if (status === 'won') {
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                            <div class="text-6xl mb-6">🎉</div>
+                            <h1 class="text-4xl font-black text-yellow-400 mb-12 drop-shadow-lg">PUZZLE SOLVED!</h1>
+                            
+                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_0_30px_rgba(16,185,129,0.8)] text-white text-2xl font-black active:scale-95 transition-transform uppercase">
+                                Play Again
                             </button>
                         </div>
-                    </div>
-                `;
-            } else if (data.status === 'won') {
-                appDiv.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                        <div class="text-6xl mb-6">🎉</div>
-                        <h1 class="text-4xl font-black text-yellow-400 mb-12 drop-shadow-lg">PUZZLE SOLVED!</h1>
-                        
-                        <button onclick="ctrlAction('restart')" class="w-full max-w-[250px] py-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_0_30px_rgba(16,185,129,0.8)] text-white text-2xl font-black active:scale-95 transition-transform uppercase">
-                            Play Again
-                        </button>
-                    </div>
-                `;
+                    `;
+                }
             }
         }
-
-        // Boot the app
-        init();
-
     </script>
 </body>
 </html>
