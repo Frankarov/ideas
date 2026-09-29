@@ -42,6 +42,12 @@
             transform: scale(0.95);
             background-color: rgba(255, 255, 255, 0.2);
         }
+
+        .locked-glow {
+            box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.6);
+            border-color: #10b981 !important;
+            background-color: rgba(16, 185, 129, 0.15) !important;
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-white min-h-screen font-sans flex flex-col items-center justify-center overflow-hidden">
@@ -51,15 +57,39 @@
     </div>
 
     <script>
-        const CATEGORIES = [
-            ['🐶', '🐱', '🐭', '🐰'], // Animals
-            ['🍎', '🍌', '🍇', '🍉'], // Fruits
-            ['🚗', '🚕', '🚙', '🚌'], // Vehicles
-            ['⚽', '🏀', '🏈', '⚾']  // Sports
+        const LEVELS = [
+            {
+                name: "Level 1: Classic Sets",
+                categories: [
+                    ['🐶', '🐱', '🐭', '🐰'], // Animals
+                    ['🍎', '🍌', '🍇', '🍉'], // Fruits
+                    ['🚗', '🚕', '🚙', '🚌'], // Vehicles
+                    ['⚽', '🏀', '🏈', '⚾']  // Sports
+                ]
+            },
+            {
+                name: "Level 2: Ocean & Sky",
+                categories: [
+                    ['🐳', '🐬', '🐟', '🦈'], // Sea Animals
+                    ['✈️', '🚀', '🚁', '🛸'], // Aircrafts
+                    ['☀️', '⭐', '☁️', '🌈'], // Weather
+                    ['🎸', '🎹', '🥁', '🎷']  // Instruments
+                ]
+            },
+            {
+                name: "Level 3: Sweet Treats & Nature",
+                categories: [
+                    ['🍕', '🍔', '🍟', '🍿'], // Fast Food
+                    ['🍩', '🍪', '🎂', '🍫'], // Sweets
+                    ['🌲', '🌵', '🌻', '🍄'], // Plants
+                    ['💎', '👑', '💍', '🔮']  // Treasures
+                ]
+            }
         ];
 
-        function generateShuffledGrid() {
-            let emojis = CATEGORIES.flat();
+        function generateShuffledGrid(levelIndex) {
+            let cats = LEVELS[levelIndex % LEVELS.length].categories;
+            let emojis = cats.flat();
             for (let i = emojis.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
@@ -71,34 +101,58 @@
             return grid;
         }
 
-        function checkWin(grid) {
+        function getCompletedRowsAndCols(grid, levelIndex) {
+            let cats = LEVELS[levelIndex % LEVELS.length].categories;
             function getCatIndex(emoji) {
-                return CATEGORIES.findIndex(cat => cat.includes(emoji));
+                return cats.findIndex(cat => cat.includes(emoji));
             }
 
-            let rowsWin = true;
+            let lockedRows = [false, false, false, false];
+            let lockedCols = [false, false, false, false];
+
+            // Check rows
             let usedRowCats = new Set();
             for (let r = 0; r < 4; r++) {
-                let cat = getCatIndex(grid[r][0]);
-                usedRowCats.add(cat);
+                let firstCat = getCatIndex(grid[r][0]);
+                let isRowValid = firstCat !== -1;
                 for (let c = 1; c < 4; c++) {
-                    if (getCatIndex(grid[r][c]) !== cat) rowsWin = false;
+                    if (getCatIndex(grid[r][c]) !== firstCat) {
+                        isRowValid = false;
+                        break;
+                    }
+                }
+                if (isRowValid) {
+                    lockedRows[r] = true;
+                    usedRowCats.add(firstCat);
                 }
             }
-            if (rowsWin && usedRowCats.size === 4) return true;
 
-            let colsWin = true;
+            // Check cols
             let usedColCats = new Set();
             for (let c = 0; c < 4; c++) {
-                let cat = getCatIndex(grid[0][c]);
-                usedColCats.add(cat);
+                let firstCat = getCatIndex(grid[0][c]);
+                let isColValid = firstCat !== -1;
                 for (let r = 1; r < 4; r++) {
-                    if (getCatIndex(grid[r][c]) !== cat) colsWin = false;
+                    if (getCatIndex(grid[r][c]) !== firstCat) {
+                        isColValid = false;
+                        break;
+                    }
+                }
+                if (isColValid) {
+                    lockedCols[c] = true;
+                    usedColCats.add(firstCat);
                 }
             }
-            if (colsWin && usedColCats.size === 4) return true;
 
-            return false;
+            return { lockedRows, lockedCols };
+        }
+
+        function checkWin(grid, levelIndex) {
+            let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, levelIndex);
+            let rowCount = lockedRows.filter(Boolean).length;
+            let colCount = lockedCols.filter(Boolean).length;
+            // Win if either all 4 rows are completed or all 4 columns are completed
+            return rowCount === 4 || colCount === 4;
         }
 
         function vibrate(pattern = 50) {
@@ -113,15 +167,189 @@
         const view = urlParams.get('view');
         const playerNum = urlParams.get('p');
         const hostPeerId = urlParams.get('host');
+        const localMode = urlParams.get('local') === 'true';
 
         if (view === 'ctrl' && playerNum && hostPeerId) {
             initController(playerNum, hostPeerId);
+        } else if (localMode) {
+            initLocalGame();
         } else {
             initHost();
         }
 
         // ==========================================
-        // HOST IMPLEMENTATION (Desktop)
+        // LOCAL DESKTOP GAME IMPLEMENTATION (Same Screen)
+        // ==========================================
+        function initLocalGame() {
+            let gameState = {
+                status: 'playing', // playing, won
+                level: 0,
+                grid: generateShuffledGrid(0),
+                p1: { cursor: {r: 0, c: 0}, selected: null },
+                p2: { cursor: {r: 3, c: 3}, selected: null }
+            };
+
+            function handleLocalAction(pKey, action) {
+                if (gameState.status === 'playing') {
+                    let cursor = gameState[pKey].cursor;
+                    let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
+
+                    if (action === 'up') cursor.r = Math.max(0, cursor.r - 1);
+                    if (action === 'down') cursor.r = Math.min(3, cursor.r + 1);
+                    if (action === 'left') cursor.c = Math.max(0, cursor.c - 1);
+                    if (action === 'right') cursor.c = Math.min(3, cursor.c + 1);
+
+                    if (action === 'select') {
+                        let curR = cursor.r;
+                        let curC = cursor.c;
+
+                        if (lockedRows[curR] || lockedCols[curC]) {
+                            return; // Cannot touch locked tiles
+                        }
+
+                        if (gameState[pKey].selected) {
+                            gameState[pKey].selected = null;
+                        } else {
+                            gameState[pKey].selected = { ...cursor };
+                        }
+
+                        // Check if both selected
+                        if (gameState.p1.selected && gameState.p2.selected) {
+                            let r1 = gameState.p1.selected.r;
+                            let c1 = gameState.p1.selected.c;
+                            let r2 = gameState.p2.selected.r;
+                            let c2 = gameState.p2.selected.c;
+
+                            if (!lockedRows[r1] && !lockedCols[c1] && !lockedRows[r2] && !lockedCols[c2]) {
+                                let g = gameState.grid;
+                                let t1 = g[r1][c1];
+                                let t2 = g[r2][c2];
+
+                                g[r1][c1] = t2;
+                                g[r2][c2] = t1;
+                            }
+
+                            gameState.p1.selected = null;
+                            gameState.p2.selected = null;
+
+                            if (checkWin(gameState.grid, gameState.level)) {
+                                gameState.status = 'won';
+                            }
+                        }
+                    }
+                    renderLocalUI();
+                } else if (gameState.status === 'won') {
+                    if (action === 'next_level') {
+                        gameState.level = (gameState.level + 1) % LEVELS.length;
+                        gameState.status = 'playing';
+                        gameState.grid = generateShuffledGrid(gameState.level);
+                        gameState.p1.selected = null;
+                        gameState.p2.selected = null;
+                        renderLocalUI();
+                    } else if (action === 'restart') {
+                        gameState.status = 'playing';
+                        gameState.level = 0;
+                        gameState.grid = generateShuffledGrid(0);
+                        gameState.p1.selected = null;
+                        gameState.p2.selected = null;
+                        renderLocalUI();
+                    }
+                }
+            }
+
+            // Keyboard event listener for local play
+            window.addEventListener('keydown', (e) => {
+                if (e.repeat) return; // Prevent crazy fast scrolling on hold
+                // Player 1 controls (WASD + Space)
+                if (e.key === 'w' || e.key === 'W') handleLocalAction('p1', 'up');
+                if (e.key === 's' || e.key === 'S') handleLocalAction('p1', 'down');
+                if (e.key === 'a' || e.key === 'A') handleLocalAction('p1', 'left');
+                if (e.key === 'd' || e.key === 'D') handleLocalAction('p1', 'right');
+                if (e.code === 'Space') { e.preventDefault(); handleLocalAction('p1', 'select'); }
+
+                // Player 2 controls (Arrow keys + Enter / Return)
+                if (e.key === 'ArrowUp') { e.preventDefault(); handleLocalAction('p2', 'up'); }
+                if (e.key === 'ArrowDown') { e.preventDefault(); handleLocalAction('p2', 'down'); }
+                if (e.key === 'ArrowLeft') { e.preventDefault(); handleLocalAction('p2', 'left'); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); handleLocalAction('p2', 'right'); }
+                if (e.key === 'Enter') { e.preventDefault(); handleLocalAction('p2', 'select'); }
+            });
+
+            window.renderLocalUI = function() {
+                const appDiv = document.getElementById('app');
+                let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
+                let currentLevelObj = LEVELS[gameState.level % LEVELS.length];
+
+                let gridHtml = '';
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        let isLocked = lockedRows[r] || lockedCols[c];
+                        let classes = `tile w-16 h-16 md:w-24 md:h-24 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-3xl md:text-5xl relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
+                        let innerHtml = `<span>${gameState.grid[r][c]}</span>`;
+                        let overlays = '';
+
+                        if (gameState.p1.selected && gameState.p1.selected.r === r && gameState.p1.selected.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p1 pointer-events-none"></div>`;
+                        }
+                        if (gameState.p2.selected && gameState.p2.selected.r === r && gameState.p2.selected.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p2 pointer-events-none"></div>`;
+                        }
+                        if (gameState.p1.cursor.r === r && gameState.p1.cursor.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p1 pointer-events-none"></div>`;
+                        }
+                        if (gameState.p2.cursor.r === r && gameState.p2.cursor.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p2 pointer-events-none"></div>`;
+                        }
+
+                        gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
+                    }
+                }
+
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center p-4">
+                        <div class="mb-2 flex items-center space-x-6">
+                            <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${currentLevelObj.name}</span>
+                            <a href="${window.location.origin + window.location.pathname}" class="text-xs text-gray-400 hover:text-white underline">Back to P2P QR Mode</a>
+                        </div>
+
+                        <div class="mb-4 flex space-x-12 text-sm">
+                            <div class="flex items-center space-x-2 bg-red-950/40 px-3 py-1 rounded-lg border border-red-900/50">
+                                <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+                                <span class="font-bold text-red-300">P1 (WASD + Space)</span>
+                            </div>
+                            <div class="flex items-center space-x-2 bg-blue-950/40 px-3 py-1 rounded-lg border border-blue-900/50">
+                                <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+                                <span class="font-bold text-blue-300">P2 (Arrows + Enter)</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-3 bg-gray-900/90 p-5 rounded-[2rem] shadow-2xl border border-gray-800 relative">
+                            ${gridHtml}
+                            
+                            ${gameState.status === 'won' ? `
+                                <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50">
+                                    <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">LEVEL CLEARED!</h1>
+                                    <p class="text-gray-300 mb-6">Fantastic teamwork solving ${currentLevelObj.name}!</p>
+                                    <div class="flex space-x-4">
+                                        <button onclick="handleLocalAction('next_level', 'next_level')" class="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors">Next Level ➡️</button>
+                                        <button onclick="handleLocalAction('restart', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors">Restart</button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="mt-4 text-gray-400 text-xs text-center max-w-md">
+                            Matched rows & columns turn green and lock permanently. Both players select their tile to swap them simultaneously!
+                        </div>
+                    </div>
+                `;
+            };
+
+            renderLocalUI();
+        }
+
+        // ==========================================
+        // HOST IMPLEMENTATION (Desktop with QR)
         // ==========================================
         function initHost() {
             const uniqueId = generateRandomId();
@@ -130,7 +358,8 @@
 
             let gameState = {
                 status: 'waiting', // waiting, playing, won
-                grid: generateShuffledGrid(),
+                level: 0,
+                grid: generateShuffledGrid(0),
                 p1: { connected: false, ready: false, cursor: {r: 0, c: 0}, selected: null },
                 p2: { connected: false, ready: false, cursor: {r: 3, c: 3}, selected: null }
             };
@@ -138,7 +367,6 @@
             let p1Connection = null;
             let p2Connection = null;
 
-            // Configure PeerJS with alternative STUN servers and robust options to bypass iframe constraints
             const peerOptions = {
                 host: '0.peerjs.com',
                 port: 443,
@@ -213,34 +441,56 @@
                         broadcastState();
                     }
                     if (action === 'select') {
+                        let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
+                        let curR = gameState[pKey].cursor.r;
+                        let curC = gameState[pKey].cursor.c;
+
+                        if (lockedRows[curR] || lockedCols[curC]) {
+                            return; // Cannot touch locked tiles
+                        }
+
                         if (gameState[pKey].selected) {
                             gameState[pKey].selected = null;
                         } else {
                             gameState[pKey].selected = { ...gameState[pKey].cursor };
                         }
 
-                        // Check if both selected
                         if (gameState.p1.selected && gameState.p2.selected) {
-                            let g = gameState.grid;
-                            let t1 = g[gameState.p1.selected.r][gameState.p1.selected.c];
-                            let t2 = g[gameState.p2.selected.r][gameState.p2.selected.c];
+                            let r1 = gameState.p1.selected.r;
+                            let c1 = gameState.p1.selected.c;
+                            let r2 = gameState.p2.selected.r;
+                            let c2 = gameState.p2.selected.c;
 
-                            g[gameState.p1.selected.r][gameState.p1.selected.c] = t2;
-                            g[gameState.p2.selected.r][gameState.p2.selected.c] = t1;
+                            if (!lockedRows[r1] && !lockedCols[c1] && !lockedRows[r2] && !lockedCols[c2]) {
+                                let g = gameState.grid;
+                                let t1 = g[r1][c1];
+                                let t2 = g[r2][c2];
+
+                                g[r1][c1] = t2;
+                                g[r2][c2] = t1;
+                            }
 
                             gameState.p1.selected = null;
                             gameState.p2.selected = null;
 
-                            if (checkWin(g)) {
+                            if (checkWin(gameState.grid, gameState.level)) {
                                 gameState.status = 'won';
                             }
                         }
                         broadcastState();
                     }
                 } else if (gameState.status === 'won') {
-                    if (action === 'restart') {
+                    if (action === 'next_level') {
+                        gameState.level = (gameState.level + 1) % LEVELS.length;
+                        gameState.status = 'playing';
+                        gameState.grid = generateShuffledGrid(gameState.level);
+                        gameState.p1.selected = null;
+                        gameState.p2.selected = null;
+                        broadcastState();
+                    } else if (action === 'restart') {
                         gameState.status = 'waiting';
-                        gameState.grid = generateShuffledGrid();
+                        gameState.level = 0;
+                        gameState.grid = generateShuffledGrid(0);
                         gameState.p1.ready = false;
                         gameState.p2.ready = false;
                         gameState.p1.selected = null;
@@ -255,55 +505,67 @@
                 const baseUrl = window.location.origin + window.location.pathname;
                 const p1Url = `${baseUrl}?view=ctrl&p=1&host=${p1PeerId}`;
                 const p2Url = `${baseUrl}?view=ctrl&p=2&host=${p2PeerId}`;
+                const localUrl = `${baseUrl}?local=true`;
 
                 if (gameState.status === 'waiting') {
                     appDiv.innerHTML = `
-                        <div class="flex flex-col items-center w-full max-w-4xl p-8 bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl">
-                            <h1 class="text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
-                            <p class="text-gray-400 mb-12 text-xl text-center">Match 4 emojis of the same category in a row or column together!</p>
+                        <div class="flex flex-col items-center w-full max-w-4xl p-6 bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl">
+                            <h1 class="text-4xl font-extrabold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
+                            <p class="text-gray-400 mb-6 text-sm text-center">Match 4 emojis of the same category in a row or column together! Completed rows/cols lock permanently.</p>
                             
-                            <div class="flex flex-col md:flex-row w-full justify-around items-center gap-8">
+                            <div class="flex flex-col md:flex-row w-full justify-around items-center gap-6 mb-6">
                                 <!-- P1 QR -->
-                                <div class="flex flex-col items-center p-6 bg-gray-800/80 rounded-2xl border-2 ${gameState.p1.connected ? 'border-red-500' : 'border-gray-700'}">
-                                    <h2 class="text-2xl font-bold mb-4 text-red-400">Player 1 (Red)</h2>
-                                    <div id="qr-p1" class="bg-white p-3 rounded-xl mb-4 shadow-lg"></div>
-                                    <div class="h-8 text-center">
+                                <div class="flex flex-col items-center p-4 bg-gray-800/80 rounded-2xl border-2 ${gameState.p1.connected ? 'border-red-500' : 'border-gray-700'}">
+                                    <h2 class="text-xl font-bold mb-2 text-red-400">Player 1 (Red)</h2>
+                                    <div id="qr-p1" class="bg-white p-2 rounded-xl mb-2 shadow-lg"></div>
+                                    <div class="h-6 text-xs text-center">
                                         ${gameState.p1.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                          gameState.p1.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
-                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone...</span>'}
+                                          gameState.p1.connected ? '<span class="text-yellow-400">Connected, waiting...</span>' : 
+                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone</span>'}
                                     </div>
                                 </div>
 
-                                <div class="text-3xl font-bold text-gray-600">VS / CO-OP</div>
+                                <div class="text-2xl font-bold text-gray-600">VS / CO-OP</div>
 
                                 <!-- P2 QR -->
-                                <div class="flex flex-col items-center p-6 bg-gray-800/80 rounded-2xl border-2 ${gameState.p2.connected ? 'border-blue-500' : 'border-gray-700'}">
-                                    <h2 class="text-2xl font-bold mb-4 text-blue-400">Player 2 (Blue)</h2>
-                                    <div id="qr-p2" class="bg-white p-3 rounded-xl mb-4 shadow-lg"></div>
-                                    <div class="h-8 text-center">
+                                <div class="flex flex-col items-center p-4 bg-gray-800/80 rounded-2xl border-2 ${gameState.p2.connected ? 'border-blue-500' : 'border-gray-700'}">
+                                    <h2 class="text-xl font-bold mb-2 text-blue-400">Player 2 (Blue)</h2>
+                                    <div id="qr-p2" class="bg-white p-2 rounded-xl mb-2 shadow-lg"></div>
+                                    <div class="h-6 text-xs text-center">
                                         ${gameState.p2.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                          gameState.p2.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
-                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone...</span>'}
+                                          gameState.p2.connected ? '<span class="text-yellow-400">Connected, waiting...</span>' : 
+                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone</span>'}
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="border-t border-gray-800 pt-4 w-full flex flex-col items-center">
+                                <span class="text-gray-400 text-sm mb-2">Don't have 2 smartphones handy?</span>
+                                <a href="${localUrl}" class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors shadow-lg shadow-purple-900/40">
+                                    💻 Play Locally on This Desktop
+                                </a>
                             </div>
                         </div>
                     `;
 
                     const qr1El = document.getElementById('qr-p1');
                     if (qr1El && qr1El.innerHTML === '') {
-                        new QRCode(qr1El, { text: p1Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                        new QRCode(qr1El, { text: p1Url, width: 130, height: 130, colorDark : "#000000", colorLight : "#ffffff" });
                     }
                     const qr2El = document.getElementById('qr-p2');
                     if (qr2El && qr2El.innerHTML === '') {
-                        new QRCode(qr2El, { text: p2Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                        new QRCode(qr2El, { text: p2Url, width: 130, height: 130, colorDark : "#000000", colorLight : "#ffffff" });
                     }
 
                 } else {
+                    let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
+                    let currentLevelObj = LEVELS[gameState.level % LEVELS.length];
+
                     let gridHtml = '';
                     for (let r = 0; r < 4; r++) {
                         for (let c = 0; c < 4; c++) {
-                            let classes = 'tile w-20 h-20 md:w-28 md:h-28 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-xl';
+                            let isLocked = lockedRows[r] || lockedCols[c];
+                            let classes = `tile w-20 h-20 md:w-28 md:h-28 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
                             let innerHtml = `<span>${gameState.grid[r][c]}</span>`;
                             let overlays = '';
 
@@ -326,7 +588,11 @@
 
                     appDiv.innerHTML = `
                         <div class="flex flex-col items-center">
-                            <div class="mb-8 flex space-x-12">
+                            <div class="mb-4 flex items-center space-x-6">
+                                <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${currentLevelObj.name}</span>
+                            </div>
+
+                            <div class="mb-6 flex space-x-12">
                                 <div class="flex items-center space-x-3">
                                     <div class="w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
                                     <span class="text-xl font-bold text-gray-300">Player 1</span>
@@ -342,15 +608,15 @@
                                 
                                 ${gameState.status === 'won' ? `
                                     <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50">
-                                        <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-6 drop-shadow-lg">YOU WIN!</h1>
-                                        <p class="text-xl text-gray-300 mb-4">Amazing teamwork!</p>
-                                        <div class="text-gray-400 text-sm animate-pulse">Press restart on your smartphone controllers to play again</div>
+                                        <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg">LEVEL CLEARED!</h1>
+                                        <p class="text-xl text-gray-300 mb-8">Fantastic teamwork solving ${currentLevelObj.name}!</p>
+                                        <div class="text-gray-400 text-sm animate-pulse">Use your smartphone controller to proceed to the next level</div>
                                     </div>
                                 ` : ''}
                             </div>
                             
-                            <div class="mt-8 text-gray-400 text-base text-center max-w-lg">
-                                Each player uses their smartphone controller. Select a tile, and when both players have chosen, they will swap!
+                            <div class="mt-6 text-gray-400 text-sm text-center max-w-lg">
+                                Matched rows & columns light up in green and lock permanently. Select tiles using controllers to swap unlocked pieces.
                             </div>
                         </div>
                     `;
@@ -483,11 +749,14 @@
                 } else if (status === 'won') {
                     appDiv.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                            <div class="text-6xl mb-6">🎉</div>
-                            <h1 class="text-4xl font-black text-yellow-400 mb-12 drop-shadow-lg">PUZZLE SOLVED!</h1>
+                            <div class="text-6xl mb-4">🏆</div>
+                            <h1 class="text-3xl font-black text-yellow-400 mb-8 drop-shadow-lg">LEVEL COMPLETED!</h1>
                             
-                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_0_30px_rgba(16,185,129,0.8)] text-white text-2xl font-black active:scale-95 transition-transform uppercase">
-                                Play Again
+                            <button onclick="sendAction('next_level')" class="w-full max-w-[250px] py-5 mb-4 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-[0_0_30px_rgba(147,51,234,0.8)] text-white text-xl font-black active:scale-95 transition-transform uppercase">
+                                Next Level ➡️
+                            </button>
+                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-4 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-lg font-bold active:scale-95 transition-transform uppercase">
+                                Restart Game
                             </button>
                         </div>
                     `;
