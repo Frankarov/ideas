@@ -57,65 +57,74 @@
     </div>
 
     <script>
-        const LEVELS = [
-            {
-                name: "Level 1: Classic Sets",
-                categories: [
-                    ['🐶', '🐱', '🐭', '🐰'], // Animals
-                    ['🍎', '🍌', '🍇', '🍉'], // Fruits
-                    ['🚗', '🚕', '🚙', '🚌'], // Vehicles
-                    ['⚽', '🏀', '🏈', '⚾']  // Sports
-                ]
-            },
-            {
-                name: "Level 2: Ocean & Sky",
-                categories: [
-                    ['🐳', '🐬', '🐟', '🦈'], // Sea Animals
-                    ['✈️', '🚀', '🚁', '🛸'], // Aircrafts
-                    ['☀️', '⭐', '☁️', '🌈'], // Weather
-                    ['🎸', '🎹', '🥁', '🎷']  // Instruments
-                ]
-            },
-            {
-                name: "Level 3: Sweet Treats & Nature",
-                categories: [
-                    ['🍕', '🍔', '🍟', '🍿'], // Fast Food
-                    ['🍩', '🍪', '🎂', '🍫'], // Sweets
-                    ['🌲', '🌵', '🌻', '🍄'], // Plants
-                    ['💎', '👑', '💍', '🔮']  // Treasures
-                ]
-            }
+        const ALL_CATEGORIES = [
+            ['🐶', '🐱', '🐭', '🐰', '🦊', '🐻'], // Animals
+            ['🍎', '🍌', '🍇', '🍉', '🍓', '🍑'], // Fruits
+            ['🚗', '🚕', '🚙', '🚌', '🏎️', '🚓'], // Vehicles
+            ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐'], // Sports
+            ['🐳', '🐬', '🐟', '🦈', '🦀', '🐙'], // Sea Animals
+            ['🎸', '🎹', '🥁', '🎷', '🎺', '🎻']  // Instruments
         ];
 
+        function getLevelConfig(levelIndex) {
+            let size, moves;
+            if (levelIndex === 0) { size = 3; moves = 10; }
+            else if (levelIndex === 1) { size = 4; moves = 15; }
+            else if (levelIndex === 2) { size = 5; moves = 25; }
+            else { size = 6; moves = 35; } // Level 4 and endless onwards are 6x6 with 35 moves
+
+            return { size, moves, name: `Level ${levelIndex + 1} (${size}x${size})` };
+        }
+
         function generateShuffledGrid(levelIndex) {
-            let cats = LEVELS[levelIndex % LEVELS.length].categories;
-            let emojis = cats.flat();
-            for (let i = emojis.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
+            let cfg = getLevelConfig(levelIndex);
+            let size = cfg.size;
+            let totalTilesNeeded = size * size;
+
+            // Gather emojis from categories matching the current grid size so every level is beatable!
+            let emojis = [];
+            let catIdx = 0;
+            while (emojis.length < totalTilesNeeded) {
+                let cat = ALL_CATEGORIES[catIdx % ALL_CATEGORIES.length];
+                let slicedCat = cat.slice(0, size);
+                for (let e of slicedCat) {
+                    if (emojis.length < totalTilesNeeded && !emojis.includes(e)) {
+                        emojis.push(e);
+                    }
+                }
+                catIdx++;
             }
-            const grid = [];
-            for (let i = 0; i < 4; i++) {
-                grid.push(emojis.slice(i * 4, i * 4 + 4));
-            }
+
+            // Shuffle until it's not already completely solved
+            let grid;
+            do {
+                for (let i = emojis.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
+                }
+                grid = [];
+                for (let i = 0; i < size; i++) {
+                    grid.push(emojis.slice(i * size, i * size + size));
+                }
+            } while (checkWin(grid, levelIndex).isWon);
+
             return grid;
         }
 
         function getCompletedRowsAndCols(grid, levelIndex) {
-            let cats = LEVELS[levelIndex % LEVELS.length].categories;
+            let size = grid.length;
             function getCatIndex(emoji) {
-                return cats.findIndex(cat => cat.includes(emoji));
+                return ALL_CATEGORIES.findIndex(cat => cat.includes(emoji));
             }
 
-            let lockedRows = [false, false, false, false];
-            let lockedCols = [false, false, false, false];
+            let lockedRows = new Array(size).fill(false);
+            let lockedCols = new Array(size).fill(false);
 
-            // Check rows
-            let usedRowCats = new Set();
-            for (let r = 0; r < 4; r++) {
+            // Check rows: A row is valid if all its emojis belong to the SAME category
+            for (let r = 0; r < size; r++) {
                 let firstCat = getCatIndex(grid[r][0]);
                 let isRowValid = firstCat !== -1;
-                for (let c = 1; c < 4; c++) {
+                for (let c = 1; c < size; c++) {
                     if (getCatIndex(grid[r][c]) !== firstCat) {
                         isRowValid = false;
                         break;
@@ -123,16 +132,14 @@
                 }
                 if (isRowValid) {
                     lockedRows[r] = true;
-                    usedRowCats.add(firstCat);
                 }
             }
 
-            // Check cols
-            let usedColCats = new Set();
-            for (let c = 0; c < 4; c++) {
+            // Check columns: A column is valid if all its emojis belong to the SAME category
+            for (let c = 0; c < size; c++) {
                 let firstCat = getCatIndex(grid[0][c]);
                 let isColValid = firstCat !== -1;
-                for (let r = 1; r < 4; r++) {
+                for (let r = 1; r < size; r++) {
                     if (getCatIndex(grid[r][c]) !== firstCat) {
                         isColValid = false;
                         break;
@@ -140,7 +147,6 @@
                 }
                 if (isColValid) {
                     lockedCols[c] = true;
-                    usedColCats.add(firstCat);
                 }
             }
 
@@ -149,10 +155,13 @@
 
         function checkWin(grid, levelIndex) {
             let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, levelIndex);
+            let size = grid.length;
             let rowCount = lockedRows.filter(Boolean).length;
             let colCount = lockedCols.filter(Boolean).length;
-            // Win if either all 4 rows are completed or all 4 columns are completed
-            return rowCount === 4 || colCount === 4;
+            
+            // Win condition: ALL rows AND ALL columns must be successfully matched and locked!
+            let isWon = (rowCount === size && colCount === size);
+            return { isWon, rowCount, colCount };
         }
 
         function vibrate(pattern = 50) {
@@ -177,34 +186,36 @@
             initHost();
         }
 
-        // ==========================================
-        // LOCAL DESKTOP GAME IMPLEMENTATION (Same Screen)
-        // ==========================================
         function initLocalGame() {
+            let initialCfg = getLevelConfig(0);
             let gameState = {
-                status: 'playing', // playing, won
+                status: 'playing', // playing, won, gameover
                 level: 0,
+                movesLeft: initialCfg.moves,
                 grid: generateShuffledGrid(0),
                 p1: { cursor: {r: 0, c: 0}, selected: null },
-                p2: { cursor: {r: 3, c: 3}, selected: null }
+                p2: { cursor: {r: initialCfg.size - 1, c: initialCfg.size - 1}, selected: null }
             };
 
             window.handleLocalAction = function(pKey, action) {
+                let cfg = getLevelConfig(gameState.level);
+                let size = cfg.size;
+
                 if (gameState.status === 'playing') {
                     let cursor = gameState[pKey].cursor;
                     let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
 
                     if (action === 'up') cursor.r = Math.max(0, cursor.r - 1);
-                    if (action === 'down') cursor.r = Math.min(3, cursor.r + 1);
+                    if (action === 'down') cursor.r = Math.min(size - 1, cursor.r + 1);
                     if (action === 'left') cursor.c = Math.max(0, cursor.c - 1);
-                    if (action === 'right') cursor.c = Math.min(3, cursor.c + 1);
+                    if (action === 'right') cursor.c = Math.min(size - 1, cursor.c + 1);
 
                     if (action === 'select') {
                         let curR = cursor.r;
                         let curC = cursor.c;
 
                         if (lockedRows[curR] || lockedCols[curC]) {
-                            return; // Cannot touch locked tiles
+                            return; // Cannot touch locked rows or columns
                         }
 
                         if (gameState[pKey].selected) {
@@ -220,54 +231,68 @@
                             let r2 = gameState.p2.selected.r;
                             let c2 = gameState.p2.selected.c;
 
-                            if (!lockedRows[r1] && !lockedCols[c1] && !lockedRows[r2] && !lockedCols[c2]) {
+                            // Recheck locked status before swapping
+                            let currentLocks = getCompletedRowsAndCols(gameState.grid, gameState.level);
+                            if (!currentLocks.lockedRows[r1] && !currentLocks.lockedCols[c1] && !currentLocks.lockedRows[r2] && !currentLocks.lockedCols[c2]) {
                                 let g = gameState.grid;
                                 let t1 = g[r1][c1];
                                 let t2 = g[r2][c2];
 
                                 g[r1][c1] = t2;
                                 g[r2][c2] = t1;
+
+                                // Decrement moves upon valid swap
+                                gameState.movesLeft--;
                             }
 
                             gameState.p1.selected = null;
                             gameState.p2.selected = null;
+                        }
 
-                            if (checkWin(gameState.grid, gameState.level)) {
-                                gameState.status = 'won';
-                            }
+                        // Check win condition after any move/swap
+                        let winCheck = checkWin(gameState.grid, gameState.level);
+                        if (winCheck.isWon) {
+                            gameState.status = 'won';
+                        } else if (gameState.movesLeft <= 0) {
+                            gameState.status = 'gameover';
                         }
                     }
                     renderLocalUI();
-                } else if (gameState.status === 'won') {
+                } else if (gameState.status === 'won' || gameState.status === 'gameover') {
                     if (action === 'next_level') {
-                        gameState.level = (gameState.level + 1) % LEVELS.length;
+                        gameState.level++;
+                        let newCfg = getLevelConfig(gameState.level);
+                        gameState.movesLeft = newCfg.moves;
                         gameState.status = 'playing';
                         gameState.grid = generateShuffledGrid(gameState.level);
                         gameState.p1.selected = null;
                         gameState.p2.selected = null;
+                        gameState.p1.cursor = {r: 0, c: 0};
+                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
                         renderLocalUI();
                     } else if (action === 'restart') {
-                        gameState.status = 'playing';
                         gameState.level = 0;
+                        let newCfg = getLevelConfig(0);
+                        gameState.movesLeft = newCfg.moves;
+                        gameState.status = 'playing';
                         gameState.grid = generateShuffledGrid(0);
                         gameState.p1.selected = null;
                         gameState.p2.selected = null;
+                        gameState.p1.cursor = {r: 0, c: 0};
+                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
                         renderLocalUI();
                     }
                 }
             };
 
-            // Keyboard event listener for local play
             window.addEventListener('keydown', (e) => {
-                if (e.repeat) return; // Prevent crazy fast scrolling on hold
-                // Player 1 controls (WASD + Space)
+                if (e.repeat) return;
                 if (e.key === 'w' || e.key === 'W') handleLocalAction('p1', 'up');
                 if (e.key === 's' || e.key === 'S') handleLocalAction('p1', 'down');
                 if (e.key === 'a' || e.key === 'A') handleLocalAction('p1', 'left');
                 if (e.key === 'd' || e.key === 'D') handleLocalAction('p1', 'right');
                 if (e.code === 'Space') { e.preventDefault(); handleLocalAction('p1', 'select'); }
 
-                // Player 2 controls (Arrow keys + Enter / Return)
                 if (e.key === 'ArrowUp') { e.preventDefault(); handleLocalAction('p2', 'up'); }
                 if (e.key === 'ArrowDown') { e.preventDefault(); handleLocalAction('p2', 'down'); }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); handleLocalAction('p2', 'left'); }
@@ -277,14 +302,16 @@
 
             window.renderLocalUI = function() {
                 const appDiv = document.getElementById('app');
+                let cfg = getLevelConfig(gameState.level);
+                let size = cfg.size;
                 let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
-                let currentLevelObj = LEVELS[gameState.level % LEVELS.length];
 
                 let gridHtml = '';
-                for (let r = 0; r < 4; r++) {
-                    for (let c = 0; c < 4; c++) {
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
                         let isLocked = lockedRows[r] || lockedCols[c];
-                        let classes = `tile w-16 h-16 md:w-24 md:h-24 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-3xl md:text-5xl relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
+                        let tileSize = size === 3 ? 'w-20 h-20 text-4xl' : size === 4 ? 'w-16 h-16 text-3xl' : size === 5 ? 'w-14 h-14 text-2xl' : 'w-12 h-12 text-xl';
+                        let classes = `tile ${tileSize} bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
                         let innerHtml = `<span>${gameState.grid[r][c]}</span>`;
                         let overlays = '';
 
@@ -308,7 +335,8 @@
                 appDiv.innerHTML = `
                     <div class="flex flex-col items-center p-4">
                         <div class="mb-2 flex items-center space-x-6">
-                            <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${currentLevelObj.name}</span>
+                            <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name}</span>
+                            <span class="px-4 py-1.5 rounded-full bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-sm">Moves Left: ${gameState.movesLeft}</span>
                             <a href="${window.location.origin + window.location.pathname}" class="text-xs text-gray-400 hover:text-white underline">Back to P2P QR Mode</a>
                         </div>
 
@@ -323,23 +351,29 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-4 gap-3 bg-gray-900/90 p-5 rounded-[2rem] shadow-2xl border border-gray-800 relative">
+                        <div class="grid grid-cols-${size} gap-2.5 bg-gray-900/90 p-5 rounded-[2rem] shadow-2xl border border-gray-800 relative">
                             ${gridHtml}
                             
                             ${gameState.status === 'won' ? `
-                                <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50">
-                                    <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">LEVEL CLEARED!</h1>
-                                    <p class="text-gray-300 mb-6">Fantastic teamwork solving ${currentLevelObj.name}!</p>
+                                <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
+                                    <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">LEVEL CLEARED!</h1>
+                                    <p class="text-gray-300 mb-6">Fantastic teamwork solving ${cfg.name}!</p>
                                     <div class="flex space-x-4">
-                                        <button onclick="handleLocalAction('next_level', 'next_level')" class="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors">Next Level ➡️</button>
-                                        <button onclick="handleLocalAction('restart', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors">Restart</button>
+                                        <button onclick="handleLocalAction('p1', 'next_level')" class="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors cursor-pointer shadow-lg">Next Level ➡️</button>
+                                        <button onclick="handleLocalAction('p1', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors cursor-pointer">Restart</button>
                                     </div>
+                                </div>
+                            ` : gameState.status === 'gameover' ? `
+                                <div class="absolute inset-0 bg-red-950/90 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
+                                    <h1 class="text-5xl font-black text-red-400 mb-2 drop-shadow-lg">GAME OVER</h1>
+                                    <p class="text-gray-300 mb-6">You ran out of moves on ${cfg.name}!</p>
+                                    <button onclick="handleLocalAction('p1', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors cursor-pointer">Try Again</button>
                                 </div>
                             ` : ''}
                         </div>
                         
                         <div class="mt-4 text-gray-400 text-xs text-center max-w-md">
-                            Matched rows & columns turn green and lock permanently. Both players select their tile to swap them simultaneously!
+                            Matched rows and columns turn green and lock permanently. Both players select their tile to swap them simultaneously!
                         </div>
                     </div>
                 `;
@@ -348,20 +382,19 @@
             renderLocalUI();
         }
 
-        // ==========================================
-        // HOST IMPLEMENTATION (Desktop with QR)
-        // ==========================================
         function initHost() {
             const uniqueId = generateRandomId();
             const p1PeerId = `emoji_host_p1_${uniqueId}`;
             const p2PeerId = `emoji_host_p2_${uniqueId}`;
 
+            let initialCfg = getLevelConfig(0);
             let gameState = {
-                status: 'waiting', // waiting, playing, won
+                status: 'waiting', // waiting, playing, won, gameover
                 level: 0,
+                movesLeft: initialCfg.moves,
                 grid: generateShuffledGrid(0),
                 p1: { connected: false, ready: false, cursor: {r: 0, c: 0}, selected: null },
-                p2: { connected: false, ready: false, cursor: {r: 3, c: 3}, selected: null }
+                p2: { connected: false, ready: false, cursor: {r: initialCfg.size - 1, c: initialCfg.size - 1}, selected: null }
             };
 
             let p1Connection = null;
@@ -421,22 +454,30 @@
             }
 
             window.handleHostAction = function(action) {
-                if (gameState.status === 'won') {
+                if (gameState.status === 'won' || gameState.status === 'gameover') {
                     if (action === 'next_level') {
-                        gameState.level = (gameState.level + 1) % LEVELS.length;
+                        gameState.level++;
+                        let newCfg = getLevelConfig(gameState.level);
+                        gameState.movesLeft = newCfg.moves;
                         gameState.status = 'playing';
                         gameState.grid = generateShuffledGrid(gameState.level);
                         gameState.p1.selected = null;
                         gameState.p2.selected = null;
+                        gameState.p1.cursor = {r: 0, c: 0};
+                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
                         broadcastState();
                     } else if (action === 'restart') {
                         gameState.status = 'waiting';
                         gameState.level = 0;
+                        let newCfg = getLevelConfig(0);
+                        gameState.movesLeft = newCfg.moves;
                         gameState.grid = generateShuffledGrid(0);
                         gameState.p1.ready = false;
                         gameState.p2.ready = false;
                         gameState.p1.selected = null;
                         gameState.p2.selected = null;
+                        gameState.p1.cursor = {r: 0, c: 0};
+                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
                         broadcastState();
                     }
                 }
@@ -444,6 +485,8 @@
 
             function handleControllerAction(pKey, actionData) {
                 const { action, payload } = actionData;
+                let cfg = getLevelConfig(gameState.level);
+                let size = cfg.size;
 
                 if (gameState.status === 'waiting') {
                     if (action === 'ready') {
@@ -457,9 +500,9 @@
                     if (action === 'move') {
                         let cursor = gameState[pKey].cursor;
                         if (payload === 'up') cursor.r = Math.max(0, cursor.r - 1);
-                        if (payload === 'down') cursor.r = Math.min(3, cursor.r + 1);
+                        if (payload === 'down') cursor.r = Math.min(size - 1, cursor.r + 1);
                         if (payload === 'left') cursor.c = Math.max(0, cursor.c - 1);
-                        if (payload === 'right') cursor.c = Math.min(3, cursor.c + 1);
+                        if (payload === 'right') cursor.c = Math.min(size - 1, cursor.c + 1);
                         broadcastState();
                     }
                     if (action === 'select') {
@@ -468,7 +511,7 @@
                         let curC = gameState[pKey].cursor.c;
 
                         if (lockedRows[curR] || lockedCols[curC]) {
-                            return; // Cannot touch locked tiles
+                            return; // Cannot touch locked rows or columns
                         }
 
                         if (gameState[pKey].selected) {
@@ -483,41 +526,34 @@
                             let r2 = gameState.p2.selected.r;
                             let c2 = gameState.p2.selected.c;
 
-                            if (!lockedRows[r1] && !lockedCols[c1] && !lockedRows[r2] && !lockedCols[c2]) {
+                            let currentLocks = getCompletedRowsAndCols(gameState.grid, gameState.level);
+                            if (!currentLocks.lockedRows[r1] && !currentLocks.lockedCols[c1] && !currentLocks.lockedRows[r2] && !currentLocks.lockedCols[c2]) {
                                 let g = gameState.grid;
                                 let t1 = g[r1][c1];
                                 let t2 = g[r2][c2];
 
                                 g[r1][c1] = t2;
                                 g[r2][c2] = t1;
+
+                                gameState.movesLeft--;
                             }
 
                             gameState.p1.selected = null;
                             gameState.p2.selected = null;
-
-                            if (checkWin(gameState.grid, gameState.level)) {
-                                gameState.status = 'won';
-                            }
                         }
+
+                        let winCheck = checkWin(gameState.grid, gameState.level);
+                        if (winCheck.isWon) {
+                            gameState.status = 'won';
+                        } else if (gameState.movesLeft <= 0) {
+                            gameState.status = 'gameover';
+                        }
+
                         broadcastState();
                     }
-                } else if (gameState.status === 'won') {
-                    if (action === 'next_level') {
-                        gameState.level = (gameState.level + 1) % LEVELS.length;
-                        gameState.status = 'playing';
-                        gameState.grid = generateShuffledGrid(gameState.level);
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        broadcastState();
-                    } else if (action === 'restart') {
-                        gameState.status = 'waiting';
-                        gameState.level = 0;
-                        gameState.grid = generateShuffledGrid(0);
-                        gameState.p1.ready = false;
-                        gameState.p2.ready = false;
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        broadcastState();
+                } else if (gameState.status === 'won' || gameState.status === 'gameover') {
+                    if (action === 'next_level' || action === 'restart') {
+                        window.handleHostAction(action);
                     }
                 }
             }
@@ -533,7 +569,7 @@
                     appDiv.innerHTML = `
                         <div class="flex flex-col items-center w-full max-w-4xl p-6 bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl">
                             <h1 class="text-4xl font-extrabold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
-                            <p class="text-gray-400 mb-6 text-sm text-center">Match 4 emojis of the same category in a row or column together! Completed rows/cols lock permanently.</p>
+                            <p class="text-gray-400 mb-6 text-sm text-center">Match emojis of the same category in rows/cols! Grids expand from 3x3 to 6x6. Watch your moves limit!</p>
                             
                             <div class="flex flex-col md:flex-row w-full justify-around items-center gap-6 mb-6">
                                 <!-- P1 QR -->
@@ -580,14 +616,16 @@
                     }
 
                 } else {
+                    let cfg = getLevelConfig(gameState.level);
+                    let size = cfg.size;
                     let { lockedRows, lockedCols } = getCompletedRowsAndCols(gameState.grid, gameState.level);
-                    let currentLevelObj = LEVELS[gameState.level % LEVELS.length];
 
                     let gridHtml = '';
-                    for (let r = 0; r < 4; r++) {
-                        for (let c = 0; c < 4; c++) {
+                    for (let r = 0; r < size; r++) {
+                        for (let c = 0; c < size; c++) {
                             let isLocked = lockedRows[r] || lockedCols[c];
-                            let classes = `tile w-20 h-20 md:w-28 md:h-28 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
+                            let tileSize = size === 3 ? 'w-24 h-24 text-5xl' : size === 4 ? 'w-20 h-20 text-4xl' : size === 5 ? 'w-16 h-16 text-3xl' : 'w-14 h-14 text-2xl';
+                            let classes = `tile ${tileSize} bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
                             let innerHtml = `<span>${gameState.grid[r][c]}</span>`;
                             let overlays = '';
 
@@ -611,7 +649,8 @@
                     appDiv.innerHTML = `
                         <div class="flex flex-col items-center">
                             <div class="mb-4 flex items-center space-x-6">
-                                <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${currentLevelObj.name}</span>
+                                <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name}</span>
+                                <span class="px-4 py-1.5 rounded-full bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-sm">Moves Left: ${gameState.movesLeft}</span>
                             </div>
 
                             <div class="mb-6 flex space-x-12">
@@ -625,23 +664,29 @@
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-4 gap-3 md:gap-4 bg-gray-900/90 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
+                            <div class="grid grid-cols-${size} gap-3 md:gap-4 bg-gray-900/90 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
                                 ${gridHtml}
                                 
                                 ${gameState.status === 'won' ? `
                                     <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                        <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg text-center">LEVEL CLEARED!</h1>
-                                        <p class="text-lg md:text-xl text-gray-300 mb-8 text-center">Fantastic teamwork solving ${currentLevelObj.name}!</p>
+                                        <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg text-center">LEVEL CLEARED!</h1>
+                                        <p class="text-xl text-gray-300 mb-8 text-center">Fantastic teamwork solving ${cfg.name}!</p>
                                         <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
                                             <button onclick="handleHostAction('next_level')" class="px-6 py-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg shadow-lg shadow-purple-900/50 transition-colors cursor-pointer">Next Level ➡️</button>
                                             <button onclick="handleHostAction('restart')" class="px-6 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition-colors cursor-pointer">Restart Lobby</button>
                                         </div>
                                     </div>
+                                ` : gameState.status === 'gameover' ? `
+                                    <div class="absolute inset-0 bg-red-950/90 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
+                                        <h1 class="text-5xl font-black text-red-400 mb-4 drop-shadow-lg text-center">GAME OVER</h1>
+                                        <p class="text-xl text-gray-300 mb-8 text-center">You ran out of moves on ${cfg.name}!</p>
+                                        <button onclick="handleHostAction('restart')" class="px-6 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition-colors cursor-pointer">Restart Lobby</button>
+                                    </div>
                                 ` : ''}
                             </div>
                             
                             <div class="mt-6 text-gray-400 text-sm text-center max-w-lg">
-                                Matched rows & columns light up in green and lock permanently. Select tiles using controllers to swap unlocked pieces.
+                                Matched rows and columns light up in green and lock permanently. Complete all rows and columns to win!
                             </div>
                         </div>
                     `;
@@ -651,9 +696,6 @@
             renderHostUI();
         }
 
-        // ==========================================
-        // CONTROLLER IMPLEMENTATION (Smartphone)
-        // ==========================================
         function initController(playerNum, hostPeerId) {
             const appDiv = document.getElementById('app');
             const themeColor = playerNum === '1' ? 'red' : 'blue';
@@ -725,7 +767,7 @@
                             <div class="text-3xl font-black text-${themeColor}-400 mb-10">PLAYER ${playerNum}</div>
                             ${isReady ? 
                                 `<div class="text-2xl font-bold text-green-400 animate-pulse">Waiting for other player...</div>` :
-                                `<button onclick="sendAction('ready')" class="w-64 h-64 rounded-full bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-4xl font-black tracking-widest active:scale-95 transition-transform flex items-center justify-center uppercase">
+                                `<button onclick="sendAction('ready')" class="w-64 h-64 rounded-full bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-4xl font-black tracking-widest active:scale-95 transition-transform flex items-center justify-center uppercase cursor-pointer">
                                     Start<br>Game
                                  </button>`
                             }
@@ -745,23 +787,23 @@
                                 <div class="absolute inset-1/3 bg-gray-900 rounded-3xl opacity-50"></div>
                                 
                                 <div></div>
-                                <button onclick="sendAction('move', 'up')" class="ctrl-btn bg-gray-800 rounded-t-3xl shadow-lg border-t border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▲</button>
+                                <button onclick="sendAction('move', 'up')" class="ctrl-btn bg-gray-800 rounded-t-3xl shadow-lg border-t border-gray-700 flex items-center justify-center text-4xl cursor-pointer" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▲</button>
                                 <div></div>
                                 
-                                <button onclick="sendAction('move', 'left')" class="ctrl-btn bg-gray-800 rounded-l-3xl shadow-lg border-l border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>◀</button>
+                                <button onclick="sendAction('move', 'left')" class="ctrl-btn bg-gray-800 rounded-l-3xl shadow-lg border-l border-gray-700 flex items-center justify-center text-4xl cursor-pointer" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>◀</button>
                                 <div class="bg-gray-900 rounded-lg flex items-center justify-center">
                                     <div class="w-4 h-4 rounded-full bg-${themeColor}-500/50 shadow-[0_0_10px_${themeHex}]"></div>
                                 </div>
-                                <button onclick="sendAction('move', 'right')" class="ctrl-btn bg-gray-800 rounded-r-3xl shadow-lg border-r border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▶</button>
+                                <button onclick="sendAction('move', 'right')" class="ctrl-btn bg-gray-800 rounded-r-3xl shadow-lg border-r border-gray-700 flex items-center justify-center text-4xl cursor-pointer" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▶</button>
                                 
                                 <div></div>
-                                <button onclick="sendAction('move', 'down')" class="ctrl-btn bg-gray-800 rounded-b-3xl shadow-lg border-b border-gray-700 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▼</button>
+                                <button onclick="sendAction('move', 'down')" class="ctrl-btn bg-gray-800 rounded-b-3xl shadow-lg border-b border-gray-700 flex items-center justify-center text-4xl cursor-pointer" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▼</button>
                                 <div></div>
                             </div>
 
                             <!-- Action Button -->
                             <div class="w-full max-w-[280px]">
-                                <button onclick="sendAction('select')" class="w-full py-6 rounded-[2rem] text-3xl font-black text-white shadow-2xl transition-all active:scale-95 ${
+                                <button onclick="sendAction('select')" class="w-full py-6 rounded-[2rem] text-3xl font-black text-white shadow-2xl transition-all active:scale-95 cursor-pointer ${
                                     isSelected 
                                     ? 'bg-gray-700 shadow-[0_0_20px_rgba(156,163,175,0.3)] border-2 border-gray-500'
                                     : `bg-${themeColor}-600 shadow-[0_0_30px_${themeHex}80] border-2 border-${themeColor}-400`
@@ -777,11 +819,21 @@
                             <div class="text-6xl mb-4">🏆</div>
                             <h1 class="text-3xl font-black text-yellow-400 mb-8 drop-shadow-lg">LEVEL COMPLETED!</h1>
                             
-                            <button onclick="sendAction('next_level')" class="w-full max-w-[250px] py-5 mb-4 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-[0_0_30px_rgba(147,51,234,0.8)] text-white text-xl font-black active:scale-95 transition-transform uppercase">
+                            <button onclick="sendAction('next_level')" class="w-full max-w-[250px] py-5 mb-4 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-[0_0_30px_rgba(147,51,234,0.8)] text-white text-xl font-black active:scale-95 transition-transform uppercase cursor-pointer">
                                 Next Level ➡️
                             </button>
-                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-4 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-lg font-bold active:scale-95 transition-transform uppercase">
+                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-4 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-lg font-bold active:scale-95 transition-transform uppercase cursor-pointer">
                                 Restart Game
+                            </button>
+                        </div>
+                    `;
+                } else if (status === 'gameover') {
+                    appDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                            <div class="text-6xl mb-4">💀</div>
+                            <h1 class="text-3xl font-black text-red-400 mb-8 drop-shadow-lg">GAME OVER</h1>
+                            <button onclick="sendAction('restart')" class="w-full max-w-[250px] py-4 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-lg font-bold active:scale-95 transition-transform uppercase cursor-pointer">
+                                Try Again
                             </button>
                         </div>
                     `;
