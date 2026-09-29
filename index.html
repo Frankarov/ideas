@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Co-op Moto Survival</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background-color: #111827; /* gray-900 */
+            color: white;
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevent scroll on mobile */
+        }
+        
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controller Specific Styles */
+        .dpad-btn {
+            position: absolute;
+            width: 80px; height: 80px;
+            background: linear-gradient(145deg, #3b82f6, #2563eb);
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; font-weight: bold;
+            user-select: none;
+            transition: transform 0.05s, box-shadow 0.05s;
+        }
+        .dpad-btn.active {
+            transform: scale(0.95) translateY(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 4px 8px rgba(0,0,0,0.5);
+            background: #1d4ed8;
+        }
+        
+        #joystick-zone {
+            width: 250px; height: 250px;
+            background: rgba(55, 65, 81, 0.5);
+            border: 4px solid #4b5563;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+        }
+        #joystick-stick {
+            width: 80px; height: 80px;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #b91c1c);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+            transition: transform 0.05s;
+        }
+
+        /* Utility classes */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN GAME DESKTOP VIEW -->
+    <div id="view-main" class="hidden w-full h-full relative">
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="hud" class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none hidden">
+            <div class="flex flex-col gap-2">
+                <div class="text-3xl font-black text-white drop-shadow-md tracking-wider">HP: <span id="ui-hp" class="text-green-400">100</span></div>
+                <div class="text-xl font-bold text-gray-300 drop-shadow-md">SCORE: <span id="ui-score" class="text-yellow-400">0</span></div>
+            </div>
+            <div class="text-xl font-bold text-red-400 drop-shadow-md">SPEED: <span id="ui-speed">1x</span></div>
+        </div>
+
+        <!-- Waiting for Players Modal -->
+        <div id="waiting-modal" class="absolute inset-0 flex items-center justify-center z-50 glass-panel">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-4xl border border-gray-700">
+                <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-red-500">MOTO SURVIVAL</h1>
+                <p class="text-gray-400 mb-8 text-center">Scan QR codes on two smartphones to play.</p>
+                
+                <div class="flex flex-row gap-12 w-full justify-center">
+                    <!-- P1 QR -->
+                    <div class="flex flex-col items-center p-6 bg-gray-900 rounded-xl border border-blue-900 shadow-inner">
+                        <h2 class="text-xl font-bold text-blue-400 mb-4 text-center">PLAYER 1<br><span class="text-sm text-gray-400 font-normal">Driver (D-Pad)</span></h2>
+                        <div id="qr-p1" class="bg-white p-2 rounded-lg"></div>
+                        <p id="p1-status" class="mt-4 text-sm text-yellow-500 animate-pulse font-semibold">Waiting for connection...</p>
+                    </div>
+                    
+                    <!-- P2 QR -->
+                    <div class="flex flex-col items-center p-6 bg-gray-900 rounded-xl border border-red-900 shadow-inner">
+                        <h2 class="text-xl font-bold text-red-400 mb-4 text-center">PLAYER 2<br><span class="text-sm text-gray-400 font-normal">Gunner (Joystick)</span></h2>
+                        <div id="qr-p2" class="bg-white p-2 rounded-lg"></div>
+                        <p id="p2-status" class="mt-4 text-sm text-yellow-500 animate-pulse font-semibold">Waiting for connection...</p>
+                    </div>
+                </div>
+                
+                <div class="mt-8 text-center">
+                    <p class="text-sm text-gray-500 max-w-md">Player 1 controls the motorcycle to avoid obstacles. Player 2 shoots approaching zombies from behind. Start the game from either controller once connected.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameover-modal" class="absolute inset-0 flex items-center justify-center z-50 glass-panel hidden">
+            <div class="bg-gray-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-red-900">
+                <h1 class="text-6xl font-black mb-4 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">WASTED</h1>
+                <p class="text-2xl text-white mb-2">Final Score: <span id="final-score" class="font-bold text-yellow-400">0</span></p>
+                <p class="text-gray-400 mb-8 text-center">Restart the game from your controller.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- P1 CONTROLLER VIEW -->
+    <div id="view-p1" class="hidden w-full h-full flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-blue-900">
+        <div id="p1-lobby" class="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 text-center glass-panel">
+            <h1 class="text-3xl font-black text-blue-400 mb-2">PLAYER 1 (DRIVER)</h1>
+            <p class="text-gray-300 mb-10">Avoid roadblocks & standing zombies!</p>
+            <button id="p1-btn-start" class="px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] text-2xl active:scale-95 transition-all">START GAME</button>
+        </div>
+
+        <div id="p1-controls" class="hidden flex-col items-center justify-center w-full h-full pb-10">
+            <h2 class="absolute top-4 text-gray-400 font-bold tracking-widest text-sm">DRIVER CONTROLS</h2>
+            
+            <div class="relative w-[240px] h-[240px] mt-10">
+                <div id="dpad-up" class="dpad-btn top-0 left-[80px]">W</div>
+                <div id="dpad-down" class="dpad-btn bottom-0 left-[80px]">S</div>
+                <div id="dpad-left" class="dpad-btn top-[80px] left-0">A</div>
+                <div id="dpad-right" class="dpad-btn top-[80px] right-0">D</div>
+                <div class="absolute top-[80px] left-[80px] w-[80px] h-[80px] bg-gray-800 rounded-lg shadow-inner z-[-1]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- P2 CONTROLLER VIEW -->
+    <div id="view-p2" class="hidden w-full h-full flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-red-900">
+        <div id="p2-lobby" class="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 text-center glass-panel">
+            <h1 class="text-3xl font-black text-red-400 mb-2">PLAYER 2 (GUNNER)</h1>
+            <p class="text-gray-300 mb-10">Shoot the approaching zombie horde!</p>
+            <button id="p2-btn-start" class="px-10 py-5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(220,38,38,0.5)] text-2xl active:scale-95 transition-all">START GAME</button>
+        </div>
+
+        <div id="p2-controls" class="hidden flex-col items-center justify-center w-full h-full">
+            <h2 class="absolute top-4 text-gray-400 font-bold tracking-widest text-sm">GUNNER CONTROLS</h2>
+            
+            <div id="joystick-zone" class="mt-10">
+                <div id="joystick-stick"></div>
+            </div>
+            <p class="mt-8 text-gray-400 font-medium">Drag to shoot</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        let app, db, auth, user;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // Global State & Routing Variables
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role') || 'main'; // 'main', 'p1', 'p2'
+        let sessionId = urlParams.get('session');
+        let sessionRef = null;
+        let isConnected = false;
+
+        // Display Correct View
+        document.getElementById(`view-${role}`).classList.remove('hidden');
+
+        async function authenticate() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const credential = await signInWithCustomToken(auth, __initial_auth_token);
+                    user = credential.user;
+                } else {
+                    const credential = await signInAnonymously(auth);
+                    user = credential.user;
+                }
+                console.log("Authenticated as:", user.uid);
+                
+                // Initialize Role
+                if (role === 'main') {
+                    initMainGame();
+                } else if (role === 'p1') {
+                    initP1Controller();
+                } else if (role === 'p2') {
+                    initP2Controller();
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                document.body.innerHTML = `<div class="text-white p-10 text-center">Failed to connect to servers.</div>`;
+            }
+        }
+
+        authenticate();
+
+        // Helpers to prevent default touch behaviors everywhere
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        /* 
+         * ==========================================
+         * MAIN GAME DESKTOP LOGIC
+         * ==========================================
+         */
+        let p1Input = { up: false, down: false, left: false, right: false };
+        let p2Input = { isShooting: false, angle: 0 };
+        let currentGameState = 'waiting';
+        let mainLoopId = null;
+
+        async function initMainGame() {
+            if (!sessionId) {
+                sessionId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            }
+
+            // Path rule: /artifacts/{appId}/public/data/{collectionName}
+            const sessionsCol = collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
+            sessionRef = doc(sessionsCol, sessionId);
+
+            // Initialize/Reset session document
+            await setDoc(sessionRef, {
+                gameState: 'waiting', // waiting, playing, gameover
+                p1Status: 'waiting',
+                p2Status: 'waiting',
+                p1: { up: false, down: false, left: false, right: false },
+                p2: { isShooting: false, angle: 0 }
+            });
+
+            // Generate QR Codes
+            const baseUrl = window.location.origin + window.location.pathname;
+            const urlP1 = `${baseUrl}?role=p1&session=${sessionId}`;
+            const urlP2 = `${baseUrl}?role=p2&session=${sessionId}`;
+
+            new QRCode(document.getElementById("qr-p1"), { text: urlP1, width: 150, height: 150, colorDark: "#1e3a8a" });
+            new QRCode(document.getElementById("qr-p2"), { text: urlP2, width: 150, height: 150, colorDark: "#7f1d1d" });
+
+            // Listen to session changes
+            onSnapshot(sessionRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    handleMainStateChange(data);
+                }
+            }, (error) => {
+                console.error("Snapshot error:", error);
+            });
+
+            initCanvas();
+        }
+
+        function handleMainStateChange(data) {
+            // Update UI statuses
+            const p1Stat = document.getElementById('p1-status');
+            const p2Stat = document.getElementById('p2-status');
+            
+            if (data.p1Status === 'connected') {
+                p1Stat.textContent = 'CONNECTED!'; p1Stat.className = "mt-4 text-sm font-bold text-green-400";
+            }
+            if (data.p2Status === 'connected') {
+                p2Stat.textContent = 'CONNECTED!'; p2Stat.className = "mt-4 text-sm font-bold text-green-400";
+            }
+
+            // State Transitions
+            if (data.gameState !== currentGameState) {
+                currentGameState = data.gameState;
+                if (currentGameState === 'playing') {
+                    document.getElementById('waiting-modal').classList.add('hidden');
+                    document.getElementById('gameover-modal').classList.add('hidden');
+                    document.getElementById('hud').classList.remove('hidden');
+                    resetGameWorld();
+                    if (!mainLoopId) mainLoopId = requestAnimationFrame(gameLoop);
+                } else if (currentGameState === 'waiting') {
+                    document.getElementById('waiting-modal').classList.remove('hidden');
+                    document.getElementById('gameover-modal').classList.add('hidden');
+                    document.getElementById('hud').classList.add('hidden');
+                    if (mainLoopId) { cancelAnimationFrame(mainLoopId); mainLoopId = null; }
+                } else if (currentGameState === 'gameover') {
+                    document.getElementById('gameover-modal').classList.remove('hidden');
+                    document.getElementById('final-score').textContent = Math.floor(gameData.score);
+                    if (mainLoopId) { cancelAnimationFrame(mainLoopId); mainLoopId = null; }
+                }
+            }
+
+            // Update Input State Continuously
+            if (data.p1) p1Input = data.p1;
+            if (data.p2) p2Input = data.p2;
+        }
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameData = {
+            hp: 100, maxHp: 100, score: 0,
+            roadSpeed: 3, baseSpeed: 3, speedMultiplier: 1,
+            timeElapsed: 0,
+            motor: { x: 0, y: 0, width: 60, height: 30, speed: 6, invulnTimer: 0 },
+            projectiles: [],
+            obstacles: [], // Roadblocks & Standing Zombies
+            horde: [],     // Creeping zombies from left
+            roadLines: [],
+            lastShotTime: 0,
+            shootCooldown: 150, // ms
+            lastTime: 0,
+            hordeSpawnTimer: 0,
+            obstacleSpawnTimer: 0
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (currentGameState === 'waiting') drawWaitingBackground();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function initCanvas() {
+            resizeCanvas();
+        }
+
+        function drawWaitingBackground() {
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Draw some static road
+            ctx.fillStyle = '#374151';
+            for (let i = 0; i < canvas.width; i+= 100) {
+                ctx.fillRect(i, canvas.height/2 - 10, 50, 20);
+            }
+        }
+
+        function resetGameWorld() {
+            gameData.hp = 100;
+            gameData.score = 0;
+            gameData.roadSpeed = 4;
+            gameData.timeElapsed = 0;
+            gameData.motor = {
+                x: canvas.width * 0.3,
+                y: canvas.height / 2,
+                width: 70, height: 35,
+                speed: 7, invulnTimer: 0
+            };
+            gameData.projectiles = [];
+            gameData.obstacles = [];
+            gameData.horde = [];
+            gameData.roadLines = [];
+            for (let i=0; i<canvas.width; i+=100) {
+                gameData.roadLines.push({x: i});
+            }
+            gameData.lastTime = performance.now();
+            updateHUD();
+        }
+
+        function gameLoop(currentTime) {
+            if (currentGameState !== 'playing') return;
+            
+            const deltaTime = currentTime - gameData.lastTime;
+            gameData.lastTime = currentTime;
+            
+            updateWorld(deltaTime);
+            drawWorld();
+            
+            mainLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateWorld(dt) {
+            if (!dt) return;
+            
+            gameData.timeElapsed += dt;
+            gameData.score += (gameData.roadSpeed * dt) / 1000;
+            gameData.roadSpeed = gameData.baseSpeed + (gameData.timeElapsed / 10000); // gets faster every 10s
+
+            // Update UI Speed
+            if (gameData.timeElapsed % 500 < 50) updateHUD();
+
+            // 1. Update Motor (P1 Input)
+            if (p1Input.up) gameData.motor.y -= gameData.motor.speed;
+            if (p1Input.down) gameData.motor.y += gameData.motor.speed;
+            if (p1Input.left) gameData.motor.x -= gameData.motor.speed;
+            if (p1Input.right) gameData.motor.x += gameData.motor.speed;
+
+            // Constrain motor to screen (keep it away from far right edges to see obstacles)
+            gameData.motor.x = Math.max(100, Math.min(gameData.motor.x, canvas.width * 0.6));
+            gameData.motor.y = Math.max(50, Math.min(gameData.motor.y, canvas.height - 50));
+
+            // Invuln timer decrease
+            if (gameData.motor.invulnTimer > 0) {
+                gameData.motor.invulnTimer -= dt;
+            }
+
+            // 2. Road Scrolling
+            gameData.roadLines.forEach(line => {
+                line.x -= gameData.roadSpeed;
+                if (line.x < -100) line.x = canvas.width;
+            });
+
+            // 3. Shooting (P2 Input)
+            if (p2Input.isShooting && (performance.now() - gameData.lastShotTime > gameData.shootCooldown)) {
+                // Determine direction from angle. Note: angle from joystick where 0 is right, Math.PI is left
+                let dx = Math.cos(p2Input.angle) * 15;
+                let dy = Math.sin(p2Input.angle) * 15;
+                
+                gameData.projectiles.push({
+                    x: gameData.motor.x,
+                    y: gameData.motor.y,
+                    vx: dx, vy: dy,
+                    radius: 5
+                });
+                gameData.lastShotTime = performance.now();
+            }
+
+            // 4. Update Projectiles
+            for (let i = gameData.projectiles.length - 1; i >= 0; i--) {
+                let p = gameData.projectiles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                    gameData.projectiles.splice(i, 1);
+                }
+            }
+
+            // 5. Spawn Entities
+            gameData.hordeSpawnTimer -= dt;
+            if (gameData.hordeSpawnTimer <= 0) {
+                // Spawn horde from left
+                gameData.horde.push({
+                    x: -50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    radius: 15,
+                    speed: gameData.roadSpeed + (Math.random() * 1.5 + 0.5), // Catch up speed
+                    hp: 1
+                });
+                // Spawn frequency increases slightly
+                gameData.hordeSpawnTimer = Math.max(500, 2000 - (gameData.timeElapsed / 20));
+            }
+
+            gameData.obstacleSpawnTimer -= dt;
+            if (gameData.obstacleSpawnTimer <= 0) {
+                let isRoadblock = Math.random() > 0.5;
+                let size = isRoadblock ? 60 : 30;
+                gameData.obstacles.push({
+                    x: canvas.width + 50,
+                    y: Math.random() * (canvas.height - 150) + 75,
+                    width: size, height: size,
+                    type: isRoadblock ? 'roadblock' : 'zombie_stand',
+                    hp: isRoadblock ? 999 : 2 // roadblock invincible
+                });
+                gameData.obstacleSpawnTimer = Math.max(800, 2500 - (gameData.timeElapsed / 30));
+            }
+
+            // 6. Update Entities & Collisions
+            updateHorde();
+            updateObstacles();
+
+            // Check game over
+            if (gameData.hp <= 0) {
+                endGame();
+            }
+        }
+
+        function updateHorde() {
+            for (let i = gameData.horde.length - 1; i >= 0; i--) {
+                let h = gameData.horde[i];
+                // Horde moves forward relative to screen, basically catching up
+                h.x += h.speed - (gameData.roadSpeed * 0.5); // Simulate them running fast
+                
+                // Bullet Collision (Horde)
+                for (let j = gameData.projectiles.length - 1; j >= 0; j--) {
+                    let p = gameData.projectiles[j];
+                    let dist = Math.hypot(h.x - p.x, h.y - p.y);
+                    if (dist < h.radius + p.radius) {
+                        h.hp--;
+                        gameData.projectiles.splice(j, 1);
+                        break;
+                    }
+                }
+
+                if (h.hp <= 0) {
+                    gameData.score += 10;
+                    gameData.horde.splice(i, 1);
+                    continue;
+                }
+
+                // Motor Collision (Horde touches motor from behind)
+                if (gameData.motor.invulnTimer <= 0) {
+                    // Simple AABB vs Circle
+                    let testX = h.x; let testY = h.y;
+                    let mx = gameData.motor.x - gameData.motor.width/2;
+                    let my = gameData.motor.y - gameData.motor.height/2;
+                    
+                    if (h.x < mx) testX = mx; else if (h.x > mx + gameData.motor.width) testX = mx + gameData.motor.width;
+                    if (h.y < my) testY = my; else if (h.y > my + gameData.motor.height) testY = my + gameData.motor.height;
+                    
+                    let distX = h.x - testX; let distY = h.y - testY;
+                    let distance = Math.sqrt((distX*distX) + (distY*distY));
+                    
+                    if (distance <= h.radius) {
+                        takeDamage(15);
+                        gameData.horde.splice(i, 1); // explode
+                    }
+                }
+            }
+        }
+
+        function updateObstacles() {
+            let mx = gameData.motor.x - gameData.motor.width/2;
+            let my = gameData.motor.y - gameData.motor.height/2;
+            let mw = gameData.motor.width;
+            let mh = gameData.motor.height;
+
+            for (let i = gameData.obstacles.length - 1; i >= 0; i--) {
+                let obs = gameData.obstacles[i];
+                obs.x -= gameData.roadSpeed; // Move left with road
+
+                // Bullet Collision (Standing Zombie)
+                if (obs.type === 'zombie_stand') {
+                    for (let j = gameData.projectiles.length - 1; j >= 0; j--) {
+                        let p = gameData.projectiles[j];
+                        if (p.x > obs.x && p.x < obs.x + obs.width && p.y > obs.y && p.y < obs.y + obs.height) {
+                            obs.hp--;
+                            gameData.projectiles.splice(j, 1);
+                            if (obs.hp <= 0) break;
+                        }
+                    }
+                }
+
+                if (obs.hp <= 0 && obs.type === 'zombie_stand') {
+                    gameData.score += 25;
+                    gameData.obstacles.splice(i, 1);
+                    continue;
+                }
+
+                // Cleanup if off screen
+                if (obs.x + obs.width < -100) {
+                    gameData.obstacles.splice(i, 1);
+                    continue;
+                }
+
+                // Motor Collision
+                if (gameData.motor.invulnTimer <= 0) {
+                    if (mx < obs.x + obs.width && mx + mw > obs.x &&
+                        my < obs.y + obs.height && my + mh > obs.y) {
+                        // Crash
+                        takeDamage(35);
+                    }
+                }
+            }
+        }
+
+        function takeDamage(amt) {
+            gameData.hp -= amt;
+            gameData.motor.invulnTimer = 3000; // 3 seconds I-frames
+            updateHUD();
+        }
+
+        async function endGame() {
+            if (!sessionRef) return;
+            try {
+                await updateDoc(sessionRef, { gameState: 'gameover' });
+            } catch(e) { console.error(e); }
+        }
+
+        function updateHUD() {
+            document.getElementById('ui-hp').textContent = Math.max(0, gameData.hp);
+            document.getElementById('ui-score').textContent = Math.floor(gameData.score);
+            document.getElementById('ui-speed').textContent = gameData.roadSpeed.toFixed(1) + 'x';
+            
+            // HP Color indicator
+            const hpEl = document.getElementById('ui-hp');
+            if (gameData.hp > 60) hpEl.className = 'text-green-400';
+            else if (gameData.hp > 30) hpEl.className = 'text-yellow-400';
+            else hpEl.className = 'text-red-500 animate-pulse';
+        }
+
+        function drawWorld() {
+            // Clear
+            ctx.fillStyle = '#292524'; // dark road color
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Road markings
+            ctx.fillStyle = '#78716c';
+            gameData.roadLines.forEach(line => {
+                ctx.fillRect(line.x, canvas.height/3, 80, 10);
+                ctx.fillRect(line.x, canvas.height*2/3, 80, 10);
+            });
+
+            // Draw Obstacles
+            gameData.obstacles.forEach(obs => {
+                if (obs.type === 'roadblock') {
+                    ctx.fillStyle = '#ea580c'; // orange
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    // Stripes
+                    ctx.fillStyle = '#171717'; // black
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, obs.y); ctx.lineTo(obs.x+20, obs.y);
+                    ctx.lineTo(obs.x, obs.y+20); ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x+obs.width, obs.y+obs.height); ctx.lineTo(obs.x+obs.width-20, obs.y+obs.height);
+                    ctx.lineTo(obs.x+obs.width, obs.y+obs.height-20); ctx.fill();
+                } else {
+                    // Standing Zombie
+                    ctx.fillStyle = '#16a34a'; // green
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    // Head/Eyes
+                    ctx.fillStyle = '#dc2626'; // red eyes
+                    ctx.fillRect(obs.x + 5, obs.y + 10, 5, 5);
+                }
+            });
+
+            // Draw Horde
+            gameData.horde.forEach(h => {
+                ctx.fillStyle = '#14532d'; // dark green
+                ctx.beginPath();
+                ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#fca5a5'; // angry eyes
+                ctx.beginPath();
+                ctx.arc(h.x+5, h.y-4, 3, 0, Math.PI*2);
+                ctx.arc(h.x+5, h.y+4, 3, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Draw Projectiles
+            ctx.fillStyle = '#fef08a';
+            gameData.projectiles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Draw Motor
+            let mx = gameData.motor.x;
+            let my = gameData.motor.y;
+            let mw = gameData.motor.width;
+            let mh = gameData.motor.height;
+
+            // Invuln effect
+            if (gameData.motor.invulnTimer > 0) {
+                ctx.globalAlpha = (Math.floor(gameData.timeElapsed / 100) % 2 === 0) ? 0.3 : 1.0;
+            }
+
+            // Chassis
+            ctx.fillStyle = '#2563eb'; // blue
+            ctx.fillRect(mx - mw/2, my - mh/2, mw, mh);
+            
+            // Wheels
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(mx - mw/2 + 5, my - mh/2 - 5, 15, 8); // top left
+            ctx.fillRect(mx + mw/2 - 20, my - mh/2 - 5, 15, 8); // top right
+            ctx.fillRect(mx - mw/2 + 5, my + mh/2 - 3, 15, 8); // bot left
+            ctx.fillRect(mx + mw/2 - 20, my + mh/2 - 3, 15, 8); // bot right
+            
+            // P1/P2 indicators on bike
+            ctx.fillStyle = '#3b82f6'; // P1 (driver)
+            ctx.beginPath(); ctx.arc(mx - 10, my, 8, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#ef4444'; // P2 (gunner)
+            ctx.beginPath(); ctx.arc(mx + 10, my, 8, 0, Math.PI*2); ctx.fill();
+
+            // Gun Barrel (Aiming)
+            if (p2Input.isShooting || p2Input.angle !== 0) {
+                ctx.strokeStyle = '#9ca3af'; // gray
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(mx + 10, my);
+                ctx.lineTo(mx + 10 + Math.cos(p2Input.angle)*25, my + Math.sin(p2Input.angle)*25);
+                ctx.stroke();
+            }
+
+            ctx.globalAlpha = 1.0;
+        }
+
+        /* 
+         * ==========================================
+         * CONTROLLER LOGIC (Common)
+         * ==========================================
+         */
+        function initControllerBase(roleName) {
+            if (!sessionId) {
+                alert("Missing Session ID!"); return;
+            }
+            const sessionsCol = collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
+            sessionRef = doc(sessionsCol, sessionId);
+
+            // Announce presence
+            updateDoc(sessionRef, { [`${roleName}Status`]: 'connected' }).catch(console.error);
+
+            // Listen to game state
+            onSnapshot(sessionRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const lobbyView = document.getElementById(`${roleName}-lobby`);
+                    const controlsView = document.getElementById(`${roleName}-controls`);
+                    const startBtn = document.getElementById(`${roleName}-btn-start`);
+
+                    if (data.gameState === 'waiting') {
+                        lobbyView.classList.remove('hidden');
+                        controlsView.classList.add('hidden');
+                        startBtn.textContent = 'START GAME';
+                    } else if (data.gameState === 'playing') {
+                        lobbyView.classList.add('hidden');
+                        controlsView.classList.replace('hidden', 'flex'); // Tailwind classes logic
+                    } else if (data.gameState === 'gameover') {
+                        lobbyView.classList.remove('hidden');
+                        controlsView.classList.add('hidden');
+                        startBtn.textContent = 'RESTART GAME';
+                    }
+                }
+            }, (error) => console.error("Controller snap error:", error));
+
+            // Start Button Handler
+            document.getElementById(`${roleName}-btn-start`).addEventListener('click', async (e) => {
+                if (!user) return;
+                try {
+                    await updateDoc(sessionRef, { gameState: 'playing' });
+                } catch(err) { console.error(err); }
+            });
+        }
+
+        /* 
+         * ==========================================
+         * PLAYER 1 CONTROLLER (DPAD)
+         * ==========================================
+         */
+        function initP1Controller() {
+            initControllerBase('p1');
+            
+            const dirs = ['up', 'down', 'left', 'right'];
+            let currentInput = { up: false, down: false, left: false, right: false };
+
+            dirs.forEach(dir => {
+                const btn = document.getElementById(`dpad-${dir}`);
+                
+                const press = (e) => {
+                    e.preventDefault();
+                    if (!user) return;
+                    btn.classList.add('active');
+                    if (!currentInput[dir]) {
+                        currentInput[dir] = true;
+                        updateDoc(sessionRef, { [`p1.${dir}`]: true }).catch(console.error);
+                    }
+                };
+
+                const release = (e) => {
+                    e.preventDefault();
+                    if (!user) return;
+                    btn.classList.remove('active');
+                    if (currentInput[dir]) {
+                        currentInput[dir] = false;
+                        updateDoc(sessionRef, { [`p1.${dir}`]: false }).catch(console.error);
+                    }
+                };
+
+                btn.addEventListener('touchstart', press, {passive: false});
+                btn.addEventListener('touchend', release, {passive: false});
+                btn.addEventListener('touchcancel', release, {passive: false});
+                // Fallback for mouse
+                btn.addEventListener('mousedown', press);
+                btn.addEventListener('mouseup', release);
+                btn.addEventListener('mouseleave', release);
+            });
+        }
+
+        /* 
+         * ==========================================
+         * PLAYER 2 CONTROLLER (JOYSTICK)
+         * ==========================================
+         */
+        function initP2Controller() {
+            initControllerBase('p2');
+            
+            const zone = document.getElementById('joystick-zone');
+            const stick = document.getElementById('joystick-stick');
+            
+            let isDragging = false;
+            let lastUpdate = 0;
+            const THROTTLE_MS = 80; // Optimize Firestore writes
+            const maxDist = 125 - 40; // Base radius - stick radius
+            const center = { x: 0, y: 0 };
+
+            function getZoneCenter() {
+                const rect = zone.getBoundingClientRect();
+                return {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+            }
+
+            function handleMove(clientX, clientY) {
+                if (!isDragging || !user) return;
+                
+                const c = getZoneCenter();
+                const dx = clientX - c.x;
+                const dy = clientY - c.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                let angle = Math.atan2(dy, dx);
+
+                // Constrain stick visually
+                const displayDist = Math.min(distance, maxDist);
+                const stickX = Math.cos(angle) * displayDist;
+                const stickY = Math.sin(angle) * displayDist;
+                
+                stick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+
+                // Send to Firestore (Throttled)
+                if (Date.now() - lastUpdate > THROTTLE_MS) {
+                    updateDoc(sessionRef, { 
+                        'p2.isShooting': true,
+                        'p2.angle': angle 
+                    }).catch(console.error);
+                    lastUpdate = Date.now();
+                }
+            }
+
+            const startDrag = (e) => {
+                e.preventDefault();
+                isDragging = true;
+                const touch = e.type.includes('touch') ? e.touches[0] : e;
+                handleMove(touch.clientX, touch.clientY);
+                stick.style.transition = 'none';
+            };
+
+            const doDrag = (e) => {
+                e.preventDefault();
+                if (!isDragging) return;
+                const touch = e.type.includes('touch') ? e.touches[0] : e;
+                handleMove(touch.clientX, touch.clientY);
+            };
+
+            const endDrag = (e) => {
+                e.preventDefault();
+                if (!isDragging) return;
+                isDragging = false;
+                stick.style.transform = `translate(-50%, -50%)`;
+                stick.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; // snap back
+                
+                if (user) {
+                    updateDoc(sessionRef, { 'p2.isShooting': false }).catch(console.error);
+                }
+            };
+
+            zone.addEventListener('touchstart', startDrag, {passive: false});
+            window.addEventListener('touchmove', doDrag, {passive: false});
+            window.addEventListener('touchend', endDrag, {passive: false});
+            
+            // Mouse fallbacks
+            zone.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', endDrag);
+        }
+
+    </script>
+</body>
+</html>
