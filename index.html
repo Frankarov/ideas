@@ -600,7 +600,7 @@
         }
 
         function spawnObstacle() {
-            const isZombie = Math.random() > 0.3; // 70% zombie, 30% roadblock
+            const isZombie = Math.random() > 0.75; // Changed: 25% zombie, 75% roadblock (Zombies appear less often)
             const roadHeight = canvas.height * 0.8;
             const startY = (canvas.height - roadHeight)/2 + Math.random() * roadHeight;
             const startX = canvas.width + 50;
@@ -610,10 +610,11 @@
                     type: 'zombie',
                     x: startX,
                     y: startY,
-                    width: 30,
-                    height: 30,
-                    hp: 100,
-                    speedOffset: -50 // Zombies walk left, effectively slowing down relative to road moving left
+                    width: 65, // Changed: Increased width (Bigger zombie)
+                    height: 65, // Changed: Increased height
+                    hp: 200, // Changed: More HP since they are bigger
+                    maxHp: 200, // Added to easily calculate the HP bar width
+                    speedOffset: -35 // Zombies walk left, effectively slowing down relative to road moving left
                 });
             } else {
                 gameState.obstacles.push({
@@ -733,15 +734,15 @@
                 if (obs.type === 'zombie') {
                     ctx.fillStyle = colors.zombie;
                     ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
-                    // Arms (reaching left)
+                    // Arms (reaching left) - Scaled up for bigger body
                     ctx.fillStyle = '#2f855a';
-                    ctx.fillRect(-obs.width/2 - 10, -5, 10, 10);
+                    ctx.fillRect(-obs.width/2 - 15, -10, 15, 20);
                     
-                    // HP bar for zombie
+                    // HP bar for zombie - Dynamically scaled based on zombie width
                     ctx.fillStyle = 'red';
-                    ctx.fillRect(-15, -obs.height/2 - 10, 30, 4);
+                    ctx.fillRect(-obs.width/2, -obs.height/2 - 15, obs.width, 6);
                     ctx.fillStyle = 'green';
-                    ctx.fillRect(-15, -obs.height/2 - 10, 30 * (obs.hp/100), 4);
+                    ctx.fillRect(-obs.width/2, -obs.height/2 - 15, obs.width * Math.max(0, obs.hp / obs.maxHp), 6);
                 } else if (obs.type === 'roadblock') {
                     ctx.fillStyle = colors.roadblock;
                     ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
