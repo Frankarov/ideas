@@ -3,929 +3,867 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zombie Convoy Co-op (Dual-Device TV & Mobile Remotes)</title>
-    <!-- Tailwind CSS for modern UI styling -->
+    <title>Co-op Moto Survival</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
-    <!-- QRCode.js library for generating real scannable QR codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body {
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background-color: #111827; /* gray-900 */
+            color: white;
             font-family: 'Inter', sans-serif;
-            background-color: #050811;
-            color: #f8fafc;
-            overflow: hidden;
+            touch-action: none; /* Prevent scroll on mobile */
+        }
+        
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controller Specific Styles */
+        .dpad-btn {
+            position: absolute;
+            width: 80px; height: 80px;
+            background: linear-gradient(145deg, #3b82f6, #2563eb);
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; font-weight: bold;
             user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
+            transition: transform 0.05s, box-shadow 0.05s;
         }
-        .pixel-font {
-            font-family: 'Pixelify Sans', monospace;
+        .dpad-btn.active {
+            transform: scale(0.95) translateY(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 4px 8px rgba(0,0,0,0.5);
+            background: #1d4ed8;
         }
-        canvas {
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
+        
+        #joystick-zone {
+            width: 250px; height: 250px;
+            background: rgba(55, 65, 81, 0.5);
+            border: 4px solid #4b5563;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
         }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
-            50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.8); }
+        #joystick-stick {
+            width: 80px; height: 80px;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #b91c1c);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+            transition: transform 0.05s;
         }
-        .hazard-glow {
-            animation: pulse-glow 2s infinite;
+
+        /* Utility classes */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col justify-between select-none">
+<body>
 
-    <header id="tvHeader" class="bg-slate-950/95 border-b border-red-950/50 p-2 sm:p-3 flex justify-between items-center z-20 shadow-2xl backdrop-blur-md">
-        <div class="flex items-center space-x-2 sm:space-x-3">
-            <div class="bg-gradient-to-br from-red-600 to-amber-700 p-2 rounded-xl text-white shadow-lg border border-red-500/30">
-                <i class="fa-solid fa-tv text-lg sm:text-xl animate-pulse"></i>
+    <!-- MAIN GAME DESKTOP VIEW -->
+    <div id="view-main" class="hidden w-full h-full relative">
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="hud" class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none hidden">
+            <div class="flex flex-col gap-2">
+                <div class="text-3xl font-black text-white drop-shadow-md tracking-wider">HP: <span id="ui-hp" class="text-green-400">100</span></div>
+                <div class="text-xl font-bold text-gray-300 drop-shadow-md">SCORE: <span id="ui-score" class="text-yellow-400">0</span></div>
             </div>
-            <div>
-                <h1 class="pixel-font text-xl sm:text-2xl tracking-wider text-red-500 font-extrabold drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]">ZOMBIE CONVOY TV</h1>
-                <p class="text-[10px] sm:text-xs text-slate-400">Scan QR Codes to connect Mobile Controllers</p>
-            </div>
+            <div class="text-xl font-bold text-red-400 drop-shadow-md">SPEED: <span id="ui-speed">1x</span></div>
         </div>
 
-        <!-- Status Metrics -->
-        <div class="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm">
-            <div class="bg-slate-900/90 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border border-slate-800 flex items-center space-x-1.5 shadow-inner">
-                <i class="fa-solid fa-road text-amber-500"></i>
-                <span class="text-slate-400 hidden sm:inline text-xs">Distance:</span>
-                <span id="hud-distance" class="font-bold text-amber-400 font-mono">0 m</span>
-            </div>
-            <div class="bg-slate-900/90 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border border-slate-800 flex items-center space-x-1.5 shadow-inner">
-                <i class="fa-solid fa-skull text-red-500"></i>
-                <span class="text-slate-400 hidden sm:inline text-xs">Slain:</span>
-                <span id="hud-kills" class="font-bold text-red-400 font-mono">0</span>
-            </div>
-            <button onclick="openControllerModal()" class="bg-red-950 hover:bg-red-900 px-3 py-1.5 rounded-xl border border-red-600 text-xs text-red-300 font-bold flex items-center space-x-1.5 shadow-lg">
-                <i class="fa-solid fa-qrcode"></i><span>Show QR Codes</span>
-            </button>
-        </div>
-    </header>
-
-    <main class="relative flex-1 bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
-        <!-- Canvas Layer for TV -->
-        <canvas id="gameCanvas" class="w-full h-full absolute inset-0 z-0 cursor-crosshair"></canvas>
-
-        <!-- Standalone Mobile Controller View (Only Control Inputs) -->
-        <div id="standaloneControllerView" class="hidden absolute inset-0 bg-slate-950 z-50 flex flex-col items-center justify-between p-6">
-            <div class="text-center space-y-1">
-                <span id="controllerTitleBadge" class="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-blue-950 text-blue-400 border border-blue-600">Mobile Controller</span>
-                <p class="text-xs text-slate-400">Connected to TV Display Session</p>
-            </div>
-
-            <!-- Driver Pad Input Only -->
-            <div id="mobileDriverPad" class="grid grid-cols-3 gap-3 w-72 h-72">
-                <div></div>
-                <button id="mBtnUp" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-up"></i></button>
-                <div></div>
-                <button id="mBtnLeft" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-left"></i></button>
-                <div class="flex items-center justify-center text-blue-300 text-xs font-mono font-bold tracking-widest">STEER</div>
-                <button id="mBtnRight" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-right"></i></button>
-                <div></div>
-                <button id="mBtnDown" class="bg-blue-950/90 border-2 border-blue-500 rounded-2xl text-white text-3xl active:bg-blue-700 flex items-center justify-center shadow-2xl"><i class="fa-solid fa-arrow-down"></i></button>
-                <div></div>
-            </div>
-
-            <!-- Gunner Joystick Input Only -->
-            <div id="mobileGunnerJoystick" class="relative w-64 h-64 bg-red-950/40 border-4 border-red-500/60 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-sm">
-                <div id="mJoystickKnob" class="absolute w-24 h-24 bg-gradient-to-br from-red-600 to-amber-600 border-2 border-red-400 rounded-full shadow-2xl cursor-pointer"></div>
-                <div class="absolute text-xs text-red-300 font-mono bottom-4 font-extrabold tracking-widest">DRAG TO AIM & FIRE</div>
-            </div>
-
-            <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-center">
-                <span class="text-xs text-slate-400 font-mono">Status: <strong class="text-emerald-400">ACTIVE LINK</strong></span>
-            </div>
-        </div>
-
-        <!-- TV QR Code Selection Modal -->
-        <div id="controllerModal" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div class="bg-slate-900 border border-red-600/50 p-6 sm:p-8 rounded-2xl max-w-xl w-full shadow-2xl text-center space-y-4 relative">
-                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <h3 class="pixel-font text-xl sm:text-2xl text-red-500 font-bold"><i class="fa-solid fa-qrcode mr-2"></i>SCAN QR FOR MOBILE CONTROLLERS</h3>
-                    <button onclick="closeControllerModal()" class="text-slate-400 hover:text-white text-xl font-bold"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-                <p class="text-xs text-slate-300">Scan each QR code with two separate phones. Each phone will display <strong class="text-amber-400">only the control inputs</strong> (no game graphics) to command the TV screen!</p>
+        <!-- Waiting for Players Modal -->
+        <div id="waiting-modal" class="absolute inset-0 flex items-center justify-center z-50 glass-panel">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-4xl border border-gray-700">
+                <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-red-500">MOTO SURVIVAL</h1>
+                <p class="text-gray-400 mb-8 text-center">Scan QR codes on two smartphones to play.</p>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div class="bg-slate-950 p-4 rounded-xl border border-blue-900/40 flex flex-col items-center space-y-3">
-                        <span class="text-xs font-bold text-blue-400 font-mono">PHONE 1: P1 DRIVER</span>
-                        <div id="qrcode-p1" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-blue-500/30"></div>
-                        <a id="link-p1" href="#" target="_blank" class="w-full bg-blue-900 hover:bg-blue-800 text-blue-200 py-2 rounded-lg text-xs font-bold border border-blue-600 text-center">
-                            Open Driver Pad
-                        </a>
+                <div class="flex flex-row gap-12 w-full justify-center">
+                    <!-- P1 QR -->
+                    <div class="flex flex-col items-center p-6 bg-gray-900 rounded-xl border border-blue-900 shadow-inner">
+                        <h2 class="text-xl font-bold text-blue-400 mb-4 text-center">PLAYER 1<br><span class="text-sm text-gray-400 font-normal">Driver (D-Pad)</span></h2>
+                        <div id="qr-p1" class="bg-white p-2 rounded-lg"></div>
+                        <p id="p1-status" class="mt-4 text-sm text-yellow-500 animate-pulse font-semibold">Waiting for connection...</p>
                     </div>
-
-                    <div class="bg-slate-950 p-4 rounded-xl border border-red-900/40 flex flex-col items-center space-y-3">
-                        <span class="text-xs font-bold text-red-400 font-mono">PHONE 2: P2 GUNNER</span>
-                        <div id="qrcode-p2" class="bg-white p-2 rounded-lg flex items-center justify-center w-36 h-36 border border-red-500/30"></div>
-                        <a id="link-p2" href="#" target="_blank" class="w-full bg-red-900 hover:bg-red-800 text-red-200 py-2 rounded-lg text-xs font-bold border border-red-600 text-center">
-                            Open Gunner Joystick
-                        </a>
+                    
+                    <!-- P2 QR -->
+                    <div class="flex flex-col items-center p-6 bg-gray-900 rounded-xl border border-red-900 shadow-inner">
+                        <h2 class="text-xl font-bold text-red-400 mb-4 text-center">PLAYER 2<br><span class="text-sm text-gray-400 font-normal">Gunner (Joystick)</span></h2>
+                        <div id="qr-p2" class="bg-white p-2 rounded-lg"></div>
+                        <p id="p2-status" class="mt-4 text-sm text-yellow-500 animate-pulse font-semibold">Waiting for connection...</p>
                     </div>
                 </div>
-
-                <button onclick="closeControllerModal()" class="w-full bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3 rounded-xl font-bold text-white shadow-lg text-sm">
-                    Start TV Convoy Session
-                </button>
+                
+                <div class="mt-8 text-center">
+                    <p class="text-sm text-gray-500 max-w-md">Player 1 controls the motorcycle to avoid obstacles. Player 2 shoots approaching zombies from behind. Start the game from either controller once connected.</p>
+                </div>
             </div>
         </div>
 
         <!-- Game Over Modal -->
-        <div id="gameOverModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-40 p-4">
-            <div class="bg-slate-900 border border-red-600/50 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-5 hazard-glow">
-                <div class="inline-block bg-red-950/80 p-4 rounded-2xl border border-red-500/40 text-red-500">
-                    <i class="fa-solid fa-skull-crossbones text-4xl"></i>
-                </div>
-                <h2 class="pixel-font text-2xl sm:text-3xl text-red-500 font-bold tracking-wider">CONVOY DESTROYED</h2>
-                <p class="text-slate-300 text-xs sm:text-sm">The undead swarmed the armored bus and breached the cabin.</p>
+        <div id="gameover-modal" class="absolute inset-0 flex items-center justify-center z-50 glass-panel hidden">
+            <div class="bg-gray-800 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-red-900">
+                <h1 class="text-6xl font-black mb-4 text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]">WASTED</h1>
+                <p class="text-2xl text-white mb-2">Final Score: <span id="final-score" class="font-bold text-yellow-400">0</span></p>
+                <p class="text-gray-400 mb-8 text-center">Restart the game from your controller.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- P1 CONTROLLER VIEW -->
+    <div id="view-p1" class="hidden w-full h-full flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-blue-900">
+        <div id="p1-lobby" class="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 text-center glass-panel">
+            <h1 class="text-3xl font-black text-blue-400 mb-2">PLAYER 1 (DRIVER)</h1>
+            <p class="text-gray-300 mb-10">Avoid roadblocks & standing zombies!</p>
+            <button id="p1-btn-start" class="px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.5)] text-2xl active:scale-95 transition-all">START GAME</button>
+        </div>
+
+        <div id="p1-controls" class="hidden flex-col items-center justify-center w-full h-full pb-10">
+            <h2 class="absolute top-4 text-gray-400 font-bold tracking-widest text-sm">DRIVER CONTROLS</h2>
+            
+            <div class="relative w-[240px] h-[240px] mt-10">
+                <div id="dpad-up" class="dpad-btn top-0 left-[80px]">W</div>
+                <div id="dpad-down" class="dpad-btn bottom-0 left-[80px]">S</div>
+                <div id="dpad-left" class="dpad-btn top-[80px] left-0">A</div>
+                <div id="dpad-right" class="dpad-btn top-[80px] right-0">D</div>
+                <div class="absolute top-[80px] left-[80px] w-[80px] h-[80px] bg-gray-800 rounded-lg shadow-inner z-[-1]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- P2 CONTROLLER VIEW -->
+    <div id="view-p2" class="hidden w-full h-full flex flex-col items-center justify-center relative bg-gradient-to-br from-gray-900 to-red-900">
+        <div id="p2-lobby" class="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 text-center glass-panel">
+            <h1 class="text-3xl font-black text-red-400 mb-2">PLAYER 2 (GUNNER)</h1>
+            <p class="text-gray-300 mb-10">Shoot the approaching zombie horde!</p>
+            <button id="p2-btn-start" class="px-10 py-5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(220,38,38,0.5)] text-2xl active:scale-95 transition-all">START GAME</button>
+        </div>
+
+        <div id="p2-controls" class="hidden flex-col items-center justify-center w-full h-full">
+            <h2 class="absolute top-4 text-gray-400 font-bold tracking-widest text-sm">GUNNER CONTROLS</h2>
+            
+            <div id="joystick-zone" class="mt-10">
+                <div id="joystick-stick"></div>
+            </div>
+            <p class="mt-8 text-gray-400 font-medium">Drag to shoot</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        let app, db, auth, user;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // Global State & Routing Variables
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role') || 'main'; // 'main', 'p1', 'p2'
+        let sessionId = urlParams.get('session');
+        let sessionRef = null;
+        let isConnected = false;
+
+        // Display Correct View
+        document.getElementById(`view-${role}`).classList.remove('hidden');
+
+        async function authenticate() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const credential = await signInWithCustomToken(auth, __initial_auth_token);
+                    user = credential.user;
+                } else {
+                    const credential = await signInAnonymously(auth);
+                    user = credential.user;
+                }
+                console.log("Authenticated as:", user.uid);
                 
-                <div class="bg-slate-950 p-4 rounded-xl text-left space-y-2 text-xs sm:text-sm border border-slate-800 font-mono">
-                    <div class="flex justify-between"><span class="text-slate-400">Distance Travelled:</span> <span id="end-distance" class="font-bold text-amber-400">0 m</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Zombies Eliminated:</span> <span id="end-kills" class="font-bold text-red-400">0</span></div>
-                </div>
+                // Initialize Role
+                if (role === 'main') {
+                    initMainGame();
+                } else if (role === 'p1') {
+                    initP1Controller();
+                } else if (role === 'p2') {
+                    initP2Controller();
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                document.body.innerHTML = `<div class="text-white p-10 text-center">Failed to connect to servers.</div>`;
+            }
+        }
 
-                <button onclick="restartGame()" class="w-full bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 py-3.5 rounded-xl font-bold text-white shadow-lg border border-red-400/30 text-sm">
-                    <i class="fa-solid fa-rotate-right mr-2"></i> Deploy New Convoy
-                </button>
-            </div>
-        </div>
+        authenticate();
 
-        <!-- Status Bars on TV Game Display -->
-        <div id="tvHudBars" class="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row justify-between items-center pointer-events-none z-10 gap-2">
-            <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
-                <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
-                    <span class="flex items-center space-x-1.5"><i class="fa-solid fa-shield-halved text-amber-500"></i><span>BUS INTEGRITY</span></span>
-                    <span id="truck-hp-text">100 / 100</span>
-                </div>
-                <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 shadow-inner">
-                    <div id="truck-hp-bar" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all duration-300" style="width: 100%;"></div>
-                </div>
-            </div>
+        // Helpers to prevent default touch behaviors everywhere
+        document.addEventListener('contextmenu', event => event.preventDefault());
 
-            <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-xl shadow-2xl backdrop-blur-md pointer-events-auto space-y-2 w-full sm:w-64">
-                <div class="flex justify-between items-center text-[11px] font-bold text-slate-300 font-mono">
-                    <span class="flex items-center space-x-1.5"><i class="fa-solid fa-gun text-red-500"></i><span>HEAVY TURRET</span></span>
-                    <span id="gun-ammo-text">50 / 50</span>
-                </div>
-                <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 shadow-inner">
-                    <div id="gun-ammo-bar" class="bg-gradient-to-r from-red-600 to-orange-500 h-full transition-all duration-150" style="width: 100%;"></div>
-                </div>
-                <div class="flex justify-between text-[10px] text-slate-400 font-mono">
-                    <span>Mode: <strong class="text-amber-400">TV Display + Remotes</strong></span>
-                    <span id="reload-status" class="text-emerald-400 font-bold">READY</span>
-                </div>
-            </div>
-        </div>
+        /* 
+         * ==========================================
+         * MAIN GAME DESKTOP LOGIC
+         * ==========================================
+         */
+        let p1Input = { up: false, down: false, left: false, right: false };
+        let p2Input = { isShooting: false, angle: 0 };
+        let currentGameState = 'waiting';
+        let mainLoopId = null;
 
-        <!-- Custom Notification Banner -->
-        <div id="notificationBanner" class="absolute top-16 bg-red-600/90 text-white font-bold px-4 py-2 rounded-xl shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-30 border border-red-400/40 pixel-font text-xs tracking-wide">
-            Notification
-        </div>
-    </main>
+        async function initMainGame() {
+            if (!sessionId) {
+                sessionId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            }
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
+            // Path rule: /artifacts/{appId}/public/data/{collectionName}
+            const sessionsCol = collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
+            sessionRef = doc(sessionsCol, sessionId);
+
+            // Initialize/Reset session document
+            await setDoc(sessionRef, {
+                gameState: 'waiting', // waiting, playing, gameover
+                p1Status: 'waiting',
+                p2Status: 'waiting',
+                p1: { up: false, down: false, left: false, right: false },
+                p2: { isShooting: false, angle: 0 }
+            });
+
+            // Generate QR Codes
+            const baseUrl = window.location.origin + window.location.pathname;
+            const urlP1 = `${baseUrl}?role=p1&session=${sessionId}`;
+            const urlP2 = `${baseUrl}?role=p2&session=${sessionId}`;
+
+            new QRCode(document.getElementById("qr-p1"), { text: urlP1, width: 150, height: 150, colorDark: "#1e3a8a" });
+            new QRCode(document.getElementById("qr-p2"), { text: urlP2, width: 150, height: 150, colorDark: "#7f1d1d" });
+
+            // Listen to session changes
+            onSnapshot(sessionRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    handleMainStateChange(data);
+                }
+            }, (error) => {
+                console.error("Snapshot error:", error);
+            });
+
+            initCanvas();
+        }
+
+        function handleMainStateChange(data) {
+            // Update UI statuses
+            const p1Stat = document.getElementById('p1-status');
+            const p2Stat = document.getElementById('p2-status');
+            
+            if (data.p1Status === 'connected') {
+                p1Stat.textContent = 'CONNECTED!'; p1Stat.className = "mt-4 text-sm font-bold text-green-400";
+            }
+            if (data.p2Status === 'connected') {
+                p2Stat.textContent = 'CONNECTED!'; p2Stat.className = "mt-4 text-sm font-bold text-green-400";
+            }
+
+            // State Transitions
+            if (data.gameState !== currentGameState) {
+                currentGameState = data.gameState;
+                if (currentGameState === 'playing') {
+                    document.getElementById('waiting-modal').classList.add('hidden');
+                    document.getElementById('gameover-modal').classList.add('hidden');
+                    document.getElementById('hud').classList.remove('hidden');
+                    resetGameWorld();
+                    if (!mainLoopId) mainLoopId = requestAnimationFrame(gameLoop);
+                } else if (currentGameState === 'waiting') {
+                    document.getElementById('waiting-modal').classList.remove('hidden');
+                    document.getElementById('gameover-modal').classList.add('hidden');
+                    document.getElementById('hud').classList.add('hidden');
+                    if (mainLoopId) { cancelAnimationFrame(mainLoopId); mainLoopId = null; }
+                } else if (currentGameState === 'gameover') {
+                    document.getElementById('gameover-modal').classList.remove('hidden');
+                    document.getElementById('final-score').textContent = Math.floor(gameData.score);
+                    if (mainLoopId) { cancelAnimationFrame(mainLoopId); mainLoopId = null; }
+                }
+            }
+
+            // Update Input State Continuously
+            if (data.p1) p1Input = data.p1;
+            if (data.p2) p2Input = data.p2;
+        }
+
+        const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
+        
+        let gameData = {
+            hp: 100, maxHp: 100, score: 0,
+            roadSpeed: 3, baseSpeed: 3, speedMultiplier: 1,
+            timeElapsed: 0,
+            motor: { x: 0, y: 0, width: 60, height: 30, speed: 6, invulnTimer: 0 },
+            projectiles: [],
+            obstacles: [], // Roadblocks & Standing Zombies
+            horde: [],     // Creeping zombies from left
+            roadLines: [],
+            lastShotTime: 0,
+            shootCooldown: 150, // ms
+            lastTime: 0,
+            hordeSpawnTimer: 0,
+            obstacleSpawnTimer: 0
+        };
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (truck.x === 0) {
-                truck.x = canvas.width / 2 - 75;
-                truck.y = canvas.height / 2 - 37;
-            }
+            if (currentGameState === 'waiting') drawWaitingBackground();
         }
         window.addEventListener('resize', resizeCanvas);
 
-        let isStandaloneController = false;
-        let controllerRole = null;
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const currentUrl = window.location.href.split('#')[0].split('?')[0];
-            const urlParams = new URLSearchParams(window.location.search);
-            controllerRole = urlParams.get('controller');
-
-            if (controllerRole === 'driver' || controllerRole === 'gunner') {
-                isStandaloneController = true;
-                setupStandaloneController(controllerRole);
-            } else {
-                setupTVDisplay(currentUrl);
-            }
-        });
-
-        function setupTVDisplay(baseUrl) {
-            document.getElementById('standaloneControllerView').style.display = 'none';
-            const driverUrl = baseUrl + "?controller=driver";
-            const gunnerUrl = baseUrl + "?controller=gunner";
-
-            document.getElementById('link-p1.href') ; // placeholder
-            document.getElementById('link-p1').setAttribute('href', driverUrl);
-            document.getElementById('link-p2').setAttribute('href', gunnerUrl);
-
-            document.getElementById('qrcode-p1').innerHTML = '';
-            document.getElementById('qrcode-p2').innerHTML = '';
-
-            new QRCode(document.getElementById("qrcode-p1"), {
-                text: driverUrl,
-                width: 130,
-                height: 130,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.M
-            });
-
-            new QRCode(document.getElementById("qrcode-p2"), {
-                text: gunnerUrl,
-                width: 130,
-                height: 130,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.M
-            });
-
+        function initCanvas() {
             resizeCanvas();
-            startGame();
-            requestAnimationFrame(tvGameLoop);
         }
 
-        function setupStandaloneController(role) {
-            document.getElementById('tvHeader').style.display = 'none';
-            document.getElementById('controllerModal').style.display = 'none';
-            document.getElementById('tvHudBars').style.display = 'none';
-            canvas.style.display = 'none';
-
-            const view = document.getElementById('standaloneControllerView');
-            view.classList.remove('hidden');
-            view.style.display = 'flex';
-
-            const badge = document.getElementById('controllerTitleBadge');
-            if (role === 'driver') {
-                document.getElementById('mobileGunnerJoystick').style.display = 'none';
-                badge.innerText = 'P1 DRIVER CONTROL PAD';
-                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-blue-950 text-blue-400 border border-blue-600';
-                setupDriverControllerEvents();
-            } else {
-                document.getElementById('mobileDriverPad').style.display = 'none';
-                badge.innerText = 'P2 GUNNER JOYSTICK';
-                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-red-950 text-red-400 border border-red-600';
-                setupGunnerControllerEvents();
+        function drawWaitingBackground() {
+            ctx.fillStyle = '#1f2937';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Draw some static road
+            ctx.fillStyle = '#374151';
+            for (let i = 0; i < canvas.width; i+= 100) {
+                ctx.fillRect(i, canvas.height/2 - 10, 50, 20);
             }
         }
 
-        const remoteInputs = { w: false, s: false, a: false, d: false, angle: 0, firing: false };
-
-        function setupDriverControllerEvents() {
-            const btnUp = document.getElementById('mBtnUp');
-            const btnDown = document.getElementById('mBtnDown');
-            const btnLeft = document.getElementById('mBtnLeft');
-            const btnRight = document.getElementById('mBtnRight');
-
-            ['touchstart', 'mousedown'].forEach(evt => {
-                if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.w = true; sendInputState(); });
-                if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.s = true; sendInputState(); });
-                if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.a = true; sendInputState(); });
-                if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.d = true; sendInputState(); });
-            });
-
-            ['touchend', 'mouseup', 'mouseleave'].forEach(evt => {
-                if(btnUp) btnUp.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.w = false; sendInputState(); });
-                if(btnDown) btnDown.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.s = false; sendInputState(); });
-                if(btnLeft) btnLeft.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.a = false; sendInputState(); });
-                if(btnRight) btnRight.addEventListener(evt, (e) => { e.preventDefault(); remoteInputs.d = false; sendInputState(); });
-            });
-        }
-
-        function setupGunnerControllerEvents() {
-            const joystickBase = document.getElementById('mobileGunnerJoystick');
-            const joystickKnob = document.getElementById('mJoystickKnob');
-            let active = false;
-            let startX = 0, startY = 0;
-
-            joystickBase.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystickBase.getBoundingClientRect();
-                active = true;
-                startX = rect.left + rect.width / 2;
-                startY = rect.top + rect.height / 2;
-                updateJoy(touch.clientX, touch.clientY);
-            });
-
-            joystickBase.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (active) {
-                    const touch = e.touches[0];
-                    updateJoy(touch.clientX, touch.clientY);
-                }
-            });
-
-            joystickBase.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                active = false;
-                remoteInputs.firing = false;
-                joystickKnob.style.transform = `translate(0px, 0px)`;
-                sendInputState();
-            });
-
-            function updateJoy(clientX, clientY) {
-                const dx = clientX - startX;
-                const dy = clientY - startY;
-                const dist = Math.hypot(dx, dy);
-                const maxRadius = 60;
-                const angle = Math.atan2(dy, dx);
-
-                remoteInputs.angle = angle;
-                remoteInputs.firing = true;
-
-                const limitedDist = Math.min(dist, maxRadius);
-                joystickKnob.style.transform = `translate(${Math.cos(angle)*limitedDist}px, ${Math.sin(angle)*limitedDist}px)`;
-                sendInputState();
+        function resetGameWorld() {
+            gameData.hp = 100;
+            gameData.score = 0;
+            gameData.roadSpeed = 4;
+            gameData.timeElapsed = 0;
+            gameData.motor = {
+                x: canvas.width * 0.3,
+                y: canvas.height / 2,
+                width: 70, height: 35,
+                speed: 7, invulnTimer: 0
+            };
+            gameData.projectiles = [];
+            gameData.obstacles = [];
+            gameData.horde = [];
+            gameData.roadLines = [];
+            for (let i=0; i<canvas.width; i+=100) {
+                gameData.roadLines.push({x: i});
             }
-        }
-
-        function sendInputState() {
-            try {
-                localStorage.setItem('zombie_convoy_inputs_' + controllerRole, JSON.stringify(remoteInputs));
-            } catch(err) {}
-        }
-
-        function pollRemoteInputs() {
-            try {
-                const driverData = JSON.parse(localStorage.getItem('zombie_convoy_inputs_driver'));
-                if (driverData) {
-                    keys.w = driverData.w;
-                    keys.s = driverData.s;
-                    keys.a = driverData.a;
-                    keys.d = driverData.d;
-                }
-                const gunnerData = JSON.parse(localStorage.getItem('zombie_convoy_inputs_gunner'));
-                if (gunnerData) {
-                    truck.turretAngle = gunnerData.angle;
-                    gunnerFiring = gunnerData.firing;
-                }
-            } catch(err) {}
-        }
-
-        let gameState = 'PLAYING';
-        let distance = 0;
-        let kills = 0;
-        let gunnerFiring = false;
-
-        const truck = {
-            x: 0,
-            y: 0,
-            width: 150,
-            height: 75,
-            speed: 0.25, // Lower actual speed
-            hp: 100,
-            maxHp: 100,
-            turretAngle: 0
-        };
-
-        const keys = { w: false, s: false, a: false, d: false };
-
-        const weapon = {
-            ammo: 50,
-            maxAmmo: 50,
-            reloadTime: 0,
-            reloadDuration: 40,
-            fireCooldown: 0,
-            fireRate: 30 // 2 shots per second at 60fps
-        };
-
-        let zombies = [];
-        let particles = [];
-        let roadObstacles = [];
-        let powerUps = [];
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'ArrowUp') keys.w = true;
-            if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
-            if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = true;
-            if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
-            if (e.key === ' ') gunnerFiring = true;
-        });
-
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'w' || e.key === 'ArrowUp') keys.w = false;
-            if (e.key === 's' || e.key === 'ArrowDown') keys.s = false;
-            if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = false;
-            if (e.key === 'd' || e.key === 'ArrowRight') keys.d = false;
-            if (e.key === ' ') gunnerFiring = false;
-        });
-
-        function openControllerModal() {
-            document.getElementById('controllerModal').classList.remove('hidden');
-        }
-
-        function closeControllerModal() {
-            document.getElementById('controllerModal').classList.add('hidden');
-        }
-
-        function startGame() {
-            gameState = 'PLAYING';
-            distance = 0;
-            kills = 0;
-            truck.hp = 100;
-            truck.x = canvas.width / 2 - 75;
-            truck.y = canvas.height / 2 - 37;
-            zombies = [];
-            particles = [];
-            roadObstacles = [];
-            powerUps = [];
-            weapon.ammo = weapon.maxAmmo;
-        }
-
-        function restartGame() {
-            document.getElementById('gameOverModal').classList.add('hidden');
-            startGame();
-        }
-
-        function showNotification(text) {
-            const banner = document.getElementById('notificationBanner');
-            if(!banner) return;
-            banner.innerText = text;
-            banner.style.opacity = '1';
-            setTimeout(() => { banner.style.opacity = '0'; }, 2000);
-        }
-
-        let infiniteAmmoTimer = 0;
-
-        function shootTurret() {
-            if (weapon.reloadTime > 0) return;
-            if (weapon.ammo <= 0 && infiniteAmmoTimer <= 0) {
-                weapon.reloadTime = weapon.reloadDuration;
-                showNotification("RELOADING TURRET...");
-                return;
-            }
-            if (weapon.fireCooldown > 0) return;
-
-            if (infiniteAmmoTimer <= 0) weapon.ammo--;
-            weapon.fireCooldown = weapon.fireRate;
-
-            const turretX = truck.x + truck.width / 2;
-            const turretY = truck.y + truck.height / 2 - 15;
-
-            for (let i = 0; i < 4; i++) {
-                particles.push({
-                    x: turretX + Math.cos(truck.turretAngle) * 40,
-                    y: turretY + Math.sin(truck.turretAngle) * 40,
-                    vx: (Math.random() - 0.5) * 6 + Math.cos(truck.turretAngle) * 14,
-                    vy: (Math.random() - 0.5) * 6 + Math.sin(truck.turretAngle) * 14,
-                    size: Math.random() * 3 + 2,
-                    color: infiniteAmmoTimer > 0 ? '#38bdf8' : '#fbbf24',
-                    life: 10
-                });
-            }
-
-            zombies.forEach(z => {
-                const zCenterX = z.x + z.width / 2;
-                const zCenterY = z.y + z.height / 2;
-                const angleToZombie = Math.atan2(zCenterY - turretY, zCenterX - turretX);
-                
-                let angleDiff = Math.abs(truck.turretAngle - angleToZombie);
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                angleDiff = Math.abs(angleDiff);
-
-                const distToTurret = Math.hypot(zCenterX - turretX, zCenterY - turretY);
-
-                if (angleDiff < 0.65 && distToTurret < 900) {
-                    z.hp -= 12; // Reduced damage output
-                    for (let p = 0; p < 3; p++) {
-                        particles.push({
-                            x: zCenterX,
-                            y: zCenterY,
-                            vx: (Math.random() - 0.5) * 4,
-                            vy: (Math.random() - 0.5) * 4,
-                            size: Math.random() * 4 + 2,
-                            color: '#ef4444',
-                            life: 15
-                        });
-                    }
-
-                    if (z.hp <= 0 && !z.dead) {
-                        z.dead = true;
-                        kills++;
-                    }
-                }
-            });
-        }
-
-        let zombieSpawnTimer = 0;
-        let obstacleSpawnTimer = 0;
-
-        function updateSpawns() {
-            zombieSpawnTimer++;
-            const spawnInterval = Math.max(12, 35 - Math.floor(distance / 60));
-            if (zombieSpawnTimer > spawnInterval) {
-                zombieSpawnTimer = 0;
-                
-                const roadY = canvas.height / 2 - 250;
-                const roadHeight = 500;
-
-                // 1. Chasing Zombies from Behind (Left side) - Tougher HP, slower speed
-                zombies.push({
-                    x: -100,
-                    y: roadY + 30 + Math.random() * (roadHeight - 100),
-                    width: 48,
-                    height: 56,
-                    hp: 50,
-                    maxHp: 50,
-                    speed: 1.0,
-                    type: 'chaser',
-                    dead: false,
-                    attackCooldown: 0
-                });
-
-                // 2. Standing Zombies Ahead (Right side, non-moving) - Tougher HP
-                if (Math.random() > 0.4) {
-                    zombies.push({
-                        x: canvas.width + 100 + Math.random() * 200,
-                        y: roadY + 30 + Math.random() * (roadHeight - 100),
-                        width: 48,
-                        height: 56,
-                        hp: 40,
-                        maxHp: 40,
-                        speed: 0,
-                        type: 'standing',
-                        dead: false,
-                        attackCooldown: 0
-                    });
-                }
-            }
-
-            obstacleSpawnTimer++;
-            if (obstacleSpawnTimer > 900) { // Rarer obstacles
-                obstacleSpawnTimer = 0;
-                const roadY = canvas.height / 2 - 250;
-                const roadHeight = 500;
-                const obsHeight = roadHeight / 3; // covers 1/3 road height
-                const obsX = canvas.width + 150;
-                const obsY = roadY + Math.random() * (roadHeight - obsHeight);
-
-                roadObstacles.push({
-                    x: obsX,
-                    y: obsY,
-                    width: 100,
-                    height: obsHeight
-                });
-
-                // Rare power-up spawn near obstacle (15% chance)
-                if (Math.random() < 0.15) {
-                    const powerUpType = Math.random() > 0.5 ? 'health' : 'ammo';
-                    powerUps.push({
-                        x: obsX + 30,
-                        y: obsY > roadY + 200 ? obsY - 50 : obsY + obsHeight + 20,
-                        width: 36,
-                        height: 36,
-                        type: powerUpType
-                    });
-                }
-            }
-        }
-
-        function updateGame() {
-            if (gameState !== 'PLAYING') return;
-
-            pollRemoteInputs();
-
-            distance += truck.speed * 0.1;
-            if (infiniteAmmoTimer > 0) infiniteAmmoTimer--;
-
-            const roadY = canvas.height / 2 - 250;
-            const roadHeight = 500;
-
-            // Player 1 Steering (Up, Down, Left, Right within boundaries)
-            if (keys.w) truck.y -= 4.2;
-            if (keys.s) truck.y += 4.2;
-            if (keys.a) truck.x -= 4.2;
-            if (keys.d) truck.x += 4.2;
-
-            const minX = 60;
-            const maxX = canvas.width - 240;
-            const minY = roadY + 15;
-            const maxY = roadY + roadHeight - truck.height - 15;
-
-            truck.x = Math.max(minX, Math.min(maxX, truck.x));
-            truck.y = Math.max(minY, Math.min(maxY, truck.y));
-
-            // Player 2 Turret Firing
-            if (gunnerFiring) {
-                shootTurret();
-            }
-
-            if (weapon.reloadTime > 0) {
-                weapon.reloadTime--;
-                if (weapon.reloadTime === 0) {
-                    weapon.ammo = weapon.maxAmmo;
-                    showNotification("TURRET RELOADED!");
-                }
-            }
-
-            if (weapon.fireCooldown > 0) weapon.fireCooldown--;
-
-            updateSpawns();
-
-            // Check Power-ups collision
-            for (let i = powerUps.length - 1; i >= 0; i--) {
-                const p = powerUps[i];
-                p.x -= truck.speed * 2.5;
-
-                if (
-                    p.x < truck.x + truck.width &&
-                    p.x + p.width > truck.x &&
-                    p.y < truck.y + truck.height &&
-                    p.y + p.height > truck.y
-                ) {
-                    if (p.type === 'health') {
-                        truck.hp = Math.min(truck.maxHp, truck.hp + 35);
-                        showNotification("POWER-UP: +35 BUS HP!");
-                    } else {
-                        infiniteAmmoTimer = 350; // ~6 seconds infinite ammo
-                        weapon.ammo = weapon.maxAmmo;
-                        showNotification("POWER-UP: INFINITE AMMO!");
-                    }
-                    powerUps.splice(i, 1);
-                    continue;
-                }
-                if (p.x < -100) powerUps.splice(i, 1);
-            }
-
-            // Stationary Road Obstacles (Do not move left)
-            for (let i = roadObstacles.length - 1; i >= 0; i--) {
-                const obs = roadObstacles[i];
-                // Obstacles stay fixed on road
-
-                if (
-                    obs.x < truck.x + truck.width &&
-                    obs.x + obs.width > truck.x &&
-                    obs.y < truck.y + truck.height &&
-                    obs.y + obs.height > truck.y
-                ) {
-                    truck.hp -= 25;
-                    showNotification("HIT ROAD BLOCKADE!");
-                    roadObstacles.splice(i, 1);
-                    if (truck.hp <= 0) triggerGameOver();
-                    continue;
-                }
-
-                if (obs.x < -150) roadObstacles.splice(i, 1);
-            }
-
-            // Zombies logic
-            for (let i = zombies.length - 1; i >= 0; i--) {
-                const z = zombies[i];
-                if (z.dead) {
-                    zombies.splice(i, 1);
-                    continue;
-                }
-
-                if (z.type === 'chaser') {
-                    // Chasing actively from behind
-                    const targetX = truck.x + truck.width / 2;
-                    const targetY = truck.y + truck.height / 2;
-                    const dx = targetX - (z.x + z.width / 2);
-                    const dy = targetY - (z.y + z.height / 2);
-                    const angle = Math.atan2(dy, dx);
-                    
-                    z.x += Math.cos(angle) * (z.speed + truck.speed * 0.4);
-                    z.y += Math.sin(angle) * z.speed;
-                } else {
-                    // Standing zombies ahead scroll leftwards
-                    z.x -= truck.speed * 2.5;
-                }
-
-                if (
-                    z.x < truck.x + truck.width &&
-                    z.x + z.width > truck.x &&
-                    z.y < truck.y + truck.height &&
-                    z.y + z.height > truck.y
-                ) {
-                    z.attackCooldown++;
-                    if (z.attackCooldown > 35) {
-                        z.attackCooldown = 0;
-                        truck.hp -= 10;
-                        showNotification("ZOMBIE ATTACKING BUS!");
-                        if (truck.hp <= 0) triggerGameOver();
-                    }
-                }
-
-                if (z.x < -150 || z.x > canvas.width + 300) {
-                    zombies.splice(i, 1);
-                }
-            }
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-
+            gameData.lastTime = performance.now();
             updateHUD();
         }
 
-        function updateHUD() {
-            const distEl = document.getElementById('hud-distance');
-            const killsEl = document.getElementById('hud-kills');
-            if(distEl) distEl.innerText = Math.floor(distance) + ' m';
-            if(killsEl) killsEl.innerText = kills;
-
-            const hpPercent = Math.max(0, (truck.hp / truck.maxHp) * 100);
-            const hpBar = document.getElementById('truck-hp-bar');
-            const hpText = document.getElementById('truck-hp-text');
-            if(hpBar) hpBar.style.width = hpPercent + '%';
-            if(hpText) hpText.innerText = Math.ceil(truck.hp) + ' / ' + truck.maxHp;
-
-            const ammoPercent = infiniteAmmoTimer > 0 ? 100 : (weapon.ammo / weapon.maxAmmo) * 100;
-            const ammoBar = document.getElementById('gun-ammo-bar');
-            const ammoText = document.getElementById('gun-ammo-text');
-            if(ammoBar) ammoBar.style.width = ammoPercent + '%';
-            if(ammoText) ammoText.innerText = infiniteAmmoTimer > 0 ? 'INF' : (weapon.ammo + ' / ' + weapon.maxAmmo);
+        function gameLoop(currentTime) {
+            if (currentGameState !== 'playing') return;
+            
+            const deltaTime = currentTime - gameData.lastTime;
+            gameData.lastTime = currentTime;
+            
+            updateWorld(deltaTime);
+            drawWorld();
+            
+            mainLoopId = requestAnimationFrame(gameLoop);
         }
 
-        function triggerGameOver() {
-            gameState = 'GAMEOVER';
-            document.getElementById('end-distance').innerText = Math.floor(distance) + ' m';
-            document.getElementById('end-kills').innerText = kills;
-            document.getElementById('gameOverModal').classList.remove('hidden');
-        }
+        function updateWorld(dt) {
+            if (!dt) return;
+            
+            gameData.timeElapsed += dt;
+            gameData.score += (gameData.roadSpeed * dt) / 1000;
+            gameData.roadSpeed = gameData.baseSpeed + (gameData.timeElapsed / 10000); // gets faster every 10s
 
-        function drawScene() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Update UI Speed
+            if (gameData.timeElapsed % 500 < 50) updateHUD();
 
-            const roadY = canvas.height / 2 - 250;
-            const roadHeight = 500;
+            // 1. Update Motor (P1 Input)
+            if (p1Input.up) gameData.motor.y -= gameData.motor.speed;
+            if (p1Input.down) gameData.motor.y += gameData.motor.speed;
+            if (p1Input.left) gameData.motor.x -= gameData.motor.speed;
+            if (p1Input.right) gameData.motor.x += gameData.motor.speed;
 
-            // Background
-            ctx.fillStyle = '#090d16';
-            ctx.fillRect(0, 0, canvas.width, roadY);
-            ctx.fillStyle = '#020408';
-            ctx.fillRect(0, roadY + roadHeight, canvas.width, canvas.height - (roadY + roadHeight));
+            // Constrain motor to screen (keep it away from far right edges to see obstacles)
+            gameData.motor.x = Math.max(100, Math.min(gameData.motor.x, canvas.width * 0.6));
+            gameData.motor.y = Math.max(50, Math.min(gameData.motor.y, canvas.height - 50));
 
-            // Wide asphalt road
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(0, roadY, canvas.width, roadHeight);
+            // Invuln timer decrease
+            if (gameData.motor.invulnTimer > 0) {
+                gameData.motor.invulnTimer -= dt;
+            }
 
-            // Boundary lines on both ends
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, roadY);
-            ctx.lineTo(canvas.width, roadY);
-            ctx.moveTo(0, roadY + roadHeight);
-            ctx.lineTo(canvas.width, roadY + roadHeight);
-            ctx.stroke();
+            // 2. Road Scrolling
+            gameData.roadLines.forEach(line => {
+                line.x -= gameData.roadSpeed;
+                if (line.x < -100) line.x = canvas.width;
+            });
 
-            // High-velocity visual road dashes
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 6;
-            ctx.setLineDash([90, 40]);
-            ctx.lineDashOffset = (distance * 35) % 130;
-            ctx.beginPath();
-            ctx.moveTo(0, roadY + roadHeight / 2);
-            ctx.lineTo(canvas.width, roadY + roadHeight / 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Render Stationary Road Obstacles (1/3 road height)
-            roadObstacles.forEach(obs => {
-                ctx.fillStyle = '#450a0a';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.fillStyle = '#7f1d1d';
-                ctx.fillRect(obs.x + 6, obs.y + 6, obs.width - 12, obs.height - 12);
+            // 3. Shooting (P2 Input)
+            if (p2Input.isShooting && (performance.now() - gameData.lastShotTime > gameData.shootCooldown)) {
+                // Determine direction from angle. Note: angle from joystick where 0 is right, Math.PI is left
+                let dx = Math.cos(p2Input.angle) * 15;
+                let dy = Math.sin(p2Input.angle) * 15;
                 
-                ctx.fillStyle = '#f87171';
-                ctx.font = '24px FontAwesome';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('\uf071', obs.x + obs.width / 2, obs.y + obs.height / 2);
-            });
+                gameData.projectiles.push({
+                    x: gameData.motor.x,
+                    y: gameData.motor.y,
+                    vx: dx, vy: dy,
+                    radius: 5
+                });
+                gameData.lastShotTime = performance.now();
+            }
 
-            // Render Power-ups
-            powerUps.forEach(p => {
-                ctx.save();
-                ctx.translate(p.x, p.y);
-                ctx.fillStyle = p.type === 'health' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(56, 189, 248, 0.3)';
-                ctx.beginPath();
-                ctx.arc(p.width / 2, p.height / 2, p.width, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = p.type === 'health' ? '#059669' : '#0284c7';
-                ctx.fillRect(0, 0, p.width, p.height);
-                ctx.strokeStyle = p.type === 'health' ? '#34d399' : '#38bdf8';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(0, 0, p.width, p.height);
-
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '16px FontAwesome';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(p.type === 'health' ? '\uf0fa' : '\uf0e7', p.width / 2, p.height / 2);
-                ctx.restore();
-            });
-
-            // Render Zombies
-            zombies.forEach(z => {
-                ctx.save();
-                ctx.translate(z.x, z.y);
-
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(4, z.height - 4, z.width - 8, 8);
-
-                ctx.fillStyle = z.type === 'chaser' ? '#65a30d' : '#854d0e';
-                ctx.fillRect(4, 12, z.width - 8, z.height - 14);
-
-                ctx.fillStyle = z.type === 'chaser' ? '#a3e635' : '#ca8a04';
-                ctx.fillRect(6, 0, z.width - 12, 18);
-
-                ctx.fillStyle = '#0f172a';
-                ctx.font = '16px FontAwesome';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(z.type === 'chaser' ? '\uf714' : '\uf556', z.width / 2, z.height / 2);
-
-                if (z.hp < z.maxHp) {
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(0, -10, z.width, 5);
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(0, -10, z.width * (z.hp / z.maxHp), 5);
+            // 4. Update Projectiles
+            for (let i = gameData.projectiles.length - 1; i >= 0; i--) {
+                let p = gameData.projectiles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                    gameData.projectiles.splice(i, 1);
                 }
+            }
 
-                ctx.restore();
-            });
+            // 5. Spawn Entities
+            gameData.hordeSpawnTimer -= dt;
+            if (gameData.hordeSpawnTimer <= 0) {
+                // Spawn horde from left
+                gameData.horde.push({
+                    x: -50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    radius: 15,
+                    speed: gameData.roadSpeed + (Math.random() * 1.5 + 0.5), // Catch up speed
+                    hp: 1
+                });
+                // Spawn frequency increases slightly
+                gameData.hordeSpawnTimer = Math.max(500, 2000 - (gameData.timeElapsed / 20));
+            }
 
-            // Render Armored Bus Vehicle
-            ctx.save();
-            ctx.translate(truck.x, truck.y);
+            gameData.obstacleSpawnTimer -= dt;
+            if (gameData.obstacleSpawnTimer <= 0) {
+                let isRoadblock = Math.random() > 0.5;
+                let size = isRoadblock ? 60 : 30;
+                gameData.obstacles.push({
+                    x: canvas.width + 50,
+                    y: Math.random() * (canvas.height - 150) + 75,
+                    width: size, height: size,
+                    type: isRoadblock ? 'roadblock' : 'zombie_stand',
+                    hp: isRoadblock ? 999 : 2 // roadblock invincible
+                });
+                gameData.obstacleSpawnTimer = Math.max(800, 2500 - (gameData.timeElapsed / 30));
+            }
 
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(10, truck.height - 5, truck.width - 20, 15);
+            // 6. Update Entities & Collisions
+            updateHorde();
+            updateObstacles();
 
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(0, 0, truck.width, truck.height);
-
-            ctx.fillStyle = '#334155';
-            ctx.fillRect(6, 6, truck.width - 12, truck.height - 12);
-
-            ctx.fillStyle = '#b91c1c';
-            ctx.fillRect(10, truck.height / 2 - 8, truck.width - 20, 16);
-
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(12, -8, 24, 12);
-            ctx.fillRect(truck.width - 36, -8, 24, 12);
-            ctx.fillRect(12, truck.height - 4, 24, 12);
-            ctx.fillRect(truck.width - 36, truck.height - 4, 24, 12);
-
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(truck.width - 45, 12, 35, truck.height - 24);
-
-            const turretCenterX = truck.width / 2;
-            const turretCenterY = truck.height / 2;
-
-            ctx.fillStyle = '#475569';
-            ctx.beginPath();
-            ctx.arc(turretCenterX, turretCenterY, 22, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#94a3b8';
-            ctx.stroke();
-
-            ctx.save();
-            ctx.translate(turretCenterX, turretCenterY);
-            ctx.rotate(truck.turretAngle);
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(0, -7, 45, 14);
-            ctx.fillStyle = '#e2e8f0';
-            ctx.fillRect(35, -4, 15, 8);
-            ctx.restore();
-
-            ctx.restore();
-
-            // Particles
-            particles.forEach(p => {
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
-
-        function tvGameLoop() {
-            if (!isStandaloneController) {
-                updateGame();
-                drawScene();
-                requestAnimationFrame(tvGameLoop);
+            // Check game over
+            if (gameData.hp <= 0) {
+                endGame();
             }
         }
+
+        function updateHorde() {
+            for (let i = gameData.horde.length - 1; i >= 0; i--) {
+                let h = gameData.horde[i];
+                // Horde moves forward relative to screen, basically catching up
+                h.x += h.speed - (gameData.roadSpeed * 0.5); // Simulate them running fast
+                
+                // Bullet Collision (Horde)
+                for (let j = gameData.projectiles.length - 1; j >= 0; j--) {
+                    let p = gameData.projectiles[j];
+                    let dist = Math.hypot(h.x - p.x, h.y - p.y);
+                    if (dist < h.radius + p.radius) {
+                        h.hp--;
+                        gameData.projectiles.splice(j, 1);
+                        break;
+                    }
+                }
+
+                if (h.hp <= 0) {
+                    gameData.score += 10;
+                    gameData.horde.splice(i, 1);
+                    continue;
+                }
+
+                // Motor Collision (Horde touches motor from behind)
+                if (gameData.motor.invulnTimer <= 0) {
+                    // Simple AABB vs Circle
+                    let testX = h.x; let testY = h.y;
+                    let mx = gameData.motor.x - gameData.motor.width/2;
+                    let my = gameData.motor.y - gameData.motor.height/2;
+                    
+                    if (h.x < mx) testX = mx; else if (h.x > mx + gameData.motor.width) testX = mx + gameData.motor.width;
+                    if (h.y < my) testY = my; else if (h.y > my + gameData.motor.height) testY = my + gameData.motor.height;
+                    
+                    let distX = h.x - testX; let distY = h.y - testY;
+                    let distance = Math.sqrt((distX*distX) + (distY*distY));
+                    
+                    if (distance <= h.radius) {
+                        takeDamage(15);
+                        gameData.horde.splice(i, 1); // explode
+                    }
+                }
+            }
+        }
+
+        function updateObstacles() {
+            let mx = gameData.motor.x - gameData.motor.width/2;
+            let my = gameData.motor.y - gameData.motor.height/2;
+            let mw = gameData.motor.width;
+            let mh = gameData.motor.height;
+
+            for (let i = gameData.obstacles.length - 1; i >= 0; i--) {
+                let obs = gameData.obstacles[i];
+                obs.x -= gameData.roadSpeed; // Move left with road
+
+                // Bullet Collision (Standing Zombie)
+                if (obs.type === 'zombie_stand') {
+                    for (let j = gameData.projectiles.length - 1; j >= 0; j--) {
+                        let p = gameData.projectiles[j];
+                        if (p.x > obs.x && p.x < obs.x + obs.width && p.y > obs.y && p.y < obs.y + obs.height) {
+                            obs.hp--;
+                            gameData.projectiles.splice(j, 1);
+                            if (obs.hp <= 0) break;
+                        }
+                    }
+                }
+
+                if (obs.hp <= 0 && obs.type === 'zombie_stand') {
+                    gameData.score += 25;
+                    gameData.obstacles.splice(i, 1);
+                    continue;
+                }
+
+                // Cleanup if off screen
+                if (obs.x + obs.width < -100) {
+                    gameData.obstacles.splice(i, 1);
+                    continue;
+                }
+
+                // Motor Collision
+                if (gameData.motor.invulnTimer <= 0) {
+                    if (mx < obs.x + obs.width && mx + mw > obs.x &&
+                        my < obs.y + obs.height && my + mh > obs.y) {
+                        // Crash
+                        takeDamage(35);
+                    }
+                }
+            }
+        }
+
+        function takeDamage(amt) {
+            gameData.hp -= amt;
+            gameData.motor.invulnTimer = 3000; // 3 seconds I-frames
+            updateHUD();
+        }
+
+        async function endGame() {
+            if (!sessionRef) return;
+            try {
+                await updateDoc(sessionRef, { gameState: 'gameover' });
+            } catch(e) { console.error(e); }
+        }
+
+        function updateHUD() {
+            document.getElementById('ui-hp').textContent = Math.max(0, gameData.hp);
+            document.getElementById('ui-score').textContent = Math.floor(gameData.score);
+            document.getElementById('ui-speed').textContent = gameData.roadSpeed.toFixed(1) + 'x';
+            
+            // HP Color indicator
+            const hpEl = document.getElementById('ui-hp');
+            if (gameData.hp > 60) hpEl.className = 'text-green-400';
+            else if (gameData.hp > 30) hpEl.className = 'text-yellow-400';
+            else hpEl.className = 'text-red-500 animate-pulse';
+        }
+
+        function drawWorld() {
+            // Clear
+            ctx.fillStyle = '#292524'; // dark road color
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Road markings
+            ctx.fillStyle = '#78716c';
+            gameData.roadLines.forEach(line => {
+                ctx.fillRect(line.x, canvas.height/3, 80, 10);
+                ctx.fillRect(line.x, canvas.height*2/3, 80, 10);
+            });
+
+            // Draw Obstacles
+            gameData.obstacles.forEach(obs => {
+                if (obs.type === 'roadblock') {
+                    ctx.fillStyle = '#ea580c'; // orange
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    // Stripes
+                    ctx.fillStyle = '#171717'; // black
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, obs.y); ctx.lineTo(obs.x+20, obs.y);
+                    ctx.lineTo(obs.x, obs.y+20); ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x+obs.width, obs.y+obs.height); ctx.lineTo(obs.x+obs.width-20, obs.y+obs.height);
+                    ctx.lineTo(obs.x+obs.width, obs.y+obs.height-20); ctx.fill();
+                } else {
+                    // Standing Zombie
+                    ctx.fillStyle = '#16a34a'; // green
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    // Head/Eyes
+                    ctx.fillStyle = '#dc2626'; // red eyes
+                    ctx.fillRect(obs.x + 5, obs.y + 10, 5, 5);
+                }
+            });
+
+            // Draw Horde
+            gameData.horde.forEach(h => {
+                ctx.fillStyle = '#14532d'; // dark green
+                ctx.beginPath();
+                ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#fca5a5'; // angry eyes
+                ctx.beginPath();
+                ctx.arc(h.x+5, h.y-4, 3, 0, Math.PI*2);
+                ctx.arc(h.x+5, h.y+4, 3, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Draw Projectiles
+            ctx.fillStyle = '#fef08a';
+            gameData.projectiles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Draw Motor
+            let mx = gameData.motor.x;
+            let my = gameData.motor.y;
+            let mw = gameData.motor.width;
+            let mh = gameData.motor.height;
+
+            // Invuln effect
+            if (gameData.motor.invulnTimer > 0) {
+                ctx.globalAlpha = (Math.floor(gameData.timeElapsed / 100) % 2 === 0) ? 0.3 : 1.0;
+            }
+
+            // Chassis
+            ctx.fillStyle = '#2563eb'; // blue
+            ctx.fillRect(mx - mw/2, my - mh/2, mw, mh);
+            
+            // Wheels
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(mx - mw/2 + 5, my - mh/2 - 5, 15, 8); // top left
+            ctx.fillRect(mx + mw/2 - 20, my - mh/2 - 5, 15, 8); // top right
+            ctx.fillRect(mx - mw/2 + 5, my + mh/2 - 3, 15, 8); // bot left
+            ctx.fillRect(mx + mw/2 - 20, my + mh/2 - 3, 15, 8); // bot right
+            
+            // P1/P2 indicators on bike
+            ctx.fillStyle = '#3b82f6'; // P1 (driver)
+            ctx.beginPath(); ctx.arc(mx - 10, my, 8, 0, Math.PI*2); ctx.fill();
+            
+            ctx.fillStyle = '#ef4444'; // P2 (gunner)
+            ctx.beginPath(); ctx.arc(mx + 10, my, 8, 0, Math.PI*2); ctx.fill();
+
+            // Gun Barrel (Aiming)
+            if (p2Input.isShooting || p2Input.angle !== 0) {
+                ctx.strokeStyle = '#9ca3af'; // gray
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(mx + 10, my);
+                ctx.lineTo(mx + 10 + Math.cos(p2Input.angle)*25, my + Math.sin(p2Input.angle)*25);
+                ctx.stroke();
+            }
+
+            ctx.globalAlpha = 1.0;
+        }
+
+        /* 
+         * ==========================================
+         * CONTROLLER LOGIC (Common)
+         * ==========================================
+         */
+        function initControllerBase(roleName) {
+            if (!sessionId) {
+                alert("Missing Session ID!"); return;
+            }
+            const sessionsCol = collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
+            sessionRef = doc(sessionsCol, sessionId);
+
+            // Announce presence
+            updateDoc(sessionRef, { [`${roleName}Status`]: 'connected' }).catch(console.error);
+
+            // Listen to game state
+            onSnapshot(sessionRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const lobbyView = document.getElementById(`${roleName}-lobby`);
+                    const controlsView = document.getElementById(`${roleName}-controls`);
+                    const startBtn = document.getElementById(`${roleName}-btn-start`);
+
+                    if (data.gameState === 'waiting') {
+                        lobbyView.classList.remove('hidden');
+                        controlsView.classList.add('hidden');
+                        startBtn.textContent = 'START GAME';
+                    } else if (data.gameState === 'playing') {
+                        lobbyView.classList.add('hidden');
+                        controlsView.classList.replace('hidden', 'flex'); // Tailwind classes logic
+                    } else if (data.gameState === 'gameover') {
+                        lobbyView.classList.remove('hidden');
+                        controlsView.classList.add('hidden');
+                        startBtn.textContent = 'RESTART GAME';
+                    }
+                }
+            }, (error) => console.error("Controller snap error:", error));
+
+            // Start Button Handler
+            document.getElementById(`${roleName}-btn-start`).addEventListener('click', async (e) => {
+                if (!user) return;
+                try {
+                    await updateDoc(sessionRef, { gameState: 'playing' });
+                } catch(err) { console.error(err); }
+            });
+        }
+
+        /* 
+         * ==========================================
+         * PLAYER 1 CONTROLLER (DPAD)
+         * ==========================================
+         */
+        function initP1Controller() {
+            initControllerBase('p1');
+            
+            const dirs = ['up', 'down', 'left', 'right'];
+            let currentInput = { up: false, down: false, left: false, right: false };
+
+            dirs.forEach(dir => {
+                const btn = document.getElementById(`dpad-${dir}`);
+                
+                const press = (e) => {
+                    e.preventDefault();
+                    if (!user) return;
+                    btn.classList.add('active');
+                    if (!currentInput[dir]) {
+                        currentInput[dir] = true;
+                        updateDoc(sessionRef, { [`p1.${dir}`]: true }).catch(console.error);
+                    }
+                };
+
+                const release = (e) => {
+                    e.preventDefault();
+                    if (!user) return;
+                    btn.classList.remove('active');
+                    if (currentInput[dir]) {
+                        currentInput[dir] = false;
+                        updateDoc(sessionRef, { [`p1.${dir}`]: false }).catch(console.error);
+                    }
+                };
+
+                btn.addEventListener('touchstart', press, {passive: false});
+                btn.addEventListener('touchend', release, {passive: false});
+                btn.addEventListener('touchcancel', release, {passive: false});
+                // Fallback for mouse
+                btn.addEventListener('mousedown', press);
+                btn.addEventListener('mouseup', release);
+                btn.addEventListener('mouseleave', release);
+            });
+        }
+
+        /* 
+         * ==========================================
+         * PLAYER 2 CONTROLLER (JOYSTICK)
+         * ==========================================
+         */
+        function initP2Controller() {
+            initControllerBase('p2');
+            
+            const zone = document.getElementById('joystick-zone');
+            const stick = document.getElementById('joystick-stick');
+            
+            let isDragging = false;
+            let lastUpdate = 0;
+            const THROTTLE_MS = 80; // Optimize Firestore writes
+            const maxDist = 125 - 40; // Base radius - stick radius
+            const center = { x: 0, y: 0 };
+
+            function getZoneCenter() {
+                const rect = zone.getBoundingClientRect();
+                return {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+            }
+
+            function handleMove(clientX, clientY) {
+                if (!isDragging || !user) return;
+                
+                const c = getZoneCenter();
+                const dx = clientX - c.x;
+                const dy = clientY - c.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                let angle = Math.atan2(dy, dx);
+
+                // Constrain stick visually
+                const displayDist = Math.min(distance, maxDist);
+                const stickX = Math.cos(angle) * displayDist;
+                const stickY = Math.sin(angle) * displayDist;
+                
+                stick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+
+                // Send to Firestore (Throttled)
+                if (Date.now() - lastUpdate > THROTTLE_MS) {
+                    updateDoc(sessionRef, { 
+                        'p2.isShooting': true,
+                        'p2.angle': angle 
+                    }).catch(console.error);
+                    lastUpdate = Date.now();
+                }
+            }
+
+            const startDrag = (e) => {
+                e.preventDefault();
+                isDragging = true;
+                const touch = e.type.includes('touch') ? e.touches[0] : e;
+                handleMove(touch.clientX, touch.clientY);
+                stick.style.transition = 'none';
+            };
+
+            const doDrag = (e) => {
+                e.preventDefault();
+                if (!isDragging) return;
+                const touch = e.type.includes('touch') ? e.touches[0] : e;
+                handleMove(touch.clientX, touch.clientY);
+            };
+
+            const endDrag = (e) => {
+                e.preventDefault();
+                if (!isDragging) return;
+                isDragging = false;
+                stick.style.transform = `translate(-50%, -50%)`;
+                stick.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; // snap back
+                
+                if (user) {
+                    updateDoc(sessionRef, { 'p2.isShooting': false }).catch(console.error);
+                }
+            };
+
+            zone.addEventListener('touchstart', startDrag, {passive: false});
+            window.addEventListener('touchmove', doDrag, {passive: false});
+            window.addEventListener('touchend', endDrag, {passive: false});
+            
+            // Mouse fallbacks
+            zone.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', endDrag);
+        }
+
     </script>
 </body>
 </html>
