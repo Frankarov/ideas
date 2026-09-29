@@ -154,14 +154,22 @@
         }
 
         function checkWin(grid, levelIndex) {
-            let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, levelIndex);
             let size = grid.length;
-            let rowCount = lockedRows.filter(Boolean).length;
-            let colCount = lockedCols.filter(Boolean).length;
+            let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, levelIndex);
             
-            // Win condition: ALL rows AND ALL columns must be successfully matched and locked!
-            let isWon = (rowCount === size && colCount === size);
-            return { isWon, rowCount, colCount };
+            // Bulletproof win check: Every single tile position (r, c) must belong to either a locked row OR a locked column!
+            let allTilesGreen = true;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    if (!lockedRows[r] && !lockedCols[c]) {
+                        allTilesGreen = false;
+                        break;
+                    }
+                }
+                if (!allTilesGreen) break;
+            }
+
+            return { isWon: allTilesGreen, rowCount: lockedRows.filter(Boolean).length, colCount: lockedCols.filter(Boolean).length };
         }
 
         function vibrate(pattern = 50) {
