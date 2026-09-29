@@ -164,9 +164,21 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==========================================
+        // FIREBASE SETUP - ADD YOUR CONFIG HERE IF DEPLOYING
+        // ==========================================
+        const defaultFirebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
         // Firebase Setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'moto-survival-custom';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : defaultFirebaseConfig;
         let app, db, auth, user;
 
         try {
@@ -208,7 +220,24 @@
                 }
             } catch (error) {
                 console.error("Auth error:", error);
-                document.body.innerHTML = `<div class="text-white p-10 text-center">Failed to connect to servers.</div>`;
+                document.body.innerHTML = `
+                <div class="text-white p-10 flex flex-col items-center text-center mt-10 max-w-2xl mx-auto font-sans">
+                    <h2 class="text-3xl text-red-500 font-black mb-6">CONNECTION FAILED</h2>
+                    <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 text-left shadow-2xl">
+                        <p class="text-gray-300 mb-6 text-lg">
+                            <strong>Did you deploy this game externally (e.g., GitHub Pages)?</strong><br><br>
+                            This game relies on Firebase for multiplayer syncing. The preview environment automatically injects a temporary database, but external deployments require your own backend.
+                        </p>
+                        <ol class="list-decimal ml-6 text-gray-400 space-y-4 mb-6">
+                            <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" class="text-blue-400 underline font-bold hover:text-blue-300">Firebase Console</a> and create a free project.</li>
+                            <li>Go to <strong>Authentication</strong> and enable <strong>Anonymous</strong> sign-in.</li>
+                            <li>Go to <strong>Firestore Database</strong> and create a database (start in <strong>Test Mode</strong>).</li>
+                            <li>Go to Project Settings, add a Web App, and copy your <code>firebaseConfig</code> object.</li>
+                            <li>Open your <code>index.html</code> file, find <code>defaultFirebaseConfig</code>, and replace the placeholder values with yours!</li>
+                        </ol>
+                        <p class="text-red-400 mt-6 text-sm font-mono bg-gray-900 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-red-900/50">Error details: ${error.message}</p>
+                    </div>
+                </div>`;
             }
         }
 
