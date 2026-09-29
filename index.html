@@ -3,835 +3,539 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Co-op Moto Zombie Survival</title>
+    <title>Emoji Swap Multiplayer Puzzle</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PeerJS for WebRTC communication -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
-    <!-- QRCode for generating connect links -->
+    
+    <!-- QR Code Generator Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- NippleJS for joystick -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
-
+    
     <style>
-        body { margin: 0; overflow: hidden; background-color: #1a202c; color: white; font-family: 'Inter', sans-serif; touch-action: none; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        .hidden { display: none !important; }
-        
-        /* Controller Specific Styles */
-        #controller-ui { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #2d3748; }
-        .dpad { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 10px; width: 250px; height: 250px; }
-        .dpad-btn { background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 2rem; color: white; user-select: none; }
-        .dpad-btn:active, .dpad-btn.active { background: rgba(255, 255, 255, 0.4); }
-        .dpad-up { grid-column: 2; grid-row: 1; }
-        .dpad-left { grid-column: 1; grid-row: 2; }
-        .dpad-right { grid-column: 3; grid-row: 2; }
-        .dpad-down { grid-column: 2; grid-row: 3; }
-
-        #joystick-zone { width: 300px; height: 300px; position: relative; background: rgba(0, 0, 0, 0.2); border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); }
-        
-        /* Lobby Styles */
-        #lobby { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); z-index: 10; }
-        .qr-container { display: flex; gap: 40px; margin-top: 20px; }
-        .qr-box { background: white; padding: 15px; border-radius: 10px; text-align: center; color: black; }
-        .qr-box p { font-weight: bold; margin-bottom: 10px; }
-        
-        /* UI Overlays */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #hp-bar-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; height: 20px; background: rgba(255,0,0,0.3); border-radius: 10px; border: 2px solid white; overflow: hidden; }
-        #hp-bar { width: 100%; height: 100%; background: #48bb78; transition: width 0.2s, background-color 0.2s; }
-        #score-display { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-size: 1.5rem; font-weight: bold; text-shadow: 2px 2px 4px black; }
-        #game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 20px; border: 2px solid red; display: none; }
-        
-        .status-text { font-size: 1.2rem; margin-top: 10px; color: #a0aec0; }
-        .connected-text { color: #48bb78 !important; }
-    </style>
-</head>
-<body>
-
-    <div id="lobby" class="hidden">
-        <h1 class="text-4xl font-bold mb-4">Co-op Survival</h1>
-        <p class="text-xl mb-8">Scan QR codes to join</p>
-        <div class="qr-container">
-            <div class="qr-box">
-                <p>Player 1 (Driver)</p>
-                <div id="qr-p1"></div>
-                <div id="status-p1" class="status-text">Waiting...</div>
-            </div>
-            <div class="qr-box">
-                <p>Player 2 (Gunner)</p>
-                <div id="qr-p2"></div>
-                <div id="status-p2" class="status-text">Waiting...</div>
-            </div>
-        </div>
-        <p class="mt-8 text-gray-400">Game starts automatically when both players connect.</p>
-        
-        <div id="fallback-ui" class="hidden mt-8 text-center bg-red-900 bg-opacity-50 p-6 rounded-lg border border-red-500 max-w-md">
-            <p class="text-red-300 mb-2 font-bold">Preview Environment Restriction</p>
-            <p class="text-gray-300 mb-4 text-sm">WebSockets are blocked in this preview sandbox, which prevents PeerJS from connecting. The QR codes will work perfectly once deployed to GitHub Pages!</p>
-            <button id="btn-local-mode" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded font-bold text-white transition shadow-lg w-full">Play Local Test Mode (Keyboard/Mouse)</button>
-            <p class="text-gray-400 mt-2 text-xs">P1: WASD to Move | P2: Mouse to Aim & Click to Shoot</p>
-        </div>
-    </div>
-
-    <div id="game-container" class="hidden relative w-full h-full">
-        <canvas id="gameCanvas"></canvas>
-        <div id="ui-layer">
-            <div id="hp-bar-container"><div id="hp-bar"></div></div>
-            <div id="score-display">Distance: 0m</div>
-            <div id="game-over">
-                <h2 class="text-5xl font-bold text-red-500 mb-4">YOU DIED</h2>
-                <p id="final-score" class="text-2xl mb-6">Distance: 0m</p>
-                <p class="text-gray-400">Restart Host to play again.</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="controller-ui" class="hidden">
-        <div id="controller-status" class="mb-4 text-xl font-bold">Connecting...</div>
-        
-        <!-- Player 1 D-PAD -->
-        <div id="p1-controls" class="hidden">
-            <h2 class="text-2xl mb-8 text-center font-bold text-blue-400">DRIVER</h2>
-            <div class="dpad">
-                <div class="dpad-btn dpad-up" id="btn-up">W</div>
-                <div class="dpad-btn dpad-left" id="btn-left">A</div>
-                <div class="dpad-btn dpad-right" id="btn-right">D</div>
-                <div class="dpad-btn dpad-down" id="btn-down">S</div>
-            </div>
-        </div>
-
-        <!-- Player 2 Joystick -->
-        <div id="p2-controls" class="hidden">
-            <h2 class="text-2xl mb-8 text-center font-bold text-green-400">GUNNER</h2>
-            <div id="joystick-zone"></div>
-        </div>
-    </div>
-
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const hostIdToConnect = urlParams.get('host');
-        const playerNum = urlParams.get('player');
-        const isHost = !hostIdToConnect;
-
-        // PeerJS Setup
-        let peer;
-        let connP1 = null;
-        let connP2 = null;
-
-        // Game State (Host only)
-        let gameState = {
-            status: 'lobby', // lobby, playing, gameover
-            speedMultiplier: 1,
-            distance: 0,
-            moto: { x: 0, y: 0, hp: 100, maxHp: 100, width: 80, height: 40, invincible: 0 },
-            projectiles: [],
-            obstacles: [],
-            particles: [],
-            hordeX: 0, // Distance of horde from left (0 = offscreen left, increases as they get closer)
-            lastShotTime: 0
-        };
-
-        // Input State
-        let inputP1 = { up: false, down: false, left: false, right: false };
-        let inputP2 = { shooting: false, angle: 0 };
-        let isLocalMode = false;
-
-        if (isHost) {
-            initHost();
-        } else {
-            initController();
+        /* Base styles to prevent mobile browser weirdness */
+        body {
+            touch-action: none; /* Prevent pull-to-refresh and zooming */
+            user-select: none;  /* Prevent text selection */
+            -webkit-user-select: none;
         }
 
-        function initHost() {
-            document.getElementById('lobby').classList.remove('hidden');
-            
-            // Generate random ID for host
-            const hostId = 'coop-moto-' + Math.random().toString(36).substr(2, 9);
-            
+        /* Smooth tile transitions */
+        .tile {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Pulsing animation for selected tiles */
+        @keyframes pulse-border-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        @keyframes pulse-border-blue {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .selected-p1 { animation: pulse-border-red 1.5s infinite; z-index: 20; background-color: rgba(239, 68, 68, 0.2); }
+        .selected-p2 { animation: pulse-border-blue 1.5s infinite; z-index: 20; background-color: rgba(59, 130, 246, 0.2); }
+        
+        .cursor-p1 { border: 4px solid #ef4444; z-index: 10; box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.5); }
+        .cursor-p2 { border: 4px solid #3b82f6; z-index: 10; box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.5); }
+        
+        /* Mobile Controller buttons active state */
+        .ctrl-btn:active {
+            transform: scale(0.95);
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen font-sans flex flex-col items-center justify-center overflow-hidden">
+
+    <!-- Container for dynamic UI insertion -->
+    <div id="app" class="w-full h-full flex items-center justify-center absolute inset-0">
+        <div class="text-2xl animate-pulse text-gray-400">Loading Game Engine...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ============================================================================
+        // DEPLOYMENT NOTE FOR GITHUB PAGES:
+        // Replace the default structure below with your actual Firebase Configuration.
+        // ============================================================================
+        const defaultFirebaseConfig = {
+            // INSERT YOUR FIREBASE CONFIG HERE WHEN DEPLOYING TO GITHUB PAGES
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Auto-detect immersive environment vs standalone
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : defaultFirebaseConfig;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'emoji-swap-multiplayer';
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const CATEGORIES = [
+            ['🐶', '🐱', '🐭', '🐰'], // Animals
+            ['🍎', '🍌', '🍇', '🍉'], // Fruits
+            ['🚗', '🚕', '🚙', '🚌'], // Vehicles
+            ['⚽', '🏀', '🏈', '⚾']  // Sports
+        ];
+
+        // Generate a flat, shuffled array of all 16 emojis
+        function generateShuffledGrid() {
+            let emojis = CATEGORIES.flat();
+            for (let i = emojis.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
+            }
+            // Convert to 4x4 2D array stored as flat arrays or objects for Firestore compatibility
+            const grid = [];
+            for (let i = 0; i < 4; i++) {
+                grid.push(emojis.slice(i * 4, i * 4 + 4));
+            }
+            return grid;
+        }
+
+        // Helper to convert 2D array to flat object or arrays for Firestore
+        // Firestore supports arrays, but NOT nested arrays (array inside an array).
+        // A 4x4 grid is an array of 4 arrays, which is a nested array!
+        // We will store grid as an array of 4 strings or flat array of 16 items, or 4 flat sub-arrays.
+        // Wait, an array of 4 arrays is indeed nested. To make Firestore happy, we can store it as 16 items or 4 string rows (e.g. "🍎,🍌,🍇,🍉").
+        function gridToFirestore(grid) {
+            return grid.map(row => row.join(','));
+        }
+
+        function gridFromFirestore(storedGrid) {
+            if (!storedGrid) return generateShuffledGrid();
+            if (Array.isArray(storedGrid) && typeof storedGrid[0] === 'string') {
+                return storedGrid.map(rowStr => rowStr.split(','));
+            }
+            return storedGrid; // fallback
+        }
+
+        // Check if the board has been solved (rows or columns perfectly categorized)
+        function checkWin(grid) {
+            function getCatIndex(emoji) {
+                return CATEGORIES.findIndex(cat => cat.includes(emoji));
+            }
+
+            // Check if rows are perfectly categorized and unique
+            let rowsWin = true;
+            let usedRowCats = new Set();
+            for (let r = 0; r < 4; r++) {
+                let cat = getCatIndex(grid[r][0]);
+                usedRowCats.add(cat);
+                for (let c = 1; c < 4; c++) {
+                    if (getCatIndex(grid[r][c]) !== cat) rowsWin = false;
+                }
+            }
+            if (rowsWin && usedRowCats.size === 4) return true;
+
+            // Check if columns are perfectly categorized and unique
+            let colsWin = true;
+            let usedColCats = new Set();
+            for (let c = 0; c < 4; c++) {
+                let cat = getCatIndex(grid[0][c]);
+                usedColCats.add(cat);
+                for (let r = 1; r < 4; r++) {
+                    if (getCatIndex(grid[r][c]) !== cat) colsWin = false;
+                }
+            }
+            if (colsWin && usedColCats.size === 4) return true;
+
+            return false;
+        }
+
+        // Utility to generate a short random session ID
+        function generateSessionId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // Haptic feedback utility
+        function vibrate(pattern = 50) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // Entry Point
+        async function init() {
+            // Ensure Authentication before any Firestore operation (RULE 3)
             try {
-                peer = new Peer(hostId, {
-                    debug: 2
-                });
-            } catch (e) {
-                console.error("PeerJS Sync Error:", e);
-                showFallbackUI();
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                document.getElementById('app').innerHTML = `<div class="text-red-500">Auth Error: ${err.message}. Please configure Firebase correctly for GitHub Pages.</div>`;
                 return;
             }
 
-            // Fallback for async WebSocket strict blocking in preview environments
-            window.addEventListener('error', function(e) {
-                if(e.message && (e.message.includes('WebSocket') || e.message.includes('SecurityError'))) {
-                    if (gameState.status === 'lobby') showFallbackUI();
-                }
-            });
-            window.addEventListener('unhandledrejection', function(e) {
-                if(e.reason && (e.reason.toString().includes('SecurityError') || e.reason.toString().includes('WebSocket'))) {
-                    if (gameState.status === 'lobby') showFallbackUI();
-                }
-            });
+            // Simple Client-Side Routing based on URL Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const view = urlParams.get('view');
+            const playerNum = urlParams.get('p');
+            const sessionId = urlParams.get('sid');
 
-            peer.on('open', (id) => {
-                console.log('Host created with ID:', id);
-                
-                const baseUrl = window.location.origin + window.location.pathname;
-                const p1Url = `${baseUrl}?host=${id}&player=1`;
-                const p2Url = `${baseUrl}?host=${id}&player=2`;
-
-                // Generate QRs
-                new QRCode(document.getElementById("qr-p1"), { text: p1Url, width: 200, height: 200 });
-                new QRCode(document.getElementById("qr-p2"), { text: p2Url, width: 200, height: 200 });
-            });
-
-            peer.on('connection', (conn) => {
-                conn.on('data', (data) => {
-                    if (data.type === 'register') {
-                        if (data.player === '1' && !connP1) {
-                            connP1 = conn;
-                            document.getElementById('status-p1').innerText = 'Connected!';
-                            document.getElementById('status-p1').classList.add('connected-text');
-                            conn.send({type: 'status', msg: 'Connected as Driver'});
-                            checkStartGame();
-                        } else if (data.player === '2' && !connP2) {
-                            connP2 = conn;
-                            document.getElementById('status-p2').innerText = 'Connected!';
-                            document.getElementById('status-p2').classList.add('connected-text');
-                            conn.send({type: 'status', msg: 'Connected as Gunner'});
-                            checkStartGame();
-                        } else {
-                            conn.send({type: 'error', msg: 'Slot already taken'});
-                            conn.close();
-                        }
-                    } else if (data.type === 'input') {
-                        if (conn === connP1) {
-                            inputP1 = data.state;
-                        } else if (conn === connP2) {
-                            inputP2 = data.state;
-                        }
-                    }
-                });
-
-                conn.on('close', () => {
-                    if (conn === connP1) {
-                        connP1 = null;
-                        document.getElementById('status-p1').innerText = 'Waiting...';
-                        document.getElementById('status-p1').classList.remove('connected-text');
-                    }
-                    if (conn === connP2) {
-                        connP2 = null;
-                        document.getElementById('status-p2').innerText = 'Waiting...';
-                        document.getElementById('status-p2').classList.remove('connected-text');
-                    }
-                    if(gameState.status === 'playing') gameOver();
-                });
-            });
-
-            peer.on('error', (err) => {
-                console.error("PeerJS Error:", err);
-                if (err.type === 'network' || err.type === 'server-error' || err.type === 'browser-incompatible' || (err.message && err.message.includes('WebSocket'))) {
-                     if (gameState.status === 'lobby') showFallbackUI();
-                }
-            });
-        }
-
-        function showFallbackUI() {
-            if(gameState.status !== 'lobby') return;
-            document.getElementById('fallback-ui').classList.remove('hidden');
-            document.getElementById('btn-local-mode').onclick = () => {
-                startLocalMode();
-            };
-        }
-
-        function startLocalMode() {
-            isLocalMode = true;
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('game-container').classList.remove('hidden');
-            
-            // Setup local keyboard/mouse listeners for testing
-            window.addEventListener('keydown', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w' || key === 'arrowup') inputP1.up = true;
-                if(key === 's' || key === 'arrowdown') inputP1.down = true;
-                if(key === 'a' || key === 'arrowleft') inputP1.left = true;
-                if(key === 'd' || key === 'arrowright') inputP1.right = true;
-            });
-            window.addEventListener('keyup', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w' || key === 'arrowup') inputP1.up = false;
-                if(key === 's' || key === 'arrowdown') inputP1.down = false;
-                if(key === 'a' || key === 'arrowleft') inputP1.left = false;
-                if(key === 'd' || key === 'arrowright') inputP1.right = false;
-            });
-
-            const canvas = document.getElementById('gameCanvas');
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-                
-                // Gunner is at moto.x - 15, moto.y
-                const dx = mouseX - (gameState.moto.x - 15);
-                const dy = mouseY - gameState.moto.y;
-                inputP2.angle = Math.atan2(-dy, dx); // Negative dy because canvas Y is down, standard math Y is up
-            });
-            
-            canvas.addEventListener('mousedown', (e) => {
-                inputP2.shooting = true;
-            });
-            canvas.addEventListener('mouseup', (e) => {
-                inputP2.shooting = false;
-            });
-
-            initGame();
-        }
-
-        function checkStartGame() {
-            if (connP1 && connP2 && gameState.status === 'lobby') {
-                document.getElementById('lobby').classList.add('hidden');
-                document.getElementById('game-container').classList.remove('hidden');
-                
-                // Notify controllers
-                connP1.send({type: 'start'});
-                connP2.send({type: 'start'});
-
-                initGame();
-            }
-        }
-
-        function initController() {
-            document.getElementById('controller-ui').classList.remove('hidden');
-            const statusEl = document.getElementById('controller-status');
-            
-            peer = new Peer({ debug: 2 });
-
-            peer.on('open', (id) => {
-                statusEl.innerText = `Connecting to Host...`;
-                const conn = peer.connect(hostIdToConnect);
-
-                conn.on('open', () => {
-                    statusEl.innerText = 'Connected. Waiting for game start...';
-                    conn.send({ type: 'register', player: playerNum });
-                    
-                    setupInputs(conn);
-                });
-
-                conn.on('data', (data) => {
-                    if (data.type === 'status') {
-                        statusEl.innerText = data.msg;
-                    } else if (data.type === 'start') {
-                        statusEl.classList.add('hidden');
-                        if (playerNum === '1') {
-                            document.getElementById('p1-controls').classList.remove('hidden');
-                        } else {
-                            document.getElementById('p2-controls').classList.remove('hidden');
-                            initJoystick(conn);
-                        }
-                    } else if (data.type === 'error') {
-                        statusEl.innerText = data.msg;
-                        statusEl.style.color = 'red';
-                    }
-                });
-
-                conn.on('close', () => {
-                    statusEl.innerText = 'Disconnected from host.';
-                    statusEl.classList.remove('hidden');
-                    document.getElementById('p1-controls').classList.add('hidden');
-                    document.getElementById('p2-controls').classList.add('hidden');
-                });
-            });
-            
-            peer.on('error', (err) => {
-                statusEl.innerText = 'Connection error: ' + err.type;
-                statusEl.style.color = 'red';
-            });
-        }
-
-        function setupInputs(conn) {
-            if (playerNum === '1') {
-                const btns = {
-                    'btn-up': 'up', 'btn-down': 'down', 'btn-left': 'left', 'btn-right': 'right'
-                };
-                
-                let p1State = { up: false, down: false, left: false, right: false };
-                
-                const sendInput = () => {
-                    if(conn.open) conn.send({ type: 'input', state: p1State });
-                };
-
-                for (let id in btns) {
-                    const el = document.getElementById(id);
-                    const key = btns[id];
-                    
-                    // Touch events
-                    el.addEventListener('touchstart', (e) => { e.preventDefault(); p1State[key] = true; el.classList.add('active'); sendInput(); });
-                    el.addEventListener('touchend', (e) => { e.preventDefault(); p1State[key] = false; el.classList.remove('active'); sendInput(); });
-                    
-                    // Mouse events for testing on desktop browser
-                    el.addEventListener('mousedown', (e) => { e.preventDefault(); p1State[key] = true; el.classList.add('active'); sendInput(); });
-                    el.addEventListener('mouseup', (e) => { e.preventDefault(); p1State[key] = false; el.classList.remove('active'); sendInput(); });
-                    el.addEventListener('mouseleave', (e) => { e.preventDefault(); p1State[key] = false; el.classList.remove('active'); sendInput(); });
-                }
-            }
-        }
-
-        function initJoystick(conn) {
-            const zone = document.getElementById('joystick-zone');
-            const manager = nipplejs.create({
-                zone: zone,
-                mode: 'static',
-                position: { left: '50%', top: '50%' },
-                color: 'rgba(255, 255, 255, 0.5)',
-                size: 150
-            });
-
-            let p2State = { shooting: false, angle: 0 };
-            
-            const sendInput = () => {
-                if(conn.open) conn.send({ type: 'input', state: p2State });
-            };
-
-            manager.on('move', (evt, data) => {
-                p2State.shooting = true;
-                p2State.angle = data.angle.radian;
-                sendInput();
-            });
-
-            manager.on('end', () => {
-                p2State.shooting = false;
-                sendInput();
-            });
-        }
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas ? canvas.getContext('2d') : null;
-        let lastTime = 0;
-        let animationFrameId;
-
-        // Assets (Procedural shapes/colors for this example)
-        const colors = {
-            bg: '#2d3748',
-            road: '#4a5568',
-            line: '#a0aec0',
-            moto: '#3182ce',
-            motoDetail: '#2b6cb0',
-            player1: '#63b3ed',
-            player2: '#68d391',
-            bullet: '#f6e05e',
-            zombie: '#48bb78',
-            zombieHorde: '#276749',
-            roadblock: '#ed8936'
-        };
-
-        function resizeCanvas() {
-            if(!canvas) return;
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if(gameState.status === 'lobby') {
-                // Initialize moto position center-left
-                gameState.moto.x = 250;
-                gameState.moto.y = canvas.height / 2;
-            }
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        function initGame() {
-            resizeCanvas();
-            gameState.status = 'playing';
-            gameState.moto.x = 250;
-            gameState.moto.y = canvas.height / 2;
-            gameState.moto.hp = 100;
-            gameState.distance = 0;
-            gameState.speedMultiplier = 1;
-            gameState.obstacles = [];
-            gameState.projectiles = [];
-            gameState.particles = [];
-            gameState.hordeX = -200; // Start offscreen left
-            
-            updateUI();
-            
-            lastTime = performance.now();
-            gameLoop(lastTime);
-        }
-
-        function gameLoop(currentTime) {
-            if (gameState.status !== 'playing') return;
-
-            const dt = (currentTime - lastTime) / 1000; // Delta time in seconds
-            lastTime = currentTime;
-
-            update(dt);
-            draw();
-
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        function update(dt) {
-            // Difficulty scaling
-            gameState.speedMultiplier += dt * 0.02; 
-            gameState.distance += (10 * gameState.speedMultiplier * dt);
-            const baseSpeed = 300 * gameState.speedMultiplier;
-
-            // --- Player 1 Logic (Movement) ---
-            const moveSpeed = 400;
-            if (inputP1.left) gameState.moto.x -= moveSpeed * dt;
-            if (inputP1.right) gameState.moto.x += moveSpeed * dt;
-            if (inputP1.up) gameState.moto.y -= moveSpeed * dt;
-            if (inputP1.down) gameState.moto.y += moveSpeed * dt;
-
-            // Clamp to screen
-            const hw = gameState.moto.width / 2;
-            const hh = gameState.moto.height / 2;
-            gameState.moto.x = Math.max(hw, Math.min(canvas.width - hw, gameState.moto.x));
-            gameState.moto.y = Math.max(hh, Math.min(canvas.height - hh, gameState.moto.y));
-
-            // --- Player 2 Logic (Shooting) ---
-            if (inputP2.shooting && performance.now() - gameState.lastShotTime > 150) { // Fire rate limit
-                gameState.projectiles.push({
-                    x: gameState.moto.x - 10, // Shoot from slightly behind center (gunner position)
-                    y: gameState.moto.y, 
-                    vx: Math.cos(inputP2.angle) * 800,
-                    vy: -Math.sin(inputP2.angle) * 800, 
-                    radius: 5
-                });
-                gameState.lastShotTime = performance.now();
-            }
-
-            // --- Invincibility Timer ---
-            if (gameState.moto.invincible > 0) {
-                gameState.moto.invincible -= dt;
-            }
-
-            // --- Horde Logic ---
-            // Horde slowly creeps right, pushed back by distance/speed
-            gameState.hordeX += 20 * dt; // Inexorable advance
-            if(gameState.speedMultiplier > 1.5) {
-                gameState.hordeX -= 10 * dt; 
-            }
-            gameState.hordeX = Math.max(-200, Math.min(canvas.width, gameState.hordeX));
-            
-            // Damage player if caught in horde
-            if (gameState.moto.x - hw < gameState.hordeX + 30) {
-                takeDamage(20 * dt); // Damage per second
-                createParticles(gameState.moto.x - hw, gameState.moto.y, colors.zombieHorde, 2);
-            }
-
-            // --- Projectiles Update ---
-            for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
-                let p = gameState.projectiles[i];
-                p.x += p.vx * dt;
-                p.y += p.vy * dt;
-                
-                // Horde Collision (Shooting the horde on the left)
-                if (p.x < gameState.hordeX + 30) { // Give the horde a bit of thickness
-                    gameState.hordeX -= 15; // Push horde back
-                    createParticles(p.x, p.y, colors.zombie, 5);
-                    gameState.projectiles.splice(i, 1);
-                    continue;
-                }
-
-                // Remove offscreen
-                if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
-                    gameState.projectiles.splice(i, 1);
-                }
-            }
-
-            // --- Obstacles Spawn & Update ---
-            if (Math.random() < 0.02 * gameState.speedMultiplier) {
-                spawnObstacle();
-            }
-
-            for (let i = gameState.obstacles.length - 1; i >= 0; i--) {
-                let obs = gameState.obstacles[i];
-                obs.x -= (baseSpeed + obs.speedOffset) * dt; // Move left screen
-
-                // Collision with projectiles
-                if (obs.type === 'zombie') {
-                    for (let j = gameState.projectiles.length - 1; j >= 0; j--) {
-                        let proj = gameState.projectiles[j];
-                        if (Math.abs(proj.x - obs.x) < obs.width/2 + proj.radius && 
-                            Math.abs(proj.y - obs.y) < obs.height/2 + proj.radius) {
-                            
-                            obs.hp -= 35;
-                            gameState.projectiles.splice(j, 1);
-                            createParticles(proj.x, proj.y, colors.bullet, 3);
-                            
-                            if (obs.hp <= 0) {
-                                createParticles(obs.x, obs.y, colors.zombie, 10);
-                                gameState.obstacles.splice(i, 1);
-                                break; 
-                            }
-                        }
-                    }
-                }
-
-                // Collision with Motorcycle
-                if (gameState.obstacles[i] && gameState.moto.invincible <= 0) {
-                    if (Math.abs(gameState.moto.x - obs.x) < (gameState.moto.width + obs.width)/2 * 0.8 &&
-                        Math.abs(gameState.moto.y - obs.y) < (gameState.moto.height + obs.height)/2 * 0.8) {
-                        
-                        takeDamage(25);
-                        gameState.moto.invincible = 2.0; 
-                        createParticles(gameState.moto.x, gameState.moto.y, '#ff0000', 15);
-                        
-                        if(obs.type === 'zombie') {
-                            gameState.obstacles.splice(i, 1);
-                            continue;
-                        }
-                    }
-                }
-
-                // Remove offscreen (left)
-                if (gameState.obstacles[i] && obs.x < -100) {
-                    gameState.obstacles.splice(i, 1);
-                }
-            }
-
-            // --- Particles Update ---
-            for (let i = gameState.particles.length - 1; i >= 0; i--) {
-                let p = gameState.particles[i];
-                p.x += p.vx * dt;
-                p.y += p.vy * dt;
-                p.life -= dt;
-                if (p.life <= 0) {
-                    gameState.particles.splice(i, 1);
-                }
-            }
-
-            updateUI();
-        }
-
-        function spawnObstacle() {
-            const isZombie = Math.random() > 0.75; // Changed: 25% zombie, 75% roadblock (Zombies appear less often)
-            const roadHeight = canvas.height * 0.8;
-            const startY = (canvas.height - roadHeight)/2 + Math.random() * roadHeight;
-            const startX = canvas.width + 50;
-
-            if (isZombie) {
-                gameState.obstacles.push({
-                    type: 'zombie',
-                    x: startX,
-                    y: startY,
-                    width: 65, // Changed: Increased width (Bigger zombie)
-                    height: 65, // Changed: Increased height
-                    hp: 200, // Changed: More HP since they are bigger
-                    maxHp: 200, // Added to easily calculate the HP bar width
-                    speedOffset: -35 // Zombies walk left, effectively slowing down relative to road moving left
-                });
+            if (view === 'ctrl' && playerNum && sessionId) {
+                initController(playerNum, sessionId);
             } else {
-                gameState.obstacles.push({
-                    type: 'roadblock',
-                    x: startX,
-                    y: startY,
-                    width: 20,
-                    height: 80,
-                    hp: 9999, // Indestructible
-                    speedOffset: 0
-                });
+                initHost();
             }
         }
 
-        function createParticles(x, y, color, count) {
-            for (let i = 0; i < count; i++) {
-                gameState.particles.push({
-                    x: x, y: y,
-                    vx: (Math.random() - 0.5) * 300,
-                    vy: (Math.random() - 0.5) * 300,
-                    life: 0.2 + Math.random() * 0.3,
-                    color: color,
-                    size: 2 + Math.random() * 4
-                });
-            }
-        }
+        async function initHost() {
+            const sid = generateSessionId();
+            const rootRef = collection(db, 'artifacts', appId, 'public', 'data', 'puzzle_sessions');
+            const sessionRef = doc(rootRef, sid);
 
-        function takeDamage(amount) {
-            gameState.moto.hp -= amount;
-            if (gameState.moto.hp <= 0) {
-                gameState.moto.hp = 0;
-                gameOver();
-            }
-            
-            // Visual indicator on UI
-            const bar = document.getElementById('hp-bar');
-            bar.style.backgroundColor = 'white';
-            setTimeout(() => {
-                if(gameState.moto.hp > 50) bar.style.backgroundColor = '#48bb78';
-                else if (gameState.moto.hp > 25) bar.style.backgroundColor = '#ecc94b';
-                else bar.style.backgroundColor = '#f56565';
-            }, 100);
-        }
+            // Initial Game State (convert grid to Firestore-safe format)
+            const rawGrid = generateShuffledGrid();
+            const initialState = {
+                status: 'waiting', // waiting, playing, won
+                grid: gridToFirestore(rawGrid),
+                p1: { connected: false, ready: false, cursor: {r: 0, c: 0}, selected: null },
+                p2: { connected: false, ready: false, cursor: {r: 3, c: 3}, selected: null }
+            };
 
-        function updateUI() {
-            const hpPct = (gameState.moto.hp / gameState.moto.maxHp) * 100;
-            document.getElementById('hp-bar').style.width = hpPct + '%';
-            document.getElementById('score-display').innerText = `Distance: ${Math.floor(gameState.distance)}m`;
-        }
+            await setDoc(sessionRef, initialState);
 
-        function gameOver() {
-            gameState.status = 'gameover';
-            document.getElementById('game-over').style.display = 'block';
-            document.getElementById('final-score').innerText = `Final Distance: ${Math.floor(gameState.distance)}m`;
-            cancelAnimationFrame(animationFrameId);
-            
-            if(connP1 && connP1.open) connP1.send({type: 'status', msg: 'GAME OVER'});
-            if(connP2 && connP2.open) connP2.send({type: 'status', msg: 'GAME OVER'});
-        }
+            const appDiv = document.getElementById('app');
+            let currentState = null;
 
-        function draw() {
-            if (!ctx) return;
+            // Generate URLs for Controllers
+            const baseUrl = window.location.origin + window.location.pathname;
+            const p1Url = `${baseUrl}?view=ctrl&p=1&sid=${sid}`;
+            const p2Url = `${baseUrl}?view=ctrl&p=2&sid=${sid}`;
 
-            // Clear Background
-            ctx.fillStyle = colors.bg;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Draw Road
-            const roadHeight = canvas.height * 0.8;
-            const roadY = (canvas.height - roadHeight) / 2;
-            ctx.fillStyle = colors.road;
-            ctx.fillRect(0, roadY, canvas.width, roadHeight);
-
-            // Draw Road Lines (Scrolling Left)
-            ctx.fillStyle = colors.line;
-            const lineDash = 40;
-            const gap = 40;
-            const speed = 300 * gameState.speedMultiplier;
-            const offset = (performance.now() / 1000 * speed) % (lineDash + gap);
-            
-            for (let x = canvas.width + offset; x > -lineDash; x -= (lineDash + gap)) {
-                // Top lane line
-                ctx.fillRect(x, roadY + roadHeight*0.33 - 5, lineDash, 10);
-                // Bottom lane line
-                ctx.fillRect(x, roadY + roadHeight*0.66 - 5, lineDash, 10);
-            }
-
-            // Draw Horde (Left wave)
-            if (gameState.hordeX > -100) {
-                ctx.fillStyle = colors.zombieHorde;
-                // Wavy right edge
-                ctx.beginPath();
-                ctx.moveTo(0, roadY);
-                for (let i = 0; i <= 10; i++) {
-                    let wy = roadY + (roadHeight * i / 10);
-                    let wx = gameState.hordeX + Math.sin(performance.now()/200 + i) * 20;
-                    ctx.lineTo(wx, wy);
-                }
-                ctx.lineTo(0, roadY + roadHeight);
-                ctx.fill();
+            // Listen to real-time updates from Controllers
+            onSnapshot(sessionRef, (snapshot) => {
+                if (!snapshot.exists()) return;
+                const data = snapshot.data();
+                currentState = data;
                 
-                // Add some zombie hands/heads sticking out
-                ctx.fillStyle = colors.zombie;
-                for(let i=0; i<15; i++) {
-                    let hx = gameState.hordeX - Math.random() * 40;
-                    let hy = roadY + Math.random() * roadHeight;
-                    ctx.beginPath();
-                    ctx.arc(hx, hy, 5 + Math.random()*5, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            }
+                // Reconstruct 2D grid for local use
+                const currentGrid = gridFromFirestore(data.grid);
 
-            // Draw Obstacles
-            for (let obs of gameState.obstacles) {
-                ctx.save();
-                ctx.translate(obs.x, obs.y);
-                if (obs.type === 'zombie') {
-                    ctx.fillStyle = colors.zombie;
-                    ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
-                    // Arms (reaching left) - Scaled up for bigger body
-                    ctx.fillStyle = '#2f855a';
-                    ctx.fillRect(-obs.width/2 - 15, -10, 15, 20);
+                // --- HOST GAME LOGIC ---
+                // Transition to playing if both are ready
+                if (data.status === 'waiting' && data.p1.ready && data.p2.ready) {
+                    updateDoc(sessionRef, { status: 'playing' });
+                    return; // Avoid rendering immediately, wait for next snapshot
+                }
+
+                // Swap Logic when both have selected
+                if (data.status === 'playing' && data.p1.selected && data.p2.selected) {
+                    let newGrid = JSON.parse(JSON.stringify(currentGrid));
                     
-                    // HP bar for zombie - Dynamically scaled based on zombie width
-                    ctx.fillStyle = 'red';
-                    ctx.fillRect(-obs.width/2, -obs.height/2 - 15, obs.width, 6);
-                    ctx.fillStyle = 'green';
-                    ctx.fillRect(-obs.width/2, -obs.height/2 - 15, obs.width * Math.max(0, obs.hp / obs.maxHp), 6);
-                } else if (obs.type === 'roadblock') {
-                    ctx.fillStyle = colors.roadblock;
-                    ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
-                    // Stripes
-                    ctx.fillStyle = '#000';
-                    ctx.beginPath();
-                    ctx.moveTo(-obs.width/2, -obs.height/2); ctx.lineTo(-obs.width/2 + 20, obs.height/2);
-                    ctx.moveTo(-obs.width/2, -obs.height/2 + 20); ctx.lineTo(-obs.width/2 + 20, obs.height/2 + 20);
-                    ctx.moveTo(-obs.width/2, -obs.height/2 + 40); ctx.lineTo(-obs.width/2 + 20, obs.height/2 + 40);
-                    ctx.moveTo(-obs.width/2, -obs.height/2 + 60); ctx.lineTo(-obs.width/2 + 20, obs.height/2 + 60);
-                    ctx.lineWidth = 5;
-                    ctx.strokeStyle = '#000';
-                    ctx.stroke();
+                    // Perform Swap
+                    const t1 = newGrid[data.p1.selected.r][data.p1.selected.c];
+                    const t2 = newGrid[data.p2.selected.r][data.p2.selected.c];
+                    
+                    newGrid[data.p1.selected.r][data.p1.selected.c] = t2;
+                    newGrid[data.p2.selected.r][data.p2.selected.c] = t1;
+
+                    // Check win condition
+                    const won = checkWin(newGrid);
+
+                    updateDoc(sessionRef, {
+                        grid: gridToFirestore(newGrid),
+                        'p1.selected': null,
+                        'p2.selected': null,
+                        status: won ? 'won' : 'playing'
+                    });
+                    return;
                 }
-                ctx.restore();
-            }
 
-            // Draw Motorcycle
-            ctx.save();
-            ctx.translate(gameState.moto.x, gameState.moto.y);
-            
-            // Blink if invincible
-            if (gameState.moto.invincible <= 0 || Math.floor(performance.now() / 100) % 2 === 0) {
-                // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(-gameState.moto.width/2 + 5, -gameState.moto.height/2 + 5, gameState.moto.width, gameState.moto.height);
-                
-                // Bike Body
-                ctx.fillStyle = colors.moto;
-                ctx.fillRect(-gameState.moto.width/2, -gameState.moto.height/2, gameState.moto.width, gameState.moto.height);
-                ctx.fillStyle = colors.motoDetail;
-                ctx.fillRect(-gameState.moto.width/2 + 10, -gameState.moto.height/2 + 5, gameState.moto.width - 20, gameState.moto.height - 10);
-                
-                // Wheels
-                ctx.fillStyle = '#000';
-                ctx.fillRect(gameState.moto.width/2 - 15, -gameState.moto.height/2 - 5, 20, 5); // TR
-                ctx.fillRect(gameState.moto.width/2 - 15, gameState.moto.height/2, 20, 5);      // BR
-                ctx.fillRect(-gameState.moto.width/2 - 5, -gameState.moto.height/2 - 5, 20, 5); // TL
-                ctx.fillRect(-gameState.moto.width/2 - 5, gameState.moto.height/2, 20, 5);      // BL
-
-                // Player 1 (Driver) - Front/Right
-                ctx.fillStyle = colors.player1;
-                ctx.beginPath();
-                ctx.arc(10, 0, 12, 0, Math.PI*2);
-                ctx.fill();
-
-                // Player 2 (Gunner) - Back/Left
-                ctx.fillStyle = colors.player2;
-                ctx.beginPath();
-                ctx.arc(-15, 0, 12, 0, Math.PI*2);
-                ctx.fill();
-                
-                // Gun barrel indicator based on input angle
-                if(inputP2.shooting) {
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(-15, 0);
-                    ctx.lineTo(-15 + Math.cos(inputP2.angle) * 20, -Math.sin(inputP2.angle) * 20);
-                    ctx.stroke();
-                }
-            }
-            ctx.restore();
-
-            // Draw Projectiles
-            ctx.fillStyle = colors.bullet;
-            for (let p of gameState.projectiles) {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fill();
-                // Trail
-                ctx.strokeStyle = 'rgba(246, 224, 94, 0.5)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p.x - (p.vx * 0.05), p.y - (p.vy * 0.05)); // small trail based on velocity
-                ctx.stroke();
-            }
-
-            // Draw Particles
-            for (let p of gameState.particles) {
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life / 0.5; // fade out
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1.0;
+                // Render UI based on State
+                renderHostUI(data, sid, p1Url, p2Url, currentGrid);
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+            });
         }
+
+        // Host UI Render Function
+        function renderHostUI(data, sid, p1Url, p2Url, currentGrid) {
+            const appDiv = document.getElementById('app');
+            
+            if (data.status === 'waiting') {
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center w-full max-w-4xl p-8 bg-gray-800 rounded-3xl shadow-2xl">
+                        <h1 class="text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
+                        <p class="text-gray-400 mb-12 text-xl">Match 4 emojis of the same category in a row or column!</p>
+                        
+                        <div class="flex flex-row w-full justify-around items-center">
+                            <!-- P1 QR -->
+                            <div class="flex flex-col items-center p-6 bg-gray-700/50 rounded-2xl border-2 ${data.p1.connected ? 'border-red-500' : 'border-gray-600'}">
+                                <h2 class="text-2xl font-bold mb-4 text-red-400">Player 1 (Red)</h2>
+                                <div id="qr-p1" class="bg-white p-2 rounded-xl mb-4"></div>
+                                <div class="h-8">
+                                    ${data.p1.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
+                                      data.p1.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
+                                      '<span class="text-gray-400 animate-pulse">Scan to join...</span>'}
+                                </div>
+                            </div>
+
+                            <div class="text-3xl font-bold text-gray-500 mx-4">VS / CO-OP</div>
+
+                            <!-- P2 QR -->
+                            <div class="flex flex-col items-center p-6 bg-gray-700/50 rounded-2xl border-2 ${data.p2.connected ? 'border-blue-500' : 'border-gray-600'}">
+                                <h2 class="text-2xl font-bold mb-4 text-blue-400">Player 2 (Blue)</h2>
+                                <div id="qr-p2" class="bg-white p-2 rounded-xl mb-4"></div>
+                                <div class="h-8">
+                                    ${data.p2.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
+                                      data.p2.connected ? '<span class="text-yellow-400">Connected, waiting to start...</span>' : 
+                                      '<span class="text-gray-400 animate-pulse">Scan to join...</span>'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-8 text-sm text-gray-500">Session ID: ${sid}</div>
+                    </div>
+                `;
+
+                // Render QRs if elements exist and are empty
+                const qr1El = document.getElementById('qr-p1');
+                if (qr1El && qr1El.innerHTML === '') {
+                    new QRCode(qr1El, { text: p1Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                }
+                const qr2El = document.getElementById('qr-p2');
+                if (qr2El && qr2El.innerHTML === '') {
+                    new QRCode(qr2El, { text: p2Url, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff" });
+                }
+
+            } else if (data.status === 'playing' || data.status === 'won') {
+                
+                // Build the grid HTML
+                let gridHtml = '';
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < 4; c++) {
+                        
+                        // Check cursors and selections
+                        let classes = 'tile w-20 h-20 md:w-28 md:h-28 bg-gray-800 border border-gray-700 rounded-2xl flex items-center justify-center text-4xl md:text-6xl relative shadow-lg';
+                        let innerHtml = `<span>${currentGrid[r][c]}</span>`;
+
+                        // Overlays for selections and cursors
+                        let overlays = '';
+                        
+                        // Selected states
+                        if (data.p1.selected && data.p1.selected.r === r && data.p1.selected.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p1 pointer-events-none"></div>`;
+                        }
+                        if (data.p2.selected && data.p2.selected.r === r && data.p2.selected.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl selected-p2 pointer-events-none"></div>`;
+                        }
+
+                        // Cursor states
+                        if (data.p1.cursor.r === r && data.p1.cursor.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p1 pointer-events-none"></div>`;
+                        }
+                        if (data.p2.cursor.r === r && data.p2.cursor.c === c) {
+                            overlays += `<div class="absolute inset-0 rounded-2xl cursor-p2 pointer-events-none"></div>`;
+                        }
+
+                        gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
+                    }
+                }
+
+                // Render Main Board
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div class="mb-8 flex space-x-12">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
+                                <span class="text-xl font-bold text-gray-300">Player 1</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-6 h-6 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+                                <span class="text-xl font-bold text-gray-300">Player 2</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-4 gap-3 md:gap-4 bg-gray-900 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
+                            ${gridHtml}
+                            
+                            ${data.status === 'won' ? `
+                                <div class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-[2rem] flex flex-col items-center justify-center z-50">
+                                    <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-6 drop-shadow-lg">YOU WIN!</h1>
+                                    <p class="text-xl text-gray-300 mb-8">Perfect teamwork!</p>
+                                    <div class="text-gray-500 text-sm animate-pulse">Waiting for controllers to restart...</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="mt-8 text-gray-500 text-lg text-center max-w-lg">
+                            Coordination is key! <b>Player 1</b> and <b>Player 2</b> must select a tile. Once both lock in, the emojis will swap.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function initController(playerNum, sessionId) {
+            const rootRef = collection(db, 'artifacts', appId, 'public', 'data', 'puzzle_sessions');
+            const sessionRef = doc(rootRef, sessionId);
+            const playerKey = playerNum === '1' ? 'p1' : 'p2';
+            const themeColor = playerNum === '1' ? 'red' : 'blue';
+            const themeHex = playerNum === '1' ? '#ef4444' : '#3b82f6';
+            
+            // Mark connected
+            await updateDoc(sessionRef, {
+                [`${playerKey}.connected`]: true
+            });
+
+            // Handle disconnect visually by un-readying (not strictly necessary but good)
+            window.addEventListener('beforeunload', () => {
+                updateDoc(sessionRef, { [`${playerKey}.connected`]: false, [`${playerKey}.ready`]: false });
+            });
+
+            const appDiv = document.getElementById('app');
+            let localState = null;
+
+            onSnapshot(sessionRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    appDiv.innerHTML = `<div class="text-red-500 text-xl font-bold">Session Ended or Not Found.</div>`;
+                    return;
+                }
+                const data = snapshot.data();
+                localState = data;
+                renderControllerUI(data, playerKey, themeColor, themeHex);
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+            });
+
+            // Controller Actions (Globally scoped for HTML onclick bindings)
+            window.ctrlAction = function(action) {
+                vibrate(40);
+                if (!localState) return;
+                
+                const pData = localState[playerKey];
+                
+                if (action === 'ready') {
+                    updateDoc(sessionRef, { [`${playerKey}.ready`]: true });
+                }
+                
+                if (localState.status === 'won' && action === 'restart') {
+                    // Reset game
+                    updateDoc(sessionRef, {
+                        status: 'waiting',
+                        grid: gridToFirestore(generateShuffledGrid()),
+                        'p1.ready': false, 'p2.ready': false,
+                        'p1.selected': null, 'p2.selected': null
+                    });
+                }
+
+                if (localState.status === 'playing') {
+                    if (['up', 'down', 'left', 'right'].includes(action)) {
+                        let newR = pData.cursor.r;
+                        let newC = pData.cursor.c;
+                        
+                        if (action === 'up') newR = Math.max(0, newR - 1);
+                        if (action === 'down') newR = Math.min(3, newR + 1);
+                        if (action === 'left') newC = Math.max(0, newC - 1);
+                        if (action === 'right') newC = Math.min(3, newC + 1);
+
+                        updateDoc(sessionRef, { [`${playerKey}.cursor`]: { r: newR, c: newC } });
+                    }
+                    
+                    if (action === 'select') {
+                        if (pData.selected) {
+                            // Cancel selection
+                            updateDoc(sessionRef, { [`${playerKey}.selected`]: null });
+                        } else {
+                            // Lock selection
+                            updateDoc(sessionRef, { [`${playerKey}.selected`]: pData.cursor });
+                        }
+                    }
+                }
+            };
+        }
+
+        // Render Controller UI
+        function renderControllerUI(data, playerKey, themeColor, themeHex) {
+            const appDiv = document.getElementById('app');
+            const pData = data[playerKey];
+            
+            // Adjust full page background to match player color slightly
+            document.body.style.backgroundColor = playerKey === 'p1' ? '#451a1a' : '#1e3a5f'; // Very dark red/blue
+
+            if (data.status === 'waiting') {
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                        <div class="mb-10 text-3xl font-black text-${themeColor}-400">PLAYER ${playerKey === 'p1' ? '1' : '2'}</div>
+                        ${pData.ready ? 
+                            `<div class="text-2xl font-bold text-green-400 animate-pulse">Waiting for other player...</div>` :
+                            `<button onclick="ctrlAction('ready')" class="w-64 h-64 rounded-full bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-4xl font-black tracking-widest active:scale-95 transition-transform flex items-center justify-center uppercase">
+                                Start<br>Game
+                             </button>`
+                        }
+                    </div>
+                `;
+            } else if (data.status === 'playing') {
+                const isSelected = pData.selected !== null;
+                
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center justify-between h-full w-full py-10 px-4">
+                        <div class="text-xl font-bold text-${themeColor}-300 tracking-widest mb-4 uppercase">
+                            ${isSelected ? 'Waiting for partner...' : 'Select a tile'}
+                        </div>
+                        
+                        <!-- D-Pad -->
+                        <div class="grid grid-cols-3 gap-2 w-full max-w-[300px] aspect-square relative">
+                            <!-- Background cross for design -->
+                            <div class="absolute inset-1/3 bg-gray-900 rounded-3xl opacity-50"></div>
+                            
+                            <!-- Top row -->
+                            <div></div>
+                            <button onclick="ctrlAction('up')" class="ctrl-btn bg-gray-700/80 rounded-t-3xl shadow-lg border-t border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▲</button>
+                            <div></div>
+                            
+                            <!-- Middle row -->
+                            <button onclick="ctrlAction('left')" class="ctrl-btn bg-gray-700/80 rounded-l-3xl shadow-lg border-l border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>◀</button>
+                            <div class="bg-gray-800 rounded-lg flex items-center justify-center">
+                                <div class="w-4 h-4 rounded-full bg-${themeColor}-500/50 shadow-[0_0_10px_${themeHex}]"></div>
+                            </div>
+                            <button onclick="ctrlAction('right')" class="ctrl-btn bg-gray-700/80 rounded-r-3xl shadow-lg border-r border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▶</button>
+                            
+                            <!-- Bottom row -->
+                            <div></div>
+                            <button onclick="ctrlAction('down')" class="ctrl-btn bg-gray-700/80 rounded-b-3xl shadow-lg border-b border-gray-600 flex items-center justify-center text-4xl" ${isSelected ? 'disabled style="opacity:0.3"' : ''}>▼</button>
+                            <div></div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="mt-12 w-full max-w-[300px]">
+                            <button onclick="ctrlAction('select')" class="w-full py-6 rounded-[2rem] text-3xl font-black text-white shadow-2xl transition-all active:scale-95 ${
+                                isSelected 
+                                ? 'bg-gray-600 shadow-[0_0_20px_rgba(156,163,175,0.5)] border-2 border-gray-400'
+                                : `bg-${themeColor}-600 shadow-[0_0_30px_${themeHex}80] border-2 border-${themeColor}-400`
+                            }">
+                                ${isSelected ? 'CANCEL' : 'SELECT / SWAP'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (data.status === 'won') {
+                appDiv.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
+                        <div class="text-6xl mb-6">🎉</div>
+                        <h1 class="text-4xl font-black text-yellow-400 mb-12 drop-shadow-lg">PUZZLE SOLVED!</h1>
+                        
+                        <button onclick="ctrlAction('restart')" class="w-full max-w-[250px] py-6 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 shadow-[0_0_30px_rgba(16,185,129,0.8)] text-white text-2xl font-black active:scale-95 transition-transform uppercase">
+                            Play Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Boot the app
+        init();
 
     </script>
 </body>
