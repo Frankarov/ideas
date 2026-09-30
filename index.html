@@ -2,1007 +2,933 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <title>Emoji Swap Multiplayer (P2P)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>T.I.B.S: Dual Screen PvP</title>
+    
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- QR Code Generator Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- PeerJS for Direct P2P WebRTC Connection -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- Load PeerJS for WebRTC P2P connection -->
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
     
+    <!-- Load QRCode.js for generating QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
         body {
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
+            margin: 0; padding: 0;
+            background-color: #1a1a2e; color: #fff;
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden; user-select: none;
+            touch-action: none; /* Prevent browser handling of gestures */
         }
 
-        .tile {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* --- HOST VIEW STYLES --- */
+        #host-view {
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; width: 100vw;
         }
 
-        @keyframes pulse-border-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        #game-container {
+            position: relative;
+            width: 1000px; height: 600px; /* Larger for desktop viewing */
+            background-color: #4CAF50;
+            border: 4px solid #333; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin-top: 10px; overflow: hidden;
+            transform-origin: top center;
         }
-        @keyframes pulse-border-blue {
-            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+
+        /* Scale game container on smaller desktop screens */
+        @media (max-width: 1100px) { #game-container { transform: scale(0.8); margin-top: 0; } }
+        @media (max-width: 900px) { #game-container { transform: scale(0.6); margin-top: 0; } }
+
+        #game-canvas { display: block; width: 100%; height: 100%; }
+
+        .deployment-zone-indicator {
+            position: absolute; top: 0; height: 100%;
+            pointer-events: none; opacity: 0.2;
         }
-        .selected-p1 { animation: pulse-border-red 1.5s infinite; z-index: 20; background-color: rgba(239, 68, 68, 0.2); }
-        .selected-p2 { animation: pulse-border-blue 1.5s infinite; z-index: 20; background-color: rgba(59, 130, 246, 0.2); }
+        #p1-zone-indicator { left: 0; width: 40%; background-color: #2196F3; }
+        #p2-zone-indicator { right: 0; width: 40%; background-color: #F44336; }
+
+        #qr-screen, #host-end-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100;
+        }
+
+        .qr-container { background: white; padding: 20px; border-radius: 10px; }
         
-        .cursor-p1 { border: 4px solid #ef4444; z-index: 10; box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.5); }
-        .cursor-p2 { border: 4px solid #3b82f6; z-index: 10; box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.5); }
-        
-        .ctrl-btn:active {
-            transform: scale(0.95);
-            background-color: rgba(255, 255, 255, 0.2);
+        .floating-text {
+            position: absolute; pointer-events: none; font-size: 14px;
+            animation: floatUp 1s ease-out forwards; font-family: monospace; font-weight: bold; z-index: 50;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-40px); }
         }
 
-        .locked-glow {
-            box-shadow: inset 0 0 15px rgba(16, 185, 129, 0.6);
-            border-color: #10b981 !important;
-            background-color: rgba(16, 185, 129, 0.15) !important;
+        /* --- CLIENT / CONTROLLER VIEW STYLES --- */
+        @media screen and (orientation: portrait) {
+            #client-view::before {
+                content: "ROTATE PHONE TO LANDSCAPE";
+                position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                background: #000; color: #fff; z-index: 9999;
+                display: flex; align-items: center; justify-content: center;
+                text-align: center; font-size: 20px; line-height: 1.5; padding: 20px;
+            }
         }
+
+        #client-view {
+            display: none; height: 100vh; width: 100vw;
+            background: #111; overflow: hidden;
+        }
+
+        #trackpad {
+            background: #222; border: 2px dashed #555;
+            border-radius: 10px; display: flex; justify-content: center; align-items: center;
+            color: #555; text-align: center; font-size: 12px; line-height: 1.5;
+            touch-action: none; /* Crucial for custom touch handling */
+        }
+
+        #cli-unit-dock { scrollbar-width: none; }
+        #cli-unit-dock::-webkit-scrollbar { display: none; }
+
+        .mob-unit-card {
+            background: #333; border: 2px solid #555; border-radius: 8px;
+            padding: 8px; display: flex; align-items: center; justify-content: space-between;
+            gap: 5px; width: 100%; transition: border-color 0.2s; cursor: pointer;
+        }
+        .mob-unit-card.selected { border-color: #FFEB3B; background: #444; }
+        
+        .mob-btn {
+            font-family: 'Press Start 2P', cursive; border-radius: 5px; border: none;
+            padding: 10px; font-size: 14px; color: white; cursor: pointer; text-shadow: 1px 1px 0 #000;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+        }
+        .mob-btn:active { transform: scale(0.95); }
+
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen font-sans flex flex-col items-center justify-center overflow-hidden">
+<body>
 
-    <div id="app" class="w-full h-full flex items-center justify-center absolute inset-0">
-        <div class="text-2xl animate-pulse text-gray-400">Initializing P2P Game Engine...</div>
+    <!-- ========================================== -->
+    <!--                 HOST VIEW                  -->
+    <!-- ========================================== -->
+    <div id="host-view">
+        <h1 class="text-3xl mt-4 mb-2 text-yellow-400 drop-shadow-md">T.I.B.S: DUAL SCREEN</h1>
+        <div id="host-status-bar" class="flex w-[1000px] justify-between px-4 py-2 bg-gray-900 border-2 border-gray-700 rounded mb-2">
+            <div class="text-blue-400">P1 Funds: $<span id="host-p1-funds">1000</span></div>
+            <div id="host-phase-text" class="text-yellow-400 text-center animate-pulse">WAITING FOR PLAYERS</div>
+            <div class="text-red-400">P2 Funds: $<span id="host-p2-funds">1000</span></div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="game-canvas" width="1000" height="600"></canvas>
+            
+            <div id="p1-zone-indicator" class="deployment-zone-indicator"></div>
+            <div id="p2-zone-indicator" class="deployment-zone-indicator"></div>
+
+            <!-- Host QR Code Waiting Screen -->
+            <div id="qr-screen">
+                <h2 class="text-2xl text-yellow-400 mb-8 text-center leading-loose">
+                    SCAN WITH SMARTPHONE<br>TO JOIN
+                </h2>
+                
+                <div class="flex gap-16">
+                    <div class="flex flex-col items-center gap-4 bg-gray-800 p-6 rounded-xl border-4 border-blue-500">
+                        <h3 class="text-blue-400">PLAYER 1 (BLUE)</h3>
+                        <div id="qr-p1" class="qr-container"></div>
+                        <div id="p1-status" class="text-sm text-gray-400">Waiting for connection...</div>
+                    </div>
+
+                    <div class="flex flex-col items-center gap-4 bg-gray-800 p-6 rounded-xl border-4 border-red-500">
+                        <h3 class="text-red-400">PLAYER 2 (RED)</h3>
+                        <div id="qr-p2" class="qr-container"></div>
+                        <div id="p2-status" class="text-sm text-gray-400">Waiting for connection...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Host End Screen -->
+            <div id="host-end-screen" class="hidden">
+                <h2 id="winner-text" class="mb-4 text-4xl text-center leading-loose"></h2>
+                <p class="text-gray-400 text-sm mt-8">Waiting for players to press Rematch on their phones...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!--               CLIENT VIEW                  -->
+    <!-- ========================================== -->
+    <div id="client-view">
+        <!-- Overlay for Waiting/Battle -->
+        <div id="cli-overlay" class="absolute top-0 left-0 w-full h-full bg-black/90 z-50 flex flex-col items-center justify-center hidden">
+            <h2 id="cli-overlay-msg" class="text-lg text-center text-yellow-400 leading-loose px-6">WAITING...</h2>
+            <button id="btn-rematch" class="mob-btn bg-blue-600 border-b-4 border-blue-800 mt-8 hidden px-6 py-4">REMATCH</button>
+        </div>
+
+        <div class="flex w-full h-full">
+            <!-- LEFT: Unit Selection -->
+            <div class="w-1/3 bg-black border-r-2 border-gray-700 flex flex-col p-2 overflow-y-auto gap-2" id="cli-unit-dock">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- CENTER: Trackpad -->
+            <div class="w-1/3 flex flex-col p-2">
+                <div id="trackpad" class="flex-grow w-full h-full">
+                    DRAG FINGER<br>HERE TO<br>MOVE CURSOR
+                </div>
+            </div>
+
+            <!-- RIGHT: Actions & Info -->
+            <div class="w-1/3 bg-gray-900 border-l-2 border-gray-700 flex flex-col p-2 gap-2">
+                <div class="bg-gray-800 p-2 rounded shadow text-center border border-gray-700">
+                    <div id="cli-player-label" class="text-[10px]">PLAYER</div>
+                    <div class="text-[10px] text-green-400 mt-1">Funds: $<span id="cli-funds" class="text-sm">1000</span></div>
+                </div>
+                
+                <button id="btn-place" class="mob-btn bg-green-600 border-b-4 border-green-800 flex-grow text-sm leading-relaxed">PLACE<br>UNIT</button>
+                
+                <div class="flex gap-2 h-16">
+                    <button id="btn-undo" class="mob-btn bg-gray-600 border-b-4 border-gray-800 flex-1 text-[12px] font-bold">UNDO</button>
+                    <button id="btn-ready" class="mob-btn bg-yellow-600 border-b-4 border-yellow-800 flex-1 text-[12px] font-bold">READY</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        const ALL_CATEGORIES = [
-            ['🐶', '🐱', '🐭', '🐰', '🦊', '🐻', '🐼', '🐨'], // Animals
-            ['🍎', '🍌', '🍇', '🍉', '🍓', '🍑', '🍍', '🥝'], // Fruits
-            ['🚗', '🚕', '🚙', '🚌', '🏎️', '🚓', '🚑', '🚒'], // Vehicles
-            ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱'], // Sports
-            ['🐳', '🐬', '🐟', '🦈', '🦀', '🐙', '🦐', '🐠'], // Sea Animals
-            ['🎸', '🎹', '🥁', '🎷', '🎺', '🎻', '🪕', '🪗']  // Instruments
-        ];
+        // --- SHARED DATA & CONFIG ---
+        const GAME_WIDTH = 1000;
+        const GAME_HEIGHT = 600;
+        const DEPLOYMENT_ZONE_WIDTH = 0.4;
+        const STARTING_FUNDS = 1000;
 
-        function getLevelConfig(levelIndex) {
-            let size;
-            if (levelIndex === 0) size = 3;
-            else if (levelIndex === 1) size = 4;
-            else if (levelIndex === 2) size = 5;
-            else size = Math.min(6, 6 + Math.floor((levelIndex - 3) / 2));
+        const UnitTypes = {
+            PEASANT: { id: 'peasant', name: 'Peasant', desc: 'Cheap swarm unit.', cost: 20, hp: 50, speed: 40, range: 15, dmg: 5, cd: 1.0, color: '#fff', radius: 8, type: 'melee', mass: 1 },
+            SQUIRE: { id: 'squire', name: 'Squire', desc: 'Standard melee fighter.', cost: 50, hp: 120, speed: 45, range: 20, dmg: 15, cd: 1.2, color: '#aaa', radius: 10, type: 'melee', mass: 1.5 },
+            ARCHER: { id: 'archer', name: 'Archer', desc: 'Ranged attacker.', cost: 70, hp: 60, speed: 30, range: 300, dmg: 12, cd: 1.5, color: '#8B4513', radius: 9, type: 'ranged', pSpeed: 200, mass: 1 },
+            KNIGHT: { id: 'knight', name: 'Knight', desc: 'Fast charging cavalry.', cost: 150, hp: 300, speed: 60, range: 25, dmg: 30, cd: 1.5, color: '#FFD700', radius: 14, type: 'melee', mass: 3, charge: 1.5 },
+            OGRE: { id: 'ogre', name: 'Ogre', desc: 'Massive AoE damage.', cost: 400, hp: 800, speed: 20, range: 40, dmg: 60, cd: 2.5, color: '#556B2F', radius: 22, type: 'melee', mass: 10, aoe: 45 }
+        };
 
-            let moves = 10 + (levelIndex * 5);
-            return { size, moves, name: `Level ${levelIndex + 1} (${size}x${size})` };
-        }
+        const GameState = { WAITING: 0, DEPLOY: 1, BATTLE: 2, END: 3 };
 
-        function generateShuffledGrid(levelIndex) {
-            let cfg = getLevelConfig(levelIndex);
-            let size = cfg.size;
-
-            let emojis = [];
-            let catIdx = 0;
-            while (emojis.length < size * size) {
-                let cat = ALL_CATEGORIES[catIdx % ALL_CATEGORIES.length];
-                let slicedCat = cat.slice(0, size);
-                for (let e of slicedCat) {
-                    if (emojis.length < size * size && !emojis.includes(e)) {
-                        emojis.push(e);
-                    }
-                }
-                catIdx++;
-            }
-
-            let grid;
-            do {
-                for (let i = emojis.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [emojis[i], emojis[j]] = [emojis[j], emojis[i]];
-                }
-                grid = [];
-                for (let i = 0; i < size; i++) {
-                    grid.push(emojis.slice(i * size, i * size + size));
-                }
-            } while (checkWin(grid, levelIndex).isWon);
-
-            return grid;
-        }
-
-        function getCompletedRowsAndCols(grid, levelIndex) {
-            let size = grid.length;
-            function getCatIndex(emoji) {
-                return ALL_CATEGORIES.findIndex(cat => cat.includes(emoji));
-            }
-
-            let lockedRows = new Array(size).fill(false);
-            let lockedCols = new Array(size).fill(false);
-
-            for (let r = 0; r < size; r++) {
-                let firstCat = getCatIndex(grid[r][0]);
-                let isRowValid = firstCat !== -1;
-                for (let c = 1; c < size; c++) {
-                    if (getCatIndex(grid[r][c]) !== firstCat) {
-                        isRowValid = false;
-                        break;
-                    }
-                }
-                if (isRowValid) lockedRows[r] = true;
-            }
-
-            for (let c = 0; c < size; c++) {
-                let firstCat = getCatIndex(grid[0][c]);
-                let isColValid = firstCat !== -1;
-                for (let r = 1; r < size; r++) {
-                    if (getCatIndex(grid[r][c]) !== firstCat) {
-                        isColValid = false;
-                        break;
-                    }
-                }
-                if (isColValid) lockedCols[c] = true;
-            }
-
-            return { lockedRows, lockedCols };
-        }
-
-        function checkWin(grid, levelIndex) {
-            let size = grid.length;
-            let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, levelIndex);
-            
-            for (let r = 0; r < size; r++) {
-                for (let c = 0; c < size; c++) {
-                    if (!lockedRows[r] && !lockedCols[c]) {
-                        return { isWon: false };
-                    }
-                }
-            }
-            return { isWon: true };
-        }
-
-        function vibrate(pattern = 50) {
-            if (navigator.vibrate) navigator.vibrate(pattern);
-        }
-
-        function generateRandomId() {
-            return Math.random().toString(36).substring(2, 8);
-        }
-
+        // Parse URL to determine mode
         const urlParams = new URLSearchParams(window.location.search);
-        const view = urlParams.get('view');
-        const playerNum = urlParams.get('p');
-        const hostPeerId = urlParams.get('host');
-        const localMode = urlParams.get('local') === 'true';
+        const isClient = urlParams.has('host') && urlParams.has('p');
+        const hostIdParam = urlParams.get('host');
+        const playerNumParam = parseInt(urlParams.get('p'));
 
-        if (view === 'ctrl' && playerNum && hostPeerId) {
-            initController(playerNum, hostPeerId);
-        } else if (localMode) {
-            initLocalGame();
+        // UI Setup
+        const hostView = document.getElementById('host-view');
+        const clientView = document.getElementById('client-view');
+
+        if (isClient) {
+            hostView.classList.add('hidden');
+            clientView.style.display = 'block';
+            initClient();
         } else {
             initHost();
         }
 
-        function initLocalGame() {
-            let initialCfg = getLevelConfig(0);
-            let gameState = {
-                gameMode: 'coop',
-                status: 'playing',
-                level: 0,
-                movesLeft: initialCfg.moves,
-                grid: generateShuffledGrid(0),
-                grid2: generateShuffledGrid(0), // For versus mode player 2
-                p1: { score: 0, cursor: {r: 0, c: 0}, selected: null },
-                p2: { score: 0, cursor: {r: initialCfg.size - 1, c: initialCfg.size - 1}, selected: null }
-            };
-
-            window.setGameMode = function(mode) {
-                gameState.gameMode = mode;
-                renderLocalUI();
-            };
-
-            window.handleLocalAction = function(pKey, action) {
-                let cfg = getLevelConfig(gameState.level);
-                let size = cfg.size;
-
-                if (gameState.status === 'playing') {
-                    let cursor = gameState[pKey].cursor;
-                    let activeGrid = (gameState.gameMode === 'versus' && pKey === 'p2') ? gameState.grid2 : gameState.grid;
-                    let { lockedRows, lockedCols } = getCompletedRowsAndCols(activeGrid, gameState.level);
-
-                    if (action === 'up') cursor.r = Math.max(0, cursor.r - 1);
-                    if (action === 'down') cursor.r = Math.min(size - 1, cursor.r + 1);
-                    if (action === 'left') cursor.c = Math.max(0, cursor.c - 1);
-                    if (action === 'right') cursor.c = Math.min(size - 1, cursor.c + 1);
-
-                    if (action === 'select') {
-                        let curR = cursor.r;
-                        let curC = cursor.c;
-
-                        if (lockedRows[curR] || lockedCols[curC]) {
-                            return;
-                        }
-
-                        if (gameState.gameMode === 'coop') {
-                            if (gameState[pKey].selected) {
-                                gameState[pKey].selected = null;
-                            } else {
-                                gameState[pKey].selected = { ...cursor };
-                            }
-
-                            if (gameState.p1.selected && gameState.p2.selected) {
-                                let r1 = gameState.p1.selected.r;
-                                let c1 = gameState.p1.selected.c;
-                                let r2 = gameState.p2.selected.r;
-                                let c2 = gameState.p2.selected.c;
-
-                                let currentLocks = getCompletedRowsAndCols(gameState.grid, gameState.level);
-                                if (!currentLocks.lockedRows[r1] && !currentLocks.lockedCols[c1] && !currentLocks.lockedRows[r2] && !currentLocks.lockedCols[c2]) {
-                                    let g = gameState.grid;
-                                    let t1 = g[r1][c1];
-                                    let t2 = g[r2][c2];
-                                    g[r1][c1] = t2;
-                                    g[r2][c2] = t1;
-                                    gameState.movesLeft--;
-                                }
-                                gameState.p1.selected = null;
-                                gameState.p2.selected = null;
-                            }
-                        } else {
-                            // Versus mode: independent player grids & selections
-                            if (gameState[pKey].selected) {
-                                let r1 = gameState[pKey].selected.r;
-                                let c1 = gameState[pKey].selected.c;
-                                let r2 = curR;
-                                let c2 = curC;
-
-                                if (r1 !== r2 || c1 !== c2) {
-                                    if (!lockedRows[r2] && !lockedCols[c2]) {
-                                        let g = activeGrid;
-                                        let t1 = g[r1][c1];
-                                        let t2 = g[r2][c2];
-                                        g[r1][c1] = t2;
-                                        g[r2][c2] = t1;
-                                    }
-                                }
-                                gameState[pKey].selected = null;
-                            } else {
-                                gameState[pKey].selected = { ...cursor };
-                            }
-                        }
-
-                        if (gameState.gameMode === 'coop') {
-                            let winCheck = checkWin(gameState.grid, gameState.level);
-                            if (winCheck.isWon) {
-                                gameState.status = 'won';
-                            } else if (gameState.movesLeft <= 0) {
-                                gameState.status = 'gameover';
-                            }
-                        } else {
-                            let p1Win = checkWin(gameState.grid, gameState.level).isWon;
-                            let p2Win = checkWin(gameState.grid2, gameState.level).isWon;
-                            if (p1Win || p2Win) {
-                                gameState.status = 'won';
-                                gameState.winner = p1Win && p2Win ? 'Tie' : p1Win ? 'Player 1' : 'Player 2';
-                            }
-                        }
-                    }
-                    renderLocalUI();
-                } else if (gameState.status === 'won' || gameState.status === 'gameover') {
-                    if (action === 'next_level') {
-                        gameState.level++;
-                        let newCfg = getLevelConfig(gameState.level);
-                        gameState.movesLeft = newCfg.moves;
-                        gameState.status = 'playing';
-                        gameState.grid = generateShuffledGrid(gameState.level);
-                        gameState.grid2 = generateShuffledGrid(gameState.level);
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        gameState.p1.cursor = {r: 0, c: 0};
-                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
-                        renderLocalUI();
-                    } else if (action === 'restart') {
-                        gameState.level = 0;
-                        let newCfg = getLevelConfig(0);
-                        gameState.movesLeft = newCfg.moves;
-                        gameState.status = 'playing';
-                        gameState.grid = generateShuffledGrid(0);
-                        gameState.grid2 = generateShuffledGrid(0);
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        gameState.p1.cursor = {r: 0, c: 0};
-                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
-                        renderLocalUI();
-                    }
-                }
-            };
-
-            window.addEventListener('keydown', (e) => {
-                if (e.repeat) return;
-                if (e.key === 'w' || e.key === 'W') handleLocalAction('p1', 'up');
-                if (e.key === 's' || e.key === 'S') handleLocalAction('p1', 'down');
-                if (e.key === 'a' || e.key === 'A') handleLocalAction('p1', 'left');
-                if (e.key === 'd' || e.key === 'D') handleLocalAction('p1', 'right');
-                if (e.code === 'Space') { e.preventDefault(); handleLocalAction('p1', 'select'); }
-
-                if (e.key === 'ArrowUp') { e.preventDefault(); handleLocalAction('p2', 'up'); }
-                if (e.key === 'ArrowDown') { e.preventDefault(); handleLocalAction('p2', 'down'); }
-                if (e.key === 'ArrowLeft') { e.preventDefault(); handleLocalAction('p2', 'left'); }
-                if (e.key === 'ArrowRight') { e.preventDefault(); handleLocalAction('p2', 'right'); }
-                if (e.key === 'Enter') { e.preventDefault(); handleLocalAction('p2', 'select'); }
-            });
-
-            window.renderLocalUI = function() {
-                const appDiv = document.getElementById('app');
-                let cfg = getLevelConfig(gameState.level);
-                let size = cfg.size;
-
-                function renderGridMarkup(grid, pKey) {
-                    let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, gameState.level);
-                    let gridHtml = '';
-                    for (let r = 0; r < size; r++) {
-                        for (let c = 0; c < size; c++) {
-                            let isLocked = lockedRows[r] || lockedCols[c];
-                            let tileSize = size === 3 ? 'w-16 h-16 text-3xl' : size === 4 ? 'w-14 h-14 text-2xl' : size === 5 ? 'w-12 h-12 text-xl' : 'w-10 h-10 text-lg';
-                            let classes = `tile ${tileSize} bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
-                            let innerHtml = `<span>${grid[r][c]}</span>`;
-                            let overlays = '';
-
-                            if (gameState[pKey].selected && gameState[pKey].selected.r === r && gameState[pKey].selected.c === c) {
-                                overlays += `<div class="absolute inset-0 rounded-2xl ${pKey === 'p1' ? 'selected-p1' : 'selected-p2'} pointer-events-none"></div>`;
-                            }
-                            if (gameState[pKey].cursor.r === r && gameState[pKey].cursor.c === c) {
-                                overlays += `<div class="absolute inset-0 rounded-2xl ${pKey === 'p1' ? 'cursor-p1' : 'cursor-p2'} pointer-events-none"></div>`;
-                            }
-
-                            gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
-                        }
-                    }
-                    return gridHtml;
-                }
-
-                if (gameState.gameMode === 'coop') {
-                    let gridHtml = renderGridMarkup(gameState.grid, 'p1');
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center p-4">
-                            <div class="mb-2 flex items-center space-x-4">
-                                <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name}</span>
-                                <div class="flex bg-gray-900 p-1 rounded-xl border border-gray-800">
-                                    <button onclick="setGameMode('coop')" class="px-3 py-1 rounded-lg text-xs font-bold transition-colors bg-purple-600 text-white">Co-op</button>
-                                    <button onclick="setGameMode('versus')" class="px-3 py-1 rounded-lg text-xs font-bold transition-colors text-gray-400 hover:text-white">Versus</button>
-                                </div>
-                                <span class="px-4 py-1.5 rounded-full bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-sm">Moves Left: ${gameState.movesLeft}</span>
-                                <a href="${window.location.origin + window.location.pathname}" class="text-xs text-gray-400 hover:text-white underline">Back to QR Mode</a>
-                            </div>
-
-                            <div class="mb-4 flex space-x-12 text-sm">
-                                <div class="flex items-center space-x-2 bg-red-950/40 px-3 py-1 rounded-lg border border-red-900/50">
-                                    <div class="w-4 h-4 bg-red-500 rounded-full"></div>
-                                    <span class="font-bold text-red-300">P1 (WASD + Space)</span>
-                                </div>
-                                <div class="flex items-center space-x-2 bg-blue-950/40 px-3 py-1 rounded-lg border border-blue-900/50">
-                                    <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
-                                    <span class="font-bold text-blue-300">P2 (Arrows + Enter)</span>
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-${size} gap-2.5 bg-gray-900/90 p-5 rounded-[2rem] shadow-2xl border border-gray-800 relative">
-                                ${gridHtml}
-                                ${gameState.status === 'won' ? `
-                                    <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                        <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">LEVEL CLEARED!</h1>
-                                        <p class="text-gray-300 mb-6">Fantastic teamwork solving ${cfg.name}!</p>
-                                        <div class="flex space-x-4">
-                                            <button onclick="handleLocalAction('p1', 'next_level')" class="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors cursor-pointer shadow-lg">Next Level ➡️</button>
-                                            <button onclick="handleLocalAction('p1', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors cursor-pointer">Restart</button>
-                                        </div>
-                                    </div>
-                                ` : gameState.status === 'gameover' ? `
-                                    <div class="absolute inset-0 bg-red-950/90 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                        <h1 class="text-5xl font-black text-red-400 mb-2 drop-shadow-lg">GAME OVER</h1>
-                                        <p class="text-gray-300 mb-6">You ran out of moves on ${cfg.name}!</p>
-                                        <button onclick="handleLocalAction('p1', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors cursor-pointer">Try Again</button>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Versus mode with 2 separate grids
-                    let p1GridHtml = renderGridMarkup(gameState.grid, 'p1');
-                    let p2GridHtml = renderGridMarkup(gameState.grid2, 'p2');
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center p-4">
-                            <div class="mb-2 flex items-center space-x-4">
-                                <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name} (Versus Battle)</span>
-                                <div class="flex bg-gray-900 p-1 rounded-xl border border-gray-800">
-                                    <button onclick="setGameMode('coop')" class="px-3 py-1 rounded-lg text-xs font-bold transition-colors text-gray-400 hover:text-white">Co-op</button>
-                                    <button onclick="setGameMode('versus')" class="px-3 py-1 rounded-lg text-xs font-bold transition-colors bg-red-600 text-white">Versus</button>
-                                </div>
-                                <a href="${window.location.origin + window.location.pathname}" class="text-xs text-gray-400 hover:text-white underline">Back to QR Mode</a>
-                            </div>
-
-                            <div class="flex flex-row gap-8 items-center justify-center relative">
-                                <!-- P1 Board -->
-                                <div class="flex flex-col items-center">
-                                    <div class="flex items-center space-x-2 bg-red-950/40 px-3 py-1 rounded-lg border border-red-900/50 mb-2">
-                                        <div class="w-4 h-4 bg-red-500 rounded-full"></div>
-                                        <span class="font-bold text-red-300 text-sm">Player 1 (WASD + Space)</span>
-                                    </div>
-                                    <div class="grid grid-cols-${size} gap-2 bg-gray-900/90 p-4 rounded-3xl shadow-2xl border border-gray-800">
-                                        ${p1GridHtml}
-                                    </div>
-                                </div>
-
-                                <div class="text-2xl font-black text-gray-600">VS</div>
-
-                                <!-- P2 Board -->
-                                <div class="flex flex-col items-center">
-                                    <div class="flex items-center space-x-2 bg-blue-950/40 px-3 py-1 rounded-lg border border-blue-900/50 mb-2">
-                                        <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
-                                        <span class="font-bold text-blue-300 text-sm">Player 2 (Arrows + Enter)</span>
-                                    </div>
-                                    <div class="grid grid-cols-${size} gap-2 bg-gray-900/90 p-4 rounded-3xl shadow-2xl border border-gray-800">
-                                        ${p2GridHtml}
-                                    </div>
-                                </div>
-
-                                ${gameState.status === 'won' ? `
-                                    <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                        <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 drop-shadow-lg">${gameState.winner} WINS!</h1>
-                                        <p class="text-gray-300 mb-6">Completed ${cfg.name} first!</p>
-                                        <div class="flex space-x-4">
-                                            <button onclick="handleLocalAction('p1', 'next_level')" class="px-6 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors cursor-pointer shadow-lg">Next Level ➡️</button>
-                                            <button onclick="handleLocalAction('p1', 'restart')" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 font-bold hover:bg-gray-700 transition-colors cursor-pointer">Restart</button>
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
-                }
-            };
-
-            renderLocalUI();
-        }
-
+        // ==========================================
+        //               HOST LOGIC
+        // ==========================================
         function initHost() {
-            const uniqueId = generateRandomId();
-            const p1PeerId = `emoji_host_p1_${uniqueId}`;
-            const p2PeerId = `emoji_host_p2_${uniqueId}`;
-
-            let initialCfg = getLevelConfig(0);
-            let gameState = {
-                gameMode: 'coop',
-                status: 'waiting',
-                level: 0,
-                movesLeft: initialCfg.moves,
-                grid: generateShuffledGrid(0),
-                grid2: generateShuffledGrid(0),
-                p1: { connected: false, ready: false, cursor: {r: 0, c: 0}, selected: null },
-                p2: { connected: false, ready: false, cursor: {r: initialCfg.size - 1, c: initialCfg.size - 1}, selected: null }
-            };
-
-            let p1Connection = null;
-            let p2Connection = null;
-
-            const peerOptions = {
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
-                }
-            };
-
-            let peer1, peer2;
-            try {
-                peer1 = new Peer(p1PeerId, peerOptions);
-                peer2 = new Peer(p2PeerId, peerOptions);
-            } catch(e) {
-                peer1 = new Peer(p1PeerId);
-                peer2 = new Peer(p2PeerId);
-            }
-
-            peer1.on('connection', (conn) => {
-                p1Connection = conn;
-                gameState.p1.connected = true;
-                setupConnectionHandlers(conn, 'p1');
-                broadcastState();
-            });
-
-            peer2.on('connection', (conn) => {
-                p2Connection = conn;
-                gameState.p2.connected = true;
-                setupConnectionHandlers(conn, 'p2');
-                broadcastState();
-            });
-
-            function setupConnectionHandlers(conn, pKey) {
-                conn.on('data', (data) => {
-                    handleControllerAction(pKey, data);
-                });
-                conn.on('close', () => {
-                    gameState[pKey].connected = false;
-                    gameState[pKey].ready = false;
-                    gameState.status = 'waiting';
-                    broadcastState();
-                });
-            }
-
-            function broadcastState() {
-                if (p1Connection && p1Connection.open) p1Connection.send({ type: 'STATE', state: gameState });
-                if (p2Connection && p2Connection.open) p2Connection.send({ type: 'STATE', state: gameState });
-                renderHostUI();
-            }
-
-            window.setHostGameMode = function(mode) {
-                gameState.gameMode = mode;
-                broadcastState();
-            };
-
-            window.handleHostAction = function(action) {
-                if (gameState.status === 'won' || gameState.status === 'gameover') {
-                    if (action === 'next_level') {
-                        gameState.level++;
-                        let newCfg = getLevelConfig(gameState.level);
-                        gameState.movesLeft = newCfg.moves;
-                        gameState.status = 'playing';
-                        gameState.grid = generateShuffledGrid(gameState.level);
-                        gameState.grid2 = generateShuffledGrid(gameState.level);
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        gameState.p1.cursor = {r: 0, c: 0};
-                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
-                        broadcastState();
-                    } else if (action === 'restart') {
-                        gameState.status = 'waiting';
-                        gameState.level = 0;
-                        let newCfg = getLevelConfig(0);
-                        gameState.movesLeft = newCfg.moves;
-                        gameState.grid = generateShuffledGrid(0);
-                        gameState.grid2 = generateShuffledGrid(0);
-                        gameState.p1.ready = false;
-                        gameState.p2.ready = false;
-                        gameState.p1.selected = null;
-                        gameState.p2.selected = null;
-                        gameState.p1.cursor = {r: 0, c: 0};
-                        gameState.p2.cursor = {r: newCfg.size - 1, c: newCfg.size - 1};
-                        broadcastState();
-                    }
-                }
-            };
-
-            function handleControllerAction(pKey, actionData) {
-                const { action, payload } = actionData;
-                let cfg = getLevelConfig(gameState.level);
-                let size = cfg.size;
-
-                if (gameState.status === 'waiting') {
-                    if (action === 'ready') {
-                        gameState[pKey].ready = true;
-                        if (gameState.p1.ready && gameState.p2.ready) {
-                            gameState.status = 'playing';
-                        }
-                        broadcastState();
-                    }
-                } else if (gameState.status === 'playing') {
-                    let cursor = gameState[pKey].cursor;
-                    let activeGrid = (gameState.gameMode === 'versus' && pKey === 'p2') ? gameState.grid2 : gameState.grid;
-                    let { lockedRows, lockedCols } = getCompletedRowsAndCols(activeGrid, gameState.level);
-
-                    if (action === 'move') {
-                        if (payload === 'up') cursor.r = Math.max(0, cursor.r - 1);
-                        if (payload === 'down') cursor.r = Math.min(size - 1, cursor.r + 1);
-                        if (payload === 'left') cursor.c = Math.max(0, cursor.c - 1);
-                        if (payload === 'right') cursor.c = Math.min(size - 1, cursor.c + 1);
-                        broadcastState();
-                    }
-                    if (action === 'select') {
-                        let curR = cursor.r;
-                        let curC = cursor.c;
-
-                        if (lockedRows[curR] || lockedCols[curC]) {
-                            return;
-                        }
-
-                        if (gameState.gameMode === 'coop') {
-                            if (gameState[pKey].selected) {
-                                gameState[pKey].selected = null;
-                            } else {
-                                gameState[pKey].selected = { ...cursor };
-                            }
-
-                            if (gameState.p1.selected && gameState.p2.selected) {
-                                let r1 = gameState.p1.selected.r;
-                                let c1 = gameState.p1.selected.c;
-                                let r2 = gameState.p2.selected.r;
-                                let c2 = gameState.p2.selected.c;
-
-                                let currentLocks = getCompletedRowsAndCols(gameState.grid, gameState.level);
-                                if (!currentLocks.lockedRows[r1] && !currentLocks.lockedCols[c1] && !currentLocks.lockedRows[r2] && !currentLocks.lockedCols[c2]) {
-                                    let g = gameState.grid;
-                                    let t1 = g[r1][c1];
-                                    let t2 = g[r2][c2];
-                                    g[r1][c1] = t2;
-                                    g[r2][c2] = t1;
-                                    gameState.movesLeft--;
-                                }
-                                gameState.p1.selected = null;
-                                gameState.p2.selected = null;
-                            }
-                        } else {
-                            if (gameState[pKey].selected) {
-                                let r1 = gameState[pKey].selected.r;
-                                let c1 = gameState[pKey].selected.c;
-                                let r2 = curR;
-                                let c2 = curC;
-
-                                if (r1 !== r2 || c1 !== c2) {
-                                    if (!lockedRows[r2] && !lockedCols[c2]) {
-                                        let g = activeGrid;
-                                        let t1 = g[r1][c1];
-                                        let t2 = g[r2][c2];
-                                        g[r1][c1] = t2;
-                                        g[r2][c2] = t1;
-                                    }
-                                }
-                                gameState[pKey].selected = null;
-                            } else {
-                                gameState[pKey].selected = { ...cursor };
-                            }
-                        }
-
-                        if (gameState.gameMode === 'coop') {
-                            let winCheck = checkWin(gameState.grid, gameState.level);
-                            if (winCheck.isWon) {
-                                gameState.status = 'won';
-                            } else if (gameState.movesLeft <= 0) {
-                                gameState.status = 'gameover';
-                            }
-                        } else {
-                            let p1Win = checkWin(gameState.grid, gameState.level).isWon;
-                            let p2Win = checkWin(gameState.grid2, gameState.level).isWon;
-                            if (p1Win || p2Win) {
-                                gameState.status = 'won';
-                                gameState.winner = p1Win && p2Win ? 'Tie' : p1Win ? 'Player 1' : 'Player 2';
-                            }
-                        }
-
-                        broadcastState();
-                    }
-                } else if (gameState.status === 'won' || gameState.status === 'gameover') {
-                    if (action === 'next_level' || action === 'restart') {
-                        window.handleHostAction(action);
-                    }
-                }
-            }
-
-            window.renderHostUI = function() {
-                const appDiv = document.getElementById('app');
-                const baseUrl = window.location.origin + window.location.pathname;
-                const p1Url = `${baseUrl}?view=ctrl&p=1&host=${p1PeerId}`;
-                const p2Url = `${baseUrl}?view=ctrl&p=2&host=${p2PeerId}`;
-                const localUrl = `${baseUrl}?local=true`;
-
-                if (gameState.status === 'waiting') {
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center w-full max-w-4xl p-6 bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl">
-                            <h1 class="text-4xl font-extrabold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Emoji Swap Puzzle</h1>
-                            <p class="text-gray-400 mb-4 text-sm text-center">Match emojis in rows/cols! Scan QR codes with smartphones in landscape mode.</p>
-                            
-                            <div class="flex bg-gray-800 p-1.5 rounded-2xl border border-gray-700 mb-6">
-                                <button onclick="setHostGameMode('coop')" class="px-6 py-2 rounded-xl text-sm font-bold transition-colors ${gameState.gameMode === 'coop' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}">Co-op Mode (Moves Limit)</button>
-                                <button onclick="setHostGameMode('versus')" class="px-6 py-2 rounded-xl text-sm font-bold transition-colors ${gameState.gameMode === 'versus' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white'}">Versus Mode (1 Grid Each)</button>
-                            </div>
-
-                            <div class="flex flex-col md:flex-row w-full justify-around items-center gap-6 mb-6">
-                                <div class="flex flex-col items-center p-4 bg-gray-800/80 rounded-2xl border-2 ${gameState.p1.connected ? 'border-red-500' : 'border-gray-700'}">
-                                    <h2 class="text-xl font-bold mb-2 text-red-400">Player 1 (Red)</h2>
-                                    <div id="qr-p1" class="bg-white p-2 rounded-xl mb-2 shadow-lg"></div>
-                                    <div class="h-6 text-xs text-center">
-                                        ${gameState.p1.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                          gameState.p1.connected ? '<span class="text-yellow-400">Connected, waiting...</span>' : 
-                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone</span>'}
-                                    </div>
-                                </div>
-
-                                <div class="text-2xl font-bold text-gray-600">VS / CO-OP</div>
-
-                                <div class="flex flex-col items-center p-4 bg-gray-800/80 rounded-2xl border-2 ${gameState.p2.connected ? 'border-blue-500' : 'border-gray-700'}">
-                                    <h2 class="text-xl font-bold mb-2 text-blue-400">Player 2 (Blue)</h2>
-                                    <div id="qr-p2" class="bg-white p-2 rounded-xl mb-2 shadow-lg"></div>
-                                    <div class="h-6 text-xs text-center">
-                                        ${gameState.p2.ready ? '<span class="text-green-400 font-bold">READY!</span>' : 
-                                          gameState.p2.connected ? '<span class="text-yellow-400">Connected, waiting...</span>' : 
-                                          '<span class="text-gray-400 animate-pulse">Scan with smartphone</span>'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="border-t border-gray-800 pt-4 w-full flex flex-col items-center">
-                                <span class="text-gray-400 text-sm mb-2">Don't have 2 smartphones handy?</span>
-                                <a href="${localUrl}" class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors shadow-lg shadow-purple-900/40">
-                                    💻 Play Locally on This Desktop
-                                </a>
-                            </div>
-                        </div>
-                    `;
-
-                    const qr1El = document.getElementById('qr-p1');
-                    if (qr1El && qr1El.innerHTML === '') {
-                        new QRCode(qr1El, { text: p1Url, width: 130, height: 130, colorDark : "#000000", colorLight : "#ffffff" });
-                    }
-                    const qr2El = document.getElementById('qr-p2');
-                    if (qr2El && qr2El.innerHTML === '') {
-                        new QRCode(qr2El, { text: p2Url, width: 130, height: 130, colorDark : "#000000", colorLight : "#ffffff" });
-                    }
-
-                } else {
-                    let cfg = getLevelConfig(gameState.level);
-                    let size = cfg.size;
-
-                    function renderHostGridMarkup(grid, pKey) {
-                        let { lockedRows, lockedCols } = getCompletedRowsAndCols(grid, gameState.level);
-                        let gridHtml = '';
-                        for (let r = 0; r < size; r++) {
-                            for (let c = 0; c < size; c++) {
-                                let isLocked = lockedRows[r] || lockedCols[c];
-                                let tileSize = size === 3 ? 'w-20 h-20 text-4xl' : size === 4 ? 'w-16 h-16 text-3xl' : size === 5 ? 'w-14 h-14 text-2xl' : 'w-12 h-12 text-xl';
-                                let classes = `tile ${tileSize} bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center relative shadow-xl ${isLocked ? 'locked-glow' : ''}`;
-                                let innerHtml = `<span>${grid[r][c]}</span>`;
-                                let overlays = '';
-
-                                if (gameState[pKey].selected && gameState[pKey].selected.r === r && gameState[pKey].selected.c === c) {
-                                    overlays += `<div class="absolute inset-0 rounded-2xl ${pKey === 'p1' ? 'selected-p1' : 'selected-p2'} pointer-events-none"></div>`;
-                                }
-                                if (gameState[pKey].cursor.r === r && gameState[pKey].cursor.c === c) {
-                                    overlays += `<div class="absolute inset-0 rounded-2xl ${pKey === 'p1' ? 'cursor-p1' : 'cursor-p2'} pointer-events-none"></div>`;
-                                }
-
-                                gridHtml += `<div class="${classes}">${innerHtml}${overlays}</div>`;
-                            }
-                        }
-                        return gridHtml;
-                    }
-
-                    if (gameState.gameMode === 'coop') {
-                        let gridHtml = renderHostGridMarkup(gameState.grid, 'p1');
-                        appDiv.innerHTML = `
-                            <div class="flex flex-col items-center">
-                                <div class="mb-4 flex items-center space-x-6">
-                                    <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name}</span>
-                                    <span class="px-4 py-1.5 rounded-full bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-sm">Moves Left: ${gameState.movesLeft}</span>
-                                </div>
-
-                                <div class="mb-6 flex space-x-12">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-6 h-6 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
-                                        <span class="text-xl font-bold text-gray-300">Player 1</span>
-                                    </div>
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-6 h-6 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
-                                        <span class="text-xl font-bold text-gray-300">Player 2</span>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-${size} gap-3 md:gap-4 bg-gray-900/90 p-6 md:p-8 rounded-[2rem] shadow-2xl border border-gray-800 relative">
-                                    ${gridHtml}
-                                    
-                                    ${gameState.status === 'won' ? `
-                                        <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                            <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg text-center">LEVEL CLEARED!</h1>
-                                            <p class="text-xl text-gray-300 mb-8 text-center">Fantastic teamwork solving ${cfg.name}!</p>
-                                            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
-                                                <button onclick="handleHostAction('next_level')" class="px-6 py-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg shadow-lg shadow-purple-900/50 transition-colors cursor-pointer">Next Level ➡️</button>
-                                                <button onclick="handleHostAction('restart')" class="px-6 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition-colors cursor-pointer">Restart Lobby</button>
-                                            </div>
-                                        </div>
-                                    ` : gameState.status === 'gameover' ? `
-                                        <div class="absolute inset-0 bg-red-950/90 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                            <h1 class="text-5xl font-black text-red-400 mb-4 drop-shadow-lg text-center">GAME OVER</h1>
-                                            <p class="text-xl text-gray-300 mb-8 text-center">You ran out of moves on ${cfg.name}!</p>
-                                            <button onclick="handleHostAction('restart')" class="px-6 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition-colors cursor-pointer">Restart Lobby</button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        let p1GridHtml = renderHostGridMarkup(gameState.grid, 'p1');
-                        let p2GridHtml = renderHostGridMarkup(gameState.grid2, 'p2');
-                        appDiv.innerHTML = `
-                            <div class="flex flex-col items-center">
-                                <div class="mb-4 flex items-center space-x-6">
-                                    <span class="px-4 py-1.5 rounded-full bg-purple-900/60 border border-purple-500/50 text-purple-300 font-semibold text-sm uppercase tracking-wider">${cfg.name} (Versus Battle)</span>
-                                </div>
-
-                                <div class="flex flex-row gap-12 items-center justify-center relative">
-                                    <div class="flex flex-col items-center">
-                                        <div class="flex items-center space-x-2 bg-red-950/40 px-3 py-1 rounded-lg border border-red-900/50 mb-3">
-                                            <div class="w-5 h-5 bg-red-500 rounded-full"></div>
-                                            <span class="font-bold text-red-300 text-lg">Player 1 Grid</span>
-                                        </div>
-                                        <div class="grid grid-cols-${size} gap-3 bg-gray-900/90 p-6 rounded-[2rem] shadow-2xl border border-gray-800">
-                                            ${p1GridHtml}
-                                        </div>
-                                    </div>
-
-                                    <div class="text-3xl font-black text-gray-600">VS</div>
-
-                                    <div class="flex flex-col items-center">
-                                        <div class="flex items-center space-x-2 bg-blue-950/40 px-3 py-1 rounded-lg border border-blue-900/50 mb-3">
-                                            <div class="w-5 h-5 bg-blue-500 rounded-full"></div>
-                                            <span class="font-bold text-blue-300 text-lg">Player 2 Grid</span>
-                                        </div>
-                                        <div class="grid grid-cols-${size} gap-3 bg-gray-900/90 p-6 rounded-[2rem] shadow-2xl border border-gray-800">
-                                            ${p2GridHtml}
-                                        </div>
-                                    </div>
-
-                                    ${gameState.status === 'won' ? `
-                                        <div class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-[2rem] flex flex-col items-center justify-center z-50 p-6">
-                                            <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg text-center">${gameState.winner} WINS!</h1>
-                                            <p class="text-xl text-gray-300 mb-8 text-center">Completed ${cfg.name} first!</p>
-                                            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
-                                                <button onclick="handleHostAction('next_level')" class="px-6 py-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-lg shadow-lg shadow-purple-900/50 transition-colors cursor-pointer">Next Level ➡️</button>
-                                                <button onclick="handleHostAction('restart')" class="px-6 py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-lg transition-colors cursor-pointer">Restart Lobby</button>
-                                            </div>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-            };
-
-            renderHostUI();
-        }
-
-        function initController(playerNum, hostPeerId) {
-            const appDiv = document.getElementById('app');
-            const themeColor = playerNum === '1' ? 'red' : 'blue';
-            const themeHex = playerNum === '1' ? '#ef4444' : '#3b82f6';
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
             
-            document.body.style.backgroundColor = playerNum === '1' ? '#2a0d0d' : '#0d1b2a';
+            // Host State
+            let state = GameState.WAITING;
+            let units = [];
+            let projectiles = [];
+            let particles = [];
+            let p1Funds = STARTING_FUNDS;
+            let p2Funds = STARTING_FUNDS;
+            let p1History = [];
+            let p2History = [];
 
-            appDiv.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                    <div class="text-3xl font-black text-${themeColor}-400 mb-4">PLAYER ${playerNum}</div>
-                    <div class="text-lg text-gray-300 animate-pulse">Connecting to Desktop Host...</div>
-                </div>
-            `;
+            // Player Connections & Cursors
+            let p1Conn = null, p2Conn = null;
+            let p1Ready = false, p2Ready = false;
+            let cursors = {
+                1: { x: GAME_WIDTH * 0.2, y: GAME_HEIGHT / 2, unitId: 'peasant', active: false },
+                2: { x: GAME_WIDTH * 0.8, y: GAME_HEIGHT / 2, unitId: 'peasant', active: false }
+            };
 
-            let clientPeer;
-            try {
-                clientPeer = new Peer({
-                    host: '0.peerjs.com',
-                    port: 443,
-                    secure: true,
-                    config: {
-                        iceServers: [
-                            { urls: 'stun:stun.l.google.com:19302' },
-                            { urls: 'stun:stun1.l.google.com:19302' }
-                        ]
+            // Loop timing
+            let lastTime = performance.now();
+
+            // Initialize PeerJS for Host
+            const peer = new Peer(null, { debug: 2 });
+
+            peer.on('open', (id) => {
+                console.log('Host created with ID:', id);
+                
+                // Generate URLs for QR
+                const baseUrl = window.location.href.split('?')[0].split('#')[0];
+                const urlP1 = `${baseUrl}?host=${id}&p=1`;
+                const urlP2 = `${baseUrl}?host=${id}&p=2`;
+
+                // Render QRs
+                new QRCode(document.getElementById("qr-p1"), { text: urlP1, width: 200, height: 200, colorDark: "#2196F3" });
+                new QRCode(document.getElementById("qr-p2"), { text: urlP2, width: 200, height: 200, colorDark: "#F44336" });
+                
+                requestAnimationFrame(hostLoop);
+            });
+
+            peer.on('connection', (conn) => {
+                // Determine which player connected based on a handshake message
+                conn.on('data', (data) => {
+                    if (data.type === 'hello') {
+                        let p = data.player;
+                        if (p === 1) {
+                            p1Conn = conn;
+                            cursors[1].active = true;
+                            document.getElementById('p1-status').innerText = "CONNECTED!";
+                            document.getElementById('p1-status').classList.replace('text-gray-400', 'text-green-400');
+                        } else if (p === 2) {
+                            p2Conn = conn;
+                            cursors[2].active = true;
+                            document.getElementById('p2-status').innerText = "CONNECTED!";
+                            document.getElementById('p2-status').classList.replace('text-gray-400', 'text-green-400');
+                        }
+                        
+                        // Send initial state
+                        conn.send({ type: 'state', state: state, funds: p === 1 ? p1Funds : p2Funds });
+
+                        checkAllConnected();
+                    }
+                    else if (data.type === 'input') {
+                        handleClientInput(conn === p1Conn ? 1 : 2, data);
                     }
                 });
-            } catch(e) {
-                clientPeer = new Peer();
+                
+                conn.on('close', () => {
+                    if(conn === p1Conn) { p1Conn = null; cursors[1].active = false; }
+                    if(conn === p2Conn) { p2Conn = null; cursors[2].active = false; }
+                });
+            });
+
+            function checkAllConnected() {
+                if (p1Conn && p2Conn && state === GameState.WAITING) {
+                    setTimeout(() => {
+                        document.getElementById('qr-screen').classList.add('hidden');
+                        state = GameState.DEPLOY;
+                        updateHostUI();
+                        broadcast({ type: 'state', state: state });
+                    }, 1000);
+                }
             }
 
-            let conn = null;
-            let latestState = null;
+            function broadcast(msg) {
+                if (p1Conn) p1Conn.send(msg);
+                if (p2Conn) p2Conn.send(msg);
+            }
 
-            clientPeer.on('open', () => {
-                conn = clientPeer.connect(hostPeerId);
+            function handleClientInput(playerNum, data) {
+                if (state === GameState.DEPLOY) {
+                    let cursor = cursors[playerNum];
+                    
+                    if (data.action === 'move') {
+                        // Adjust sensitivity
+                        cursor.x += data.dx * 1.5;
+                        cursor.y += data.dy * 1.5;
+                        
+                        // Clamp to zones
+                        let limitX = GAME_WIDTH * DEPLOYMENT_ZONE_WIDTH;
+                        if (playerNum === 1) cursor.x = Math.max(0, Math.min(limitX, cursor.x));
+                        if (playerNum === 2) cursor.x = Math.max(GAME_WIDTH - limitX, Math.min(GAME_WIDTH, cursor.x));
+                        cursor.y = Math.max(0, Math.min(GAME_HEIGHT, cursor.y));
+                    } 
+                    else if (data.action === 'select') {
+                        cursor.unitId = data.unitId;
+                    }
+                    else if (data.action === 'place') {
+                        let type = Object.values(UnitTypes).find(u => u.id === cursor.unitId);
+                        let funds = playerNum === 1 ? p1Funds : p2Funds;
+                        
+                        if (funds >= type.cost) {
+                            // Check overlap
+                            let overlap = units.some(u => {
+                                let dsq = (u.x - cursor.x)**2 + (u.y - cursor.y)**2;
+                                return dsq < (u.radius + type.radius)**2;
+                            });
+                            
+                            if (!overlap) {
+                                let newUnit = new Unit(cursor.x, cursor.y, type, playerNum);
+                                units.push(newUnit);
+                                if (playerNum === 1) { p1Funds -= type.cost; p1History.push(newUnit); p1Conn.send({type: 'funds', val: p1Funds}); }
+                                if (playerNum === 2) { p2Funds -= type.cost; p2History.push(newUnit); p2Conn.send({type: 'funds', val: p2Funds}); }
+                                updateHostUI();
+                            }
+                        } else {
+                            // Tell client insufficient funds
+                        }
+                    }
+                    else if (data.action === 'undo') {
+                        let history = playerNum === 1 ? p1History : p2History;
+                        if (history.length > 0) {
+                            let last = history.pop();
+                            units = units.filter(u => u !== last);
+                            if (playerNum === 1) { p1Funds += last.type.cost; p1Conn.send({type: 'funds', val: p1Funds}); }
+                            if (playerNum === 2) { p2Funds += last.type.cost; p2Conn.send({type: 'funds', val: p2Funds}); }
+                            updateHostUI();
+                        }
+                    }
+                    else if (data.action === 'ready') {
+                        if (playerNum === 1) p1Ready = !p1Ready;
+                        if (playerNum === 2) p2Ready = !p2Ready;
+                        updateHostUI();
+                        
+                        if (p1Ready && p2Ready) {
+                            startBattle();
+                        }
+                    }
+                } else if (state === GameState.END) {
+                    if (data.action === 'rematch') {
+                        if (playerNum === 1) p1Ready = true;
+                        if (playerNum === 2) p2Ready = true;
+                        if (p1Ready && p2Ready) {
+                            resetGame();
+                        }
+                    }
+                }
+            }
+
+            function updateHostUI() {
+                document.getElementById('host-p1-funds').innerText = p1Funds;
+                document.getElementById('host-p2-funds').innerText = p2Funds;
+                
+                const phaseText = document.getElementById('host-phase-text');
+                if (state === GameState.DEPLOY) {
+                    let text = "DEPLOY PHASE";
+                    if (p1Ready) text = "P1 READY | WAIT P2";
+                    if (p2Ready) text = "WAIT P1 | P2 READY";
+                    if (p1Ready && p2Ready) text = "STARTING...";
+                    phaseText.innerText = text;
+                    phaseText.className = "text-yellow-400 text-center";
+                }
+            }
+
+            function startBattle() {
+                state = GameState.BATTLE;
+                document.getElementById('host-phase-text').innerText = "BATTLE IN PROGRESS!";
+                document.getElementById('host-phase-text').className = "text-red-500 text-center animate-bounce font-bold";
+                document.getElementById('p1-zone-indicator').classList.add('hidden');
+                document.getElementById('p2-zone-indicator').classList.add('hidden');
+                broadcast({ type: 'state', state: state });
+            }
+
+            function resetGame() {
+                units = []; projectiles = []; particles = [];
+                p1History = []; p2History = [];
+                p1Funds = STARTING_FUNDS; p2Funds = STARTING_FUNDS;
+                p1Ready = false; p2Ready = false;
+                
+                if (p1Conn) p1Conn.send({type: 'funds', val: p1Funds});
+                if (p2Conn) p2Conn.send({type: 'funds', val: p2Funds});
+
+                document.getElementById('p1-zone-indicator').classList.remove('hidden');
+                document.getElementById('p2-zone-indicator').classList.remove('hidden');
+                document.getElementById('host-end-screen').classList.add('hidden');
+                
+                state = GameState.DEPLOY;
+                updateHostUI();
+                broadcast({ type: 'state', state: state });
+            }
+
+            function hostLoop(timestamp) {
+                let dt = (timestamp - lastTime) / 1000;
+                if (dt > 0.1) dt = 0.1;
+                lastTime = timestamp;
+
+                if (state === GameState.BATTLE) {
+                    updateBattle(dt);
+                }
+
+                drawHost(ctx, dt);
+                requestAnimationFrame(hostLoop);
+            }
+
+            function updateBattle(dt) {
+                units.forEach(u => u.update(dt, units, projectiles, createEffect));
+                
+                // Update projectiles
+                for (let i = projectiles.length - 1; i >= 0; i--) {
+                    let p = projectiles[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.life -= dt;
+
+                    let hit = false;
+                    for (let unit of units) {
+                        if (unit.player !== p.player && !unit.isDead) {
+                            let dsq = (p.x - unit.x)**2 + (p.y - unit.y)**2;
+                            if (dsq < (unit.radius + 4)**2) {
+                                unit.takeDamage(p.damage, null, createFloatingText, createEffect);
+                                hit = true; break;
+                            }
+                        }
+                    }
+
+                    if (hit || p.life <= 0 || p.x < 0 || p.x > GAME_WIDTH || p.y < 0 || p.y > GAME_HEIGHT) {
+                        projectiles.splice(i, 1);
+                    }
+                }
+
+                // Check Win
+                let p1Alive = units.some(u => u.player === 1 && !u.isDead);
+                let p2Alive = units.some(u => u.player === 2 && !u.isDead);
+
+                // Remove dead units so they completely disappear
+                units = units.filter(u => !u.isDead);
+
+                if (!p1Alive || !p2Alive) {
+                    state = GameState.END;
+                    p1Ready = false; p2Ready = false; // Reset for rematch
+                    broadcast({ type: 'state', state: state });
+                    
+                    setTimeout(() => {
+                        document.getElementById('host-end-screen').classList.remove('hidden');
+                        const txt = document.getElementById('winner-text');
+                        if(p1Alive) { txt.innerText = "PLAYER 1 (BLUE) WINS!"; txt.className = "mb-4 text-4xl text-center text-blue-500 font-bold"; }
+                        else if(p2Alive) { txt.innerText = "PLAYER 2 (RED) WINS!"; txt.className = "mb-4 text-4xl text-center text-red-500 font-bold"; }
+                        else { txt.innerText = "DRAW! MUTUAL DESTRUCTION"; txt.className = "mb-4 text-4xl text-center text-yellow-500"; }
+                    }, 1500);
+                }
+            }
+
+            function drawHost(ctx, dt) {
+                ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                // Grid
+                ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 1;
+                for(let i=0; i<GAME_WIDTH; i+=50) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
+                for(let i=0; i<GAME_HEIGHT; i+=50) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
+
+                // Center line
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
+                ctx.beginPath(); ctx.moveTo(GAME_WIDTH/2, 0); ctx.lineTo(GAME_WIDTH/2, GAME_HEIGHT); ctx.stroke(); ctx.setLineDash([]);
+
+                // Draw units (only alive ones exist in the array now)
+                units.sort((a,b)=>a.y-b.y).forEach(u => u.draw(ctx, state));
+
+                // Projectiles
+                projectiles.forEach(p => {
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.atan2(p.vy, p.vx));
+                    ctx.fillStyle = '#654321'; ctx.fillRect(-6, -1, 12, 2);
+                    ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.moveTo(6, -3); ctx.lineTo(12, 0); ctx.lineTo(6, 3); ctx.fill();
+                    ctx.restore();
+                });
+
+                // Particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.life -= dt;
+                    if (p.type === 'ring') {
+                        p.size += (p.maxSize - p.size) * 10 * dt;
+                        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                        ctx.strokeStyle = p.color; ctx.lineWidth = 2 * (p.life / 0.3); ctx.stroke();
+                    } else {
+                        p.x += p.vx * dt; p.y += p.vy * dt;
+                        ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life * 3);
+                        ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size); ctx.globalAlpha = 1.0;
+                    }
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                // Cursors
+                if (state === GameState.DEPLOY) {
+                    [1, 2].forEach(pNum => {
+                        let c = cursors[pNum];
+                        if (c.active) {
+                            let type = Object.values(UnitTypes).find(u => u.id === c.unitId);
+                            let color = pNum === 1 ? '#2196F3' : '#F44336';
+                            let isReady = pNum === 1 ? p1Ready : p2Ready;
+                            
+                            if (isReady) return; // Don't show cursor if ready
+
+                            ctx.save(); ctx.translate(c.x, c.y);
+                            
+                            // Ghost unit
+                            ctx.globalAlpha = 0.6;
+                            ctx.beginPath(); ctx.arc(0, 0, type.radius, 0, Math.PI*2);
+                            ctx.fillStyle = type.color; ctx.fill();
+                            ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+                            
+                            // Crosshair
+                            ctx.globalAlpha = 1.0;
+                            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                            ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(20, 0); ctx.stroke();
+                            ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, 20); ctx.stroke();
+
+                            // Range
+                            ctx.beginPath(); ctx.arc(0, 0, type.range, 0, Math.PI*2);
+                            ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+                            
+                            ctx.restore();
+                        }
+                    });
+                }
+            }
+
+            function createEffect(x, y, type, amount) {
+                if (type === 'blood') {
+                    for(let i=0; i<amount; i++) particles.push({ x: x, y: y, vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100, life: 0.2+Math.random()*0.3, color: 'red', size: 2+Math.random()*4 });
+                } else if (type === 'slam') {
+                    particles.push({ x: x, y: y, vx: 0, vy: 0, life: 0.3, color: 'rgba(200,200,200,0.5)', size: 1, maxSize: amount, type: 'ring' });
+                }
+            }
+            
+            function createFloatingText(x, y, text, color) {
+                const el = document.createElement('div');
+                el.className = 'floating-text'; el.innerText = text; el.style.color = color;
+                const rect = document.getElementById('game-canvas').getBoundingClientRect();
+                el.style.left = `${rect.left + (x * (rect.width/GAME_WIDTH))}px`;
+                el.style.top = `${rect.top + (y * (rect.height/GAME_HEIGHT))}px`;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            }
+        } // End initHost
+
+        // ==========================================
+        //               CLIENT LOGIC
+        // ==========================================
+        function initClient() {
+            let conn = null;
+            let currentUnitId = 'peasant';
+            
+            // Fix: Define colorClass and update the player label properly
+            let colorClass = playerNumParam === 1 ? 'text-blue-400' : 'text-red-400';
+            document.getElementById('cli-player-label').innerText = `PLAYER ${playerNumParam}`;
+            document.getElementById('cli-player-label').className = `text-[12px] font-bold drop-shadow-md ${colorClass}`;
+
+            const dock = document.getElementById('cli-unit-dock');
+            Object.values(UnitTypes).forEach(type => {
+                const btn = document.createElement('div');
+                btn.className = 'mob-unit-card';
+                btn.dataset.id = type.id;
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2 w-[70%]">
+                        <div style="width:20px; height:20px; flex-shrink:0; border-radius:50%; background:${type.color}; border:2px solid #000"></div>
+                        <div class="flex flex-col">
+                            <div class="text-[9px] font-bold text-white truncate">${type.name}</div>
+                            <div class="text-[7px] text-gray-400 leading-tight">${type.desc}</div>
+                        </div>
+                    </div>
+                    <div class="text-[9px] text-yellow-400 font-bold">$${type.cost}</div>
+                `;
+                btn.onclick = () => selectUnit(type.id, btn);
+                dock.appendChild(btn);
+            });
+            selectUnit('peasant', dock.children[0]);
+
+            const overlay = document.getElementById('cli-overlay');
+            const overlayMsg = document.getElementById('cli-overlay-msg');
+            const btnRematch = document.getElementById('btn-rematch');
+            
+            overlay.classList.remove('hidden');
+            overlayMsg.innerText = "CONNECTING TO HOST...";
+
+            // Initialize PeerJS
+            const peer = new Peer(null, { debug: 2 });
+            
+            peer.on('open', () => {
+                conn = peer.connect(hostIdParam);
                 
                 conn.on('open', () => {
-                    renderControllerScreen('waiting');
+                    // Handshake
+                    conn.send({ type: 'hello', player: playerNumParam });
                 });
 
                 conn.on('data', (data) => {
-                    if (data.type === 'STATE') {
-                        latestState = data.state;
-                        renderControllerScreen(latestState.status);
+                    if (data.type === 'state') {
+                        if (data.state === GameState.WAITING) {
+                            overlay.classList.remove('hidden');
+                            overlayMsg.innerText = "WAITING FOR OTHER PLAYER...";
+                            btnRematch.classList.add('hidden');
+                        }
+                        else if (data.state === GameState.DEPLOY) {
+                            overlay.classList.add('hidden');
+                            // Reset ready button state with correct flex classes
+                            document.getElementById('btn-ready').innerText = "READY";
+                            document.getElementById('btn-ready').className = "mob-btn bg-yellow-600 border-b-4 border-yellow-800 flex-1 text-[12px] font-bold";
+                        }
+                        else if (data.state === GameState.BATTLE) {
+                            overlay.classList.remove('hidden');
+                            overlayMsg.innerText = "BATTLE IN PROGRESS!\n\nLOOK AT TV";
+                            overlayMsg.className = "text-xl text-center text-red-500 font-bold leading-loose px-6 animate-pulse";
+                            btnRematch.classList.add('hidden');
+                        }
+                        else if (data.state === GameState.END) {
+                            overlay.classList.remove('hidden');
+                            overlayMsg.innerText = "GAME OVER";
+                            overlayMsg.className = "text-2xl text-center text-yellow-400 font-bold leading-loose px-6";
+                            btnRematch.classList.remove('hidden');
+                        }
+                        
+                        if (data.funds !== undefined) {
+                            document.getElementById('cli-funds').innerText = data.funds;
+                        }
+                    }
+                    else if (data.type === 'funds') {
+                        document.getElementById('cli-funds').innerText = data.val;
                     }
                 });
 
                 conn.on('close', () => {
-                    appDiv.innerHTML = `<div class="text-red-400 text-xl font-bold">Disconnected from Host.</div>`;
+                    overlay.classList.remove('hidden');
+                    overlayMsg.innerText = "DISCONNECTED FROM HOST";
                 });
             });
+            
+            peer.on('error', (err) => {
+                overlay.classList.remove('hidden');
+                overlayMsg.innerText = "CONNECTION ERROR:\n" + err.type;
+            });
 
-            window.sendAction = function(action, payload = null) {
-                vibrate(40);
+            // Input Handling
+            function selectUnit(id, element) {
+                currentUnitId = id;
+                document.querySelectorAll('.mob-unit-card').forEach(c => c.classList.remove('selected'));
+                element.classList.add('selected');
                 if (conn && conn.open) {
-                    conn.send({ action, payload });
+                    conn.send({ type: 'input', action: 'select', unitId: id });
                 }
-            };
+            }
 
-            function renderControllerScreen(status) {
-                const pKey = `p${playerNum}`;
-                const pData = latestState ? latestState[pKey] : null;
+            document.getElementById('btn-place').addEventListener('click', () => {
+                if (conn && conn.open) conn.send({ type: 'input', action: 'place' });
+                // Haptic feedback
+                if (navigator.vibrate) navigator.vibrate(50);
+            });
 
-                if (status === 'waiting') {
-                    const isReady = pData ? pData.ready : false;
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                            <div class="text-3xl font-black text-${themeColor}-400 mb-6">PLAYER ${playerNum}</div>
-                            ${isReady ? 
-                                `<div class="text-2xl font-bold text-green-400 animate-pulse">Waiting for other player...</div>` :
-                                `<button onclick="sendAction('ready')" class="px-12 py-8 rounded-3xl bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 shadow-[0_0_40px_${themeHex}80] text-white text-3xl font-black tracking-widest active:scale-95 transition-transform uppercase cursor-pointer">
-                                    Start Game
-                                 </button>`
+            document.getElementById('btn-undo').addEventListener('click', () => {
+                if (conn && conn.open) conn.send({ type: 'input', action: 'undo' });
+            });
+
+            document.getElementById('btn-ready').addEventListener('click', function() {
+                if (conn && conn.open) {
+                    conn.send({ type: 'input', action: 'ready' });
+                    // Maintain flex-1 so it doesn't break the layout
+                    if (this.innerText === "READY") {
+                        this.innerText = "WAITING";
+                        this.className = "mob-btn bg-gray-600 border-b-4 border-gray-800 flex-1 text-[12px] font-bold text-gray-400";
+                    } else {
+                        this.innerText = "READY";
+                        this.className = "mob-btn bg-yellow-600 border-b-4 border-yellow-800 flex-1 text-[12px] font-bold";
+                    }
+                }
+            });
+
+            btnRematch.addEventListener('click', () => {
+                if (conn && conn.open) {
+                    conn.send({ type: 'input', action: 'rematch' });
+                    btnRematch.innerText = "WAITING...";
+                }
+            });
+
+            // Touchpad Drag Logic
+            const trackpad = document.getElementById('trackpad');
+            let lastTouch = null;
+
+            trackpad.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Stop scrolling
+                lastTouch = e.touches[0];
+            });
+
+            trackpad.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (!lastTouch || !conn || !conn.open) return;
+                
+                let touch = e.touches[0];
+                let dx = touch.clientX - lastTouch.clientX;
+                let dy = touch.clientY - lastTouch.clientY;
+                
+                // Send raw delta, host adjusts sensitivity
+                conn.send({ type: 'input', action: 'move', dx: dx, dy: dy });
+                
+                lastTouch = touch;
+            });
+
+            trackpad.addEventListener('touchend', () => { lastTouch = null; });
+            trackpad.addEventListener('touchcancel', () => { lastTouch = null; });
+        } // End initClient
+
+        // ==========================================
+        //               SHARED CLASSES (Host)
+        // ==========================================
+        class Unit {
+            constructor(x, y, type, player) {
+                this.x = x; this.y = y; this.type = type; this.player = player;
+                this.hp = type.hp; this.maxHp = type.hp;
+                this.speed = type.speed; this.radius = type.radius;
+                this.vx = 0; this.vy = 0; this.target = null;
+                this.cdTimer = Math.random() * 0.5; this.isDead = false;
+                this.color = type.color; this.wobblePhase = Math.random() * Math.PI * 2;
+                this.atkAnim = 0;
+            }
+
+            draw(ctx, gameState) {
+                ctx.save(); ctx.translate(this.x, this.y);
+
+                let isMoving = Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1;
+                if (isMoving && gameState === GameState.BATTLE && !this.isDead) {
+                    this.wobblePhase += 15 * 0.016;
+                    ctx.rotate((Math.sin(this.wobblePhase) * 10) * Math.PI / 180);
+                }
+
+                // Team ring
+                ctx.beginPath(); ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+                ctx.fillStyle = this.player === 1 ? '#2196F3' : '#F44336';
+                if(gameState === GameState.DEPLOY) ctx.globalAlpha = 0.5;
+                ctx.fill(); ctx.globalAlpha = 1.0;
+
+                // Body
+                ctx.beginPath();
+                if (this.type.id === 'knight') ctx.rect(-this.radius, -this.radius, this.radius*2, this.radius*2);
+                else ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.stroke();
+
+                if (!this.isDead) {
+                    // Eyes
+                    let angle = (this.target && gameState === GameState.BATTLE) ? Math.atan2(this.target.y - this.y, this.target.x - this.x) : (this.player === 1 ? 0 : Math.PI);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath(); ctx.arc(this.radius*0.4, -this.radius*0.4, this.radius*0.25, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.radius*0.4, this.radius*0.4, this.radius*0.25, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath(); ctx.arc(this.radius*0.5, -this.radius*0.4, this.radius*0.1, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.radius*0.5, this.radius*0.4, this.radius*0.1, 0, Math.PI*2); ctx.fill();
+
+                    // Weapon thrust
+                    if (this.atkAnim > 0) {
+                        ctx.fillStyle = '#777'; let ext = (1 - this.atkAnim) * this.radius * 2;
+                        ctx.fillRect(this.radius * 0.5, -2, ext, 4);
+                    }
+                }
+                ctx.restore();
+
+                // HP Bar
+                if (this.hp < this.maxHp && !this.isDead && gameState === GameState.BATTLE) {
+                    let hpPct = Math.max(0, this.hp / this.maxHp);
+                    ctx.fillStyle = 'black'; ctx.fillRect(this.x - 12, this.y - this.radius - 10, 24, 4);
+                    ctx.fillStyle = '#0f0'; ctx.fillRect(this.x - 11, this.y - this.radius - 9, 22 * hpPct, 2);
+                }
+            }
+
+            update(dt, allUnits, projList, fxFn) {
+                if (this.isDead) return;
+
+                if (this.atkAnim > 0) this.atkAnim -= dt * 3;
+                if (this.cdTimer > 0) this.cdTimer -= dt;
+
+                // Find Target
+                let nearestDist = Infinity; this.target = null;
+                for (let u of allUnits) {
+                    if (u.player !== this.player && !u.isDead) {
+                        let dsq = (this.x - u.x)**2 + (this.y - u.y)**2;
+                        if (dsq < nearestDist) { nearestDist = dsq; this.target = u; }
+                    }
+                }
+
+                if (this.target) {
+                    let dx = this.target.x - this.x; let dy = this.target.y - this.y;
+                    let distSq = dx*dx + dy*dy;
+                    let rangeSq = this.type.range * this.type.range;
+
+                    if (distSq <= rangeSq) {
+                        this.vx = 0; this.vy = 0;
+                        if (this.cdTimer <= 0) this.attack(this.target, allUnits, projList, fxFn);
+                    } else {
+                        let dist = Math.sqrt(distSq);
+                        let mX = (dx/dist)*this.speed; let mY = (dy/dist)*this.speed;
+                        
+                        // Avoidance
+                        let sX = 0, sY = 0, n = 0;
+                        for(let u of allUnits) {
+                            if(u === this || u.isDead) continue;
+                            let odx = this.x - u.x; let ody = this.y - u.y;
+                            let odsq = odx*odx + ody*ody;
+                            let md = this.radius + u.radius + 5;
+                            if (odsq < md*md && odsq > 0) {
+                                let odist = Math.sqrt(odsq);
+                                sX += (odx/odist)*(md-odist); sY += (ody/odist)*(md-odist); n++;
                             }
-                        </div>
-                    `;
-                } else if (status === 'playing') {
-                    const isSelected = pData && pData.selected !== null;
+                        }
+                        if(n > 0) { mX = mX*0.6 + sX*1.5; mY = mY*0.6 + sY*1.5; }
+                        
+                        this.vx = mX; this.vy = mY;
+                    }
+                } else {
+                    this.vx = 0; this.vy = 0;
+                }
 
-                    appDiv.innerHTML = `
-                        <div class="flex flex-row items-center justify-between h-full w-full px-10 py-4">
-                            <!-- Left Side: Landscape D-Pad -->
-                            <div class="flex flex-col items-center justify-center">
-                                <div class="text-xs font-bold text-${themeColor}-300 uppercase mb-2 tracking-wider">${isSelected ? 'Tile Selected' : 'D-Pad'}</div>
-                                <div class="grid grid-cols-3 gap-2 w-48 aspect-square relative">
-                                    <div class="absolute inset-1/3 bg-gray-900 rounded-2xl opacity-50"></div>
-                                    
-                                    <div></div>
-                                    <button onclick="sendAction('move', 'up')" class="ctrl-btn bg-gray-800 rounded-t-2xl shadow-lg border-t border-gray-700 flex items-center justify-center text-2xl cursor-pointer">▲</button>
-                                    <div></div>
-                                    
-                                    <button onclick="sendAction('move', 'left')" class="ctrl-btn bg-gray-800 rounded-l-2xl shadow-lg border-l border-gray-700 flex items-center justify-center text-2xl cursor-pointer">◀</button>
-                                    <div class="bg-gray-900 rounded-lg flex items-center justify-center">
-                                        <div class="w-3 h-3 rounded-full bg-${themeColor}-500/50 shadow-[0_0_8px_${themeHex}]"></div>
-                                    </div>
-                                    <button onclick="sendAction('move', 'right')" class="ctrl-btn bg-gray-800 rounded-r-2xl shadow-lg border-r border-gray-700 flex items-center justify-center text-2xl cursor-pointer">▶</button>
-                                    
-                                    <div></div>
-                                    <button onclick="sendAction('move', 'down')" class="ctrl-btn bg-gray-800 rounded-b-2xl shadow-lg border-b border-gray-700 flex items-center justify-center text-2xl cursor-pointer">▼</button>
-                                    <div></div>
-                                </div>
-                            </div>
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                this.x = Math.max(this.radius, Math.min(GAME_WIDTH - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(GAME_HEIGHT - this.radius, this.y));
+            }
 
-                            <!-- Right Side: Action Button -->
-                            <div class="flex flex-col items-center justify-center w-64">
-                                <button onclick="sendAction('select')" class="w-full py-10 rounded-3xl text-2xl font-black text-white shadow-2xl transition-all active:scale-95 cursor-pointer ${
-                                    isSelected 
-                                    ? 'bg-yellow-600 shadow-[0_0_30px_rgba(202,138,4,0.8)] border-2 border-yellow-400 animate-pulse'
-                                    : `bg-${themeColor}-600 shadow-[0_0_30px_${themeHex}80] border-2 border-${themeColor}-400`
-                                }">
-                                    ${isSelected ? 'SWAP HERE' : 'SELECT TILE'}
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } else if (status === 'won') {
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                            <div class="text-4xl mb-2">🏆</div>
-                            <h1 class="text-2xl font-black text-yellow-400 mb-6 drop-shadow-lg">${latestState.winner ? `${latestState.winner} WON!` : 'LEVEL COMPLETED!'}</h1>
-                            
-                            <div class="flex space-x-4">
-                                <button onclick="sendAction('next_level')" class="px-8 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-[0_0_30px_rgba(147,51,234,0.8)] text-white text-lg font-black active:scale-95 transition-transform uppercase cursor-pointer">
-                                    Next Level ➡️
-                                </button>
-                                <button onclick="sendAction('restart')" class="px-6 py-3 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-base font-bold active:scale-95 transition-transform uppercase cursor-pointer">
-                                    Restart
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } else if (status === 'gameover') {
-                    appDiv.innerHTML = `
-                        <div class="flex flex-col items-center justify-center h-full w-full p-6 text-center">
-                            <div class="text-4xl mb-2">💀</div>
-                            <h1 class="text-2xl font-black text-red-400 mb-6 drop-shadow-lg">GAME OVER</h1>
-                            <button onclick="sendAction('restart')" class="px-8 py-3 rounded-full bg-gray-800 border border-gray-700 text-gray-300 text-base font-bold active:scale-95 transition-transform uppercase cursor-pointer">
-                                Try Again
-                            </button>
-                        </div>
-                    `;
+            attack(target, allUnits, projList, fxFn) {
+                this.cdTimer = this.type.cd; this.atkAnim = 1.0;
+                
+                if (this.type.type === 'melee') {
+                    let dmg = this.type.dmg;
+                    let speedMult = (Math.abs(this.vx) + Math.abs(this.vy)) / this.speed;
+                    if(this.type.charge && speedMult > 0.5) dmg *= this.type.charge;
+
+                    if (this.type.id === 'ogre') {
+                        fxFn(this.x, this.y, 'slam', this.type.aoe);
+                        allUnits.forEach(u => {
+                            if(u.player !== this.player && !u.isDead && (this.x-u.x)**2 + (this.y-u.y)**2 <= this.type.aoe**2) 
+                                u.takeDamage(dmg, this, window.createFloatingText, fxFn);
+                        });
+                    } else {
+                        target.takeDamage(dmg, this, window.createFloatingText, fxFn);
+                    }
+                } else if (this.type.type === 'ranged') {
+                    let dx = target.x - this.x; let dy = target.y - this.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let lt = dist / this.type.pSpeed;
+                    let pX = target.x + target.vx * lt + (Math.random()-0.5)*30;
+                    let pY = target.y + target.vy * lt + (Math.random()-0.5)*30;
+                    
+                    let fx = pX - this.x; let fy = pY - this.y; let fd = Math.sqrt(fx*fx + fy*fy);
+                    projList.push({
+                        x: this.x, y: this.y,
+                        vx: (fx/fd)*this.type.pSpeed, vy: (fy/fd)*this.type.pSpeed,
+                        damage: this.type.dmg, player: this.player, life: 3.0
+                    });
+                }
+            }
+
+            takeDamage(amount, source, txtFn, fxFn) {
+                if (this.isDead) return;
+                let finalDmg = Math.max(1, amount * (0.8 + Math.random() * 0.4));
+                this.hp -= finalDmg;
+                
+                if(txtFn) txtFn(this.x, this.y - this.radius, `-${Math.round(finalDmg)}`, '#ff4444');
+                fxFn(this.x, this.y, 'blood', 3);
+
+                if(source && source.type.type === 'melee') {
+                    let dx = this.x - source.x; let dy = this.y - source.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    let force = (source.type.mass / this.type.mass) * 15;
+                    this.x += (dx/dist) * force; this.y += (dy/dist) * force;
+                }
+
+                if (this.hp <= 0) {
+                    this.hp = 0; this.isDead = true;
+                    fxFn(this.x, this.y, 'blood', 8);
                 }
             }
         }
