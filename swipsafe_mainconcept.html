@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cozy Cyber Friend - Online Safety</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        cozy: {
+                            bg: '#FFFDF9',
+                            card: '#FFFFFF',
+                            mint: '#A8E6CF',
+                            mintDark: '#45B69C',
+                            peach: '#FFD3B6',
+                            rose: '#FFAAA5',
+                            softYellow: '#FF8B94',
+                            warmBg: '#FDF8F2',
+                            text: '#4A4238',
+                            muted: '#8C8275',
+                        }
+                    },
+                    boxShadow: {
+                        'cozy': '0 10px 30px -5px rgba(212, 178, 140, 0.25)',
+                        'cozy-lg': '0 20px 40px -10px rgba(180, 140, 100, 0.2)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #FDF8F2;
+            color: #4A4238;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .card-container {
+            perspective: 1000px;
+        }
+
+        .swipe-card {
+            will-change: transform;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: grab;
+        }
+
+        .swipe-card:active {
+            cursor: grabbing;
+        }
+
+        .swipe-card.swiping {
+            transition: none;
+        }
+
+        /* Cute bounce animations */
+        @keyframes gentle-float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .animate-float {
+            animation: gentle-float 3s ease-in-out infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FDF8F2;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #EADBC8;
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between items-center p-4 md:p-6 overflow-x-hidden">
+
+    <!-- Top Header -->
+    <header class="w-full max-w-md mx-auto flex items-center justify-between py-2 px-1">
+        <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 shadow-sm">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- Audio Toggle -->
+            <button id="soundToggle" onclick="toggleSound()" class="p-2.5 rounded-2xl bg-white text-stone-600 hover:bg-stone-100 shadow-sm transition border border-stone-100" title="Toggle Sound">
+                <svg id="soundIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                </svg>
+            </button>
+            <!-- Chapter Menu Button -->
+            <button onclick="openChapterMenu()" class="p-2.5 rounded-2xl bg-white text-stone-600 hover:bg-stone-100 shadow-sm transition border border-stone-100" title="Select Chapter">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="w-full max-w-md my-auto py-4 flex flex-col items-center">
+        
+        <!-- Friendship Score Bar -->
+        <div class="w-full bg-white/80 backdrop-blur rounded-2xl p-3 mb-4 shadow-sm border border-stone-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🌟</span>
+                <div>
+                    <div id="chapterTitleDisplay" class="font-display font-semibold text-xs text-amber-700 uppercase tracking-wider">Chapter 1</div>
+                    <div id="chapterSubDisplay" class="text-sm font-bold text-stone-700">Sharing Pics Online</div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-stone-400 font-medium">Online Score</div>
+                <div id="scoreDisplay" class="font-display font-bold text-emerald-600 text-lg">100%</div>
+            </div>
+        </div>
+
+        <!-- Friend Avatar & Speech Bubble -->
+        <div class="relative w-full flex flex-col items-center mb-3">
+            <!-- Avatar SVG -->
+            <div id="avatarContainer" class="w-24 h-24 mb-2 animate-float relative flex items-center justify-center">
+                <svg id="friendAvatar" class="w-full h-full drop-shadow-md" viewBox="0 0 100 100">
+                    <!-- Head Background -->
+                    <circle cx="50" cy="50" r="42" fill="#FFE5D9" />
+                    <path d="M 20 40 Q 50 10 80 40" fill="#6B4226" />
+                    <!-- Cute Hair -->
+                    <circle cx="28" cy="28" r="14" fill="#6B4226" />
+                    <circle cx="72" cy="28" r="14" fill="#6B4226" />
+                    <!-- Eyes -->
+                    <circle id="eyeLeft" cx="38" cy="50" r="4" fill="#3D2314" />
+                    <circle id="eyeRight" cx="62" cy="50" r="4" fill="#3D2314" />
+                    <!-- Cheeks -->
+                    <circle cx="30" cy="56" r="6" fill="#FFADAD" opacity="0.6" />
+                    <circle cx="70" cy="56" r="6" fill="#FFADAD" opacity="0.6" />
+                    <!-- Mouth (Dynamic) -->
+                    <path id="avatarMouth" d="M 42 62 Q 50 68 58 62" fill="none" stroke="#3D2314" stroke-width="3" stroke-linecap="round" />
+                    <!-- Cute Glasses -->
+                    <circle cx="38" cy="50" r="10" fill="none" stroke="#D4A373" stroke-width="2.5" />
+                    <circle cx="62" cy="50" r="10" fill="none" stroke="#D4A373" stroke-width="2.5" />
+                    <line x1="48" y1="50" x2="52" y2="50" stroke="#D4A373" stroke-width="2.5" />
+                </svg>
+            </div>
+            
+            <span id="friendName" class="font-display text-xs font-semibold text-stone-500 bg-amber-100/70 px-3 py-0.5 rounded-full">Alex asks for advice...</span>
+    </div>
+
+    <!-- Interactive Card Deck Area -->
+    <div class="relative w-full max-w-sm flex flex-col items-center">
+        
+        <!-- Card Container with Stacked Layer Visuals -->
+        <div class="relative w-full h-[350px] card-container flex items-center justify-center">
+            
+            <!-- Card Deck Backing Layers for Physical Depth -->
+            <div class="absolute w-[90%] h-[92%] bg-amber-100/70 rounded-3xl transform rotate-3 scale-95 border border-amber-200/50 shadow-sm pointer-events-none"></div>
+            <div class="absolute w-[95%] h-[96%] bg-white/90 rounded-3xl transform -rotate-2 scale-98 border border-stone-200/60 shadow-sm pointer-events-none"></div>
+
+            <!-- Target Swipe Indicators -->
+            <div id="indicatorLeft" class="absolute left-4 top-8 z-20 bg-rose-500 text-white font-display font-bold px-4 py-2 rounded-2xl opacity-0 transform -rotate-12 transition-opacity pointer-events-none shadow-lg text-xs">
+                👈 SWIPE LEFT
+            </div>
+            <div id="indicatorRight" class="absolute right-4 top-8 z-20 bg-emerald-500 text-white font-display font-bold px-4 py-2 rounded-2xl opacity-0 transform rotate-12 transition-opacity pointer-events-none shadow-lg text-xs">
+                SWIPE RIGHT 👉
+            </div>
+
+            <!-- Main Swipeable Card -->
+            <div id="swipeCard" class="swipe-card absolute w-full h-full bg-white rounded-3xl p-5 shadow-cozy-lg border-2 border-stone-100 flex flex-col justify-between select-none z-10">
+                
+                <!-- Card Header -->
+                <div class="flex items-center justify-between text-xs font-bold tracking-wider text-amber-700/70 border-b border-stone-100 pb-2">
+                    <span id="cardCategory" class="uppercase">SHARE PICS</span>
+                    <span id="cardProgress" class="bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded-full">1 / 3</span>
+                </div>
+
+                <!-- Dialogue Scenario Text -->
+                <div class="my-auto py-1">
+                    <p id="scenarioText" class="text-stone-700 font-semibold text-base text-center leading-relaxed">
+                        "Hey! Look at this cute selfie I took in front of my house! The house number and street sign are super clear! Should I post it to my public story?"
+                    </p>
+                </div>
+
+                <!-- Non-Clickable Swipe Choice Guides -->
+                <div class="pt-2 border-t border-stone-100 flex flex-col gap-2 pointer-events-none">
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-bold">
+                        <div class="bg-rose-50/80 border border-rose-100 text-rose-800 p-2 rounded-xl flex items-center gap-1.5 leading-tight">
+                            <span class="text-sm shrink-0">👈</span>
+                            <span id="hintLeft">Option A</span>
+                        </div>
+                        <div class="bg-emerald-50/80 border border-emerald-100 text-emerald-800 p-2 rounded-xl flex items-center gap-1.5 leading-tight justify-end text-right">
+                            <span id="hintRight">Option B</span>
+                            <span class="text-sm shrink-0">👉</span>
+                        </div>
+                    </div>
+                    <div class="text-center text-[10px] font-extrabold text-stone-400 tracking-wider uppercase">
+                        Swipe Card Left or Right
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="w-full max-w-md text-center py-2 text-xs text-stone-400 font-medium">
+    Swipe card left or right to guide your friend ❤️
+</footer>
+
+    <!-- Feedback Overlay Modal -->
+    <div id="feedbackModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-cozy-lg text-center transform scale-95 transition-transform duration-300 flex flex-col items-center">
+            
+            <!-- Result Badge Icon -->
+            <div id="feedbackIconBg" class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl mb-3">
+                <span id="feedbackEmoji">✨</span>
+            </div>
+
+            <h3 id="feedbackTitle" class="font-display font-bold text-xl text-stone-800 mb-1">Great Advice!</h3>
+            
+            <p id="feedbackText" class="text-stone-600 text-sm leading-relaxed mb-5">
+                "You're totally right! Keeping address details private protects my home safety."
+            </p>
+
+            <button onclick="nextQuestion()" class="w-full py-3.5 px-6 rounded-2xl bg-amber-400 hover:bg-amber-500 active:scale-95 text-stone-800 font-display font-bold shadow-sm transition">
+                Continue 😊
+            </button>
+        </div>
+    </div>
+
+    <!-- Chapter Selection Modal -->
+    <div id="chapterModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-cozy-lg text-center transform scale-95 transition-transform duration-300">
+            
+            <h3 class="font-display font-bold text-xl text-stone-800 mb-4">Choose Chapter</h3>
+
+            <div class="space-y-2.5 text-left mb-5">
+                <button onclick="selectChapter(0)" class="w-full p-3.5 rounded-2xl border border-stone-200 hover:bg-amber-50 flex items-center justify-between transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">📸</span>
+                        <div>
+                            <div class="font-bold text-sm text-stone-700">1. Sharing Pics Online</div>
+                            <div class="text-xs text-stone-400">Privacy, metadata & location</div>
+                        </div>
+                    </div>
+                    <span id="chap0Badge" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">Start</span>
+                </button>
+
+                <button onclick="selectChapter(1)" class="w-full p-3.5 rounded-2xl border border-stone-200 hover:bg-amber-50 flex items-center justify-between transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">🌱</span>
+                        <div>
+                            <div class="font-bold text-sm text-stone-700">2. Being Responsible</div>
+                            <div class="text-xs text-stone-400">Digital footprint & manners</div>
+                        </div>
+                    </div>
+                    <span id="chap1Badge" class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded-full font-bold">Locked</span>
+                </button>
+
+                <button onclick="selectChapter(2)" class="w-full p-3.5 rounded-2xl border border-stone-200 hover:bg-amber-50 flex items-center justify-between transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">🔍</span>
+                        <div>
+                            <div class="font-bold text-sm text-stone-700">3. Trusting Information</div>
+                            <div class="text-xs text-stone-400">Scams, phishing & fake news</div>
+                        </div>
+                    </div>
+                    <span id="chap2Badge" class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded-full font-bold">Locked</span>
+                </button>
+
+                <button onclick="selectChapter(3)" class="w-full p-3.5 rounded-2xl border border-stone-200 hover:bg-amber-50 flex items-center justify-between transition">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">🤝</span>
+                        <div>
+                            <div class="font-bold text-sm text-stone-700">4. Cyberbullying</div>
+                            <div class="text-xs text-stone-400">Support, report & kindness</div>
+                        </div>
+                    </div>
+                    <span id="chap3Badge" class="text-xs bg-stone-100 text-stone-500 px-2 py-1 rounded-full font-bold">Locked</span>
+                </button>
+            </div>
+
+            <button onclick="closeChapterMenu()" class="w-full py-3 rounded-2xl bg-stone-100 text-stone-600 font-bold hover:bg-stone-200 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Chapter Complete Modal -->
+    <div id="completeModal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-cozy-lg text-center transform scale-95 transition-transform duration-300">
+            <div class="w-20 h-20 rounded-full bg-amber-100 mx-auto flex items-center justify-center text-4xl mb-3 animate-bounce">
+                🏆
+            </div>
+            <h3 id="completeTitle" class="font-display font-bold text-2xl text-stone-800 mb-1">Chapter Complete!</h3>
+            <p id="completeSubtitle" class="text-stone-500 text-sm mb-4">You're an amazing online protector!</p>
+
+            <div class="bg-amber-50/80 rounded-2xl p-4 mb-5 border border-amber-100">
+                <div class="text-xs text-amber-700 font-bold uppercase tracking-wide mb-1">Online Score</div>
+                <div id="completeScore" class="text-3xl font-display font-extrabold text-stone-800">100%</div>
+                <p id="completeTip" class="text-xs text-stone-600 mt-2">Alex feels super safe browsing online with your advice!</p>
+            </div>
+
+            <button id="completeBtn" onclick="nextChapter()" class="w-full py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-display font-bold shadow-md transition">
+                Next Chapter ✨
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game Data Definition
+        const gameData = [
+            {
+                chapter: "Chapter 1",
+                title: "Sharing Pics Online",
+                category: "PRIVACY & PHOTOS",
+                scenarios: [
+                    {
+                        text: `"Look at this cute selfie I took outside! My street name and house number are super clear behind me. Can I post it on my public story?"`,
+                        leftChoice: "Blur or crop out your street & home address first!",
+                        rightChoice: "Post it! Nobody will pay attention to the background.",
+                        correct: "left",
+                        reactionRightText: "Oh no! Posting your home address publicly can expose your exact real-life location to strangers. It's much safer to crop that out!",
+                        reactionLeftText: "Good catch! Blurring or cropping private details keeps our real-world location safe from strangers."
+                    },
+                    {
+                        text: `"My friend posted an embarrassing picture of me without asking. Should I post an even worse photo of them to get revenge?"`,
+                        leftChoice: "Revenge post! It's only fair to get back at them.",
+                        rightChoice: "Ask them nicely in private to take it down.",
+                        correct: "right",
+                        reactionLeftText: "Escalating fights online usually leads to more hurt feelings and permanent digital footprints. Talking in private is much better!",
+                        reactionRightText: "Yes! Honest and private communication solves photo issues kindly without drama."
+                    },
+                    {
+                        text: `"A fun quiz app asks to scan my face and upload my full name, date of birth, and pet's name to give me a 'Superhero Badge'!"`,
+                        leftChoice: "Be careful! That's too much personal data for a quiz.",
+                        rightChoice: "Fill it out! It's just a harmless game.",
+                        correct: "left",
+                        reactionRightText: "Watch out! Date of birth and pet names are standard security questions used by hackers.",
+                        reactionLeftText: "Smart thinking! Guarding personal identity details protects your accounts from security questions exploitation."
+                    }
+                ]
+            },
+            {
+                chapter: "Chapter 2",
+                title: "Being Responsible Online",
+                category: "DIGITAL FOOTPRINT",
+                scenarios: [
+                    {
+                        text: `"Someone left a mean comment on my gaming setup photo. I want to write a furious reply calling them terrible names!"`,
+                        leftChoice: "Take a deep breath and ignore/block them.",
+                        rightChoice: "Fight back! Don't let anyone win online!",
+                        correct: "left",
+                        reactionRightText: "Feeding trolls with anger just feeds toxic behavior and hurts your own peace.",
+                        reactionLeftText: "So true! Taking a pause keeps your personal digital footprint clean and peaceful."
+                    },
+                    {
+                        text: `"My close online gaming buddy asks if we can share passwords so we can share cool in-game character skins!"`,
+                        leftChoice: "Never share your password, even with friends.",
+                        rightChoice: "Sure! True friends share everything.",
+                        correct: "left",
+                        reactionRightText: "Even trustworthy friends can accidentally leak passwords or lose accounts. Keep secrets safe!",
+                        reactionLeftText: "Exactly! Passwords are like toothbrushes—never share them with anyone, even best friends."
+                    },
+                    {
+                        text: `"I've been scrolling feed apps for 4 straight hours and my head feels really heavy and tired..."`,
+                        leftChoice: "Keep scrolling! You might miss something fun.",
+                        rightChoice: "Put the phone down and take a cozy break!",
+                        correct: "right",
+                        reactionLeftText: "Endless scrolling leads to fatigue and burnout. Taking breaks is essential for mental health!",
+                        reactionRightText: "Wonderful advice! Taking screen-free breaks keeps your mind healthy and refreshed."
+                    }
+                ]
+            },
+            {
+                chapter: "Chapter 3",
+                title: "Trusting Information",
+                category: "PHISHING & SCAMS",
+                scenarios: [
+                    {
+                        text: `"OMG! An email says: 'YOU WON A FREE $500 GIFT CARD! Click this link and enter your account login instantly!'"`,
+                        leftChoice: "Delete it! That looks like a dangerous phishing scam.",
+                        rightChoice: "Click it fast before the prize expires!",
+                        correct: "left",
+                        reactionRightText: "Oh no! Urgent prize claims demanding your login details are almost always phishing scams!",
+                        reactionLeftText: "Spot on! Real giveaways don't ask for your secret account login details."
+                    },
+                    {
+                        text: `"I read a wild rumor on a random fan page saying school is canceled for the rest of the year!"`,
+                        leftChoice: "Check official school news or ask a teacher first.",
+                        rightChoice: "Repost it immediately to all group chats!",
+                        correct: "left",
+                        reactionRightText: "Spreading unverified rumors causes unnecessary confusion for everyone.",
+                        reactionLeftText: "Great instinct! Always double-check facts with official sources before sharing news."
+                    },
+                    {
+                        text: `"A website offers a free download of a paid game, but my browser pops up a warning saying 'Unsafe Connection'."`,
+                        leftChoice: "Close the site! Unverified downloads can carry malware.",
+                        rightChoice: "Bypass the warning! Free games are worth it.",
+                        correct: "left",
+                        reactionRightText: "Ignoring security warnings can install viruses and malware that steal personal files.",
+                        reactionLeftText: "Smart decision! Keeping your devices safe from malware is way better than risking unsafe free downloads."
+                    }
+                ]
+            },
+            {
+                chapter: "Chapter 4",
+                title: "Cyberbullying",
+                category: "KINDNESS & SUPPORT",
+                scenarios: [
+                    {
+                        text: `"In a group chat, people are creating mean memes about a classmate who isn't present in the group."`,
+                        leftChoice: "Join in with jokes so you don't feel left out.",
+                        rightChoice: "Don't participate, and message the classmate kindly.",
+                        correct: "right",
+                        reactionLeftText: "Joining in on group exclusion hurts real people, even if it feels like 'just jokes'.",
+                        reactionRightText: "Thank you! Showing kindness and refusing to spread mean memes makes a huge difference."
+                    },
+                    {
+                        text: `"A stranger keeps sending harassing messages to my profile posts every day."`,
+                        leftChoice: "Block, report the user, and tell a trusted adult.",
+                        rightChoice: "Keep arguing back until they apologize.",
+                        correct: "left",
+                        reactionRightText: "Arguing with bullies usually encourages them to harass you more.",
+                        reactionLeftText: "Perfect! Block & Report is the safest way to handle harassment online."
+                    },
+                    {
+                        text: `"Someone leaked private personal secrets of my friend in an online forum. My friend is crying."`,
+                        leftChoice: "Help save evidence, report the post, and comfort them.",
+                        rightChoice: "Tell them to just delete the internet forever.",
+                        correct: "left",
+                        reactionRightText: "Telling victims to just leave the internet ignores their pain and doesn't fix the leak.",
+                        reactionLeftText: "You are an amazing friend! Documenting evidence and offering emotional support helps tremendously."
+                    }
+                ]
+            }
+        ];
+
+        // App State
+        let currentChapterIdx = 0;
+        let currentScenarioIdx = 0;
+        let totalScore = 0;
+        let maxPossibleScore = 0;
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        // Web Audio Synthesizer for Cozy Sound Effects
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'swipe') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'correct') {
+                // Cozy Major Chord Chime
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const chOsc = audioCtx.createOscillator();
+                    const chGain = audioCtx.createGain();
+                    chOsc.type = 'triangle';
+                    chOsc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    chGain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                    chGain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+                    chOsc.connect(chGain);
+                    chGain.connect(audioCtx.destination);
+                    chOsc.start(now + idx * 0.08);
+                    chOsc.stop(now + idx * 0.08 + 0.35);
+                });
+            } else if (type === 'wrong') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(180, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>`;
+            } else {
+                icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>`;
+            }
+        }
+
+        // DOM Element references
+        const card = document.getElementById('swipeCard');
+        const indicatorLeft = document.getElementById('indicatorLeft');
+        const indicatorRight = document.getElementById('indicatorRight');
+
+        // Render current Scenario
+        function renderCurrentScenario() {
+            const chap = gameData[currentChapterIdx];
+            const sc = chap.scenarios[currentScenarioIdx];
+
+            document.getElementById('chapterTitleDisplay').textContent = chap.chapter;
+            document.getElementById('chapterSubDisplay').textContent = chap.title;
+            document.getElementById('cardCategory').textContent = chap.category;
+            document.getElementById('cardProgress').textContent = `${currentScenarioIdx + 1} / ${chap.scenarios.length}`;
+            
+            document.getElementById('scenarioText').textContent = sc.text;
+            document.getElementById('hintLeft').textContent = sc.leftChoice;
+            document.getElementById('hintRight').textContent = sc.rightChoice;
+
+            // Reset Card Position & Mood
+            resetCardPosition();
+            setAvatarMood('normal');
+        }
+
+        // Update Friendship Score Display
+        function updateScoreDisplay() {
+            if (maxPossibleScore === 0) {
+                document.getElementById('scoreDisplay').textContent = '100%';
+                return;
+            }
+            const percentage = Math.round((totalScore / maxPossibleScore) * 100);
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+        }
+
+        // Avatar Expressions
+        function setAvatarMood(mood) {
+            const mouth = document.getElementById('avatarMouth');
+            const eyeL = document.getElementById('eyeLeft');
+            const eyeR = document.getElementById('eyeRight');
+
+            if (mood === 'happy') {
+                mouth.setAttribute('d', 'M 40 60 Q 50 72 60 60'); // Big smile
+                eyeL.setAttribute('r', '4');
+                eyeR.setAttribute('r', '4');
+            } else if (mood === 'surprised') {
+                mouth.setAttribute('d', 'M 45 62 A 5 5 0 0 1 55 62 A 5 5 0 0 1 45 62'); // O mouth
+                eyeL.setAttribute('r', '5');
+                eyeR.setAttribute('r', '5');
+            } else if (mood === 'worried') {
+                mouth.setAttribute('d', 'M 42 66 Q 50 58 58 66'); // Sad/Frown
+                eyeL.setAttribute('r', '3.5');
+                eyeR.setAttribute('r', '3.5');
+            } else {
+                mouth.setAttribute('d', 'M 42 62 Q 50 68 58 62'); // Mild smile
+                eyeL.setAttribute('r', '4');
+                eyeR.setAttribute('r', '4');
+            }
+        }
+
+        // Choice Processing Logic
+        function handleChoice(direction) {
+            playSound('swipe');
+            const sc = gameData[currentChapterIdx].scenarios[currentScenarioIdx];
+            const isCorrect = (sc.correct === direction);
+
+            maxPossibleScore += 100;
+            if (isCorrect) {
+                totalScore += 100;
+                playSound('correct');
+                setAvatarMood('happy');
+                showFeedback(true, sc.leftChoice === sc.leftChoice && direction === 'left' ? sc.reactionLeftText : sc.reactionRightText);
+            } else {
+                totalScore += 30; // Partial score for learning
+                playSound('wrong');
+                setAvatarMood('worried');
+                showFeedback(false, direction === 'left' ? sc.reactionLeftText : sc.reactionRightText);
+            }
+
+            updateScoreDisplay();
+        }
+
+        // Show Feedback Modal
+        function showFeedback(isCorrect, text) {
+            const modal = document.getElementById('feedbackModal');
+            const iconBg = document.getElementById('feedbackIconBg');
+            const emoji = document.getElementById('feedbackEmoji');
+            const title = document.getElementById('feedbackTitle');
+            const feedbackText = document.getElementById('feedbackText');
+
+            if (isCorrect) {
+                iconBg.className = "w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl mb-3 text-emerald-600";
+                emoji.textContent = "✨";
+                title.textContent = "Great Friend Choice!";
+            } else {
+                iconBg.className = "w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl mb-3 text-amber-600";
+                emoji.textContent = "💡";
+                title.textContent = "Cozy Safety Tip!";
+            }
+
+            feedbackText.textContent = text;
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-95');
+            modal.children[0].classList.add('scale-100');
+        }
+
+        // Advance to next question or complete chapter
+        function nextQuestion() {
+            const modal = document.getElementById('feedbackModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-100');
+            modal.children[0].classList.add('scale-95');
+
+            currentScenarioIdx++;
+            const chap = gameData[currentChapterIdx];
+
+            if (currentScenarioIdx < chap.scenarios.length) {
+                renderCurrentScenario();
+            } else {
+                showChapterComplete();
+            }
+        }
+
+        // Programmatic Swipe Actions for Flanking Panels
+        function swipeLeft() {
+            if (isDragging) return;
+            card.classList.add('swiping');
+            card.style.transform = `translateX(-500px) rotate(-30deg)`;
+            setTimeout(() => handleChoice('left'), 150);
+        }
+
+        function swipeRight() {
+            if (isDragging) return;
+            card.classList.add('swiping');
+            card.style.transform = `translateX(500px) rotate(30deg)`;
+            setTimeout(() => handleChoice('right'), 150);
+        }
+
+        // Swipe Physics State
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+
+        function resetCardPosition() {
+            card.classList.remove('swiping');
+            card.style.transform = `translateX(0px) rotate(0deg)`;
+            indicatorLeft.style.opacity = '0';
+            indicatorRight.style.opacity = '0';
+        }
+
+        function onPointerDown(e) {
+            isDragging = true;
+            startX = e.clientX || (e.touches && e.touches[0].clientX);
+            card.classList.add('swiping');
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            currentX = e.clientX || (e.touches && e.touches[0].clientX);
+            const deltaX = currentX - startX;
+            const rotate = deltaX * 0.08;
+
+            card.style.transform = `translateX(${deltaX}px) rotate(${rotate}deg)`;
+
+            // Show indicator overlays
+            if (deltaX < -30) {
+                indicatorLeft.style.opacity = Math.min(Math.abs(deltaX) / 100, 1);
+                indicatorRight.style.opacity = '0';
+            } else if (deltaX > 30) {
+                indicatorRight.style.opacity = Math.min(Math.abs(deltaX) / 100, 1);
+                indicatorLeft.style.opacity = '0';
+            } else {
+                indicatorLeft.style.opacity = '0';
+                indicatorRight.style.opacity = '0';
+            }
+        }
+
+        function onPointerUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            const deltaX = currentX - startX;
+            const threshold = 100;
+
+            if (deltaX < -threshold) {
+                // Swiped Left
+                card.style.transform = `translateX(-500px) rotate(-30deg)`;
+                setTimeout(() => handleChoice('left'), 150);
+            } else if (deltaX > threshold) {
+                // Swiped Right
+                card.style.transform = `translateX(500px) rotate(30deg)`;
+                setTimeout(() => handleChoice('right'), 150);
+            } else {
+                // Snap back
+                resetCardPosition();
+            }
+            startX = 0;
+            currentX = 0;
+        }
+
+        // Attach Swipe Listeners
+        card.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        card.addEventListener('touchstart', onPointerDown);
+        window.addEventListener('touchmove', onPointerMove);
+        window.addEventListener('touchend', onPointerUp);
+
+        function showChapterComplete() {
+            const modal = document.getElementById('completeModal');
+            const scorePct = Math.round((totalScore / maxPossibleScore) * 100);
+
+            document.getElementById('completeTitle').textContent = `${gameData[currentChapterIdx].chapter} Done!`;
+            document.getElementById('completeScore').textContent = `${scorePct}%`;
+
+            const btn = document.getElementById('completeBtn');
+            if (currentChapterIdx < gameData.length - 1) {
+                btn.textContent = "Next Chapter ✨";
+            } else {
+                btn.textContent = "Play Again 🌱";
+            }
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-95');
+            modal.children[0].classList.add('scale-100');
+        }
+
+        function nextChapter() {
+            const modal = document.getElementById('completeModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-100');
+            modal.children[0].classList.add('scale-95');
+
+            if (currentChapterIdx < gameData.length - 1) {
+                currentChapterIdx++;
+                currentScenarioIdx = 0;
+            } else {
+                // Loop back to start
+                currentChapterIdx = 0;
+                currentScenarioIdx = 0;
+                totalScore = 0;
+                maxPossibleScore = 0;
+                updateScoreDisplay();
+            }
+            renderCurrentScenario();
+            updateChapterBadges();
+        }
+
+        function openChapterMenu() {
+            const modal = document.getElementById('chapterModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-95');
+            modal.children[0].classList.add('scale-100');
+        }
+
+        function closeChapterMenu() {
+            const modal = document.getElementById('chapterModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-100');
+            modal.children[0].classList.add('scale-95');
+        }
+
+        function selectChapter(idx) {
+            currentChapterIdx = idx;
+            currentScenarioIdx = 0;
+            closeChapterMenu();
+            renderCurrentScenario();
+        }
+
+        function updateChapterBadges() {
+            for (let i = 0; i < gameData.length; i++) {
+                const badge = document.getElementById(`chap${i}Badge`);
+                if (i === currentChapterIdx) {
+                    badge.className = "text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-bold";
+                    badge.textContent = "Active";
+                } else if (i < currentChapterIdx) {
+                    badge.className = "text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-bold";
+                    badge.textContent = "Completed";
+                } else {
+                    badge.className = "text-xs bg-stone-100 text-stone-500 px-2.5 py-1 rounded-full font-bold";
+                    badge.textContent = "Available";
+                }
+            }
+        }
+
+        window.onload = function() {
+            renderCurrentScenario();
+            updateChapterBadges();
+        };
+    </script>
+</body>
+</html>
