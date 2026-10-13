@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picky! // Cute Anomaly Inspector</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Quicksand & Fredoka -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Quicksand', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        pastel: {
+                            pink: '#FFE5EC',
+                            pinkDark: '#FFB3C6',
+                            rose: '#FF4D6D',
+                            sky: '#E0F2FE',
+                            blue: '#38BDF8',
+                            purple: '#F3E8FF',
+                            purpleDark: '#C084FC',
+                            yellow: '#FEF08A',
+                            green: '#DCFCE7',
+                            emerald: '#10B981',
+                            bg: '#FAF7F5'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        /* Selected Anomaly Tag Chips */
+        .anomaly-chip {
+            background-color: #FFE4E6;
+            color: #FF4D6D;
+            border: 1px solid #FFB3C6;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            animation: bounce-subtle 0.2s ease;
+        }
+
+        .inspect-field {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-radius: 12px;
+            padding: 4px 8px;
+            margin: -2px -4px;
+            display: inline-block;
+            border: 2px dashed transparent;
+        }
+
+        .inspect-field:hover {
+            background-color: #E0F2FE;
+            border-color: #38BDF8;
+            transform: translateY(-1px);
+        }
+
+        .inspect-field.selected-anomaly {
+            background-color: #FFE4E6 !important;
+            border: 2px solid #FF4D6D !important;
+            box-shadow: 0 4px 12px rgba(255, 77, 109, 0.25);
+            animation: bounce-subtle 0.4s ease;
+        }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+
+        /* Stamp Animations */
+        @keyframes stamp-pop {
+            0% { transform: scale(2.5) rotate(-15deg); opacity: 0; }
+            70% { transform: scale(0.9) rotate(-8deg); opacity: 1; }
+            100% { transform: scale(1) rotate(-6deg); opacity: 0.95; }
+        }
+
+        .stamp-trust {
+            animation: stamp-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            border: 5px solid #10B981;
+            color: #059669;
+            background-color: rgba(220, 252, 231, 0.95);
+        }
+
+        .stamp-reject {
+            animation: stamp-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            border: 5px solid #FF4D6D;
+            color: #E11D48;
+            background-color: rgba(255, 228, 230, 0.95);
+        }
+
+        /* Particle Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 60;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-pastel-bg text-slate-700 antialiased font-sans p-3 md:p-6">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Cute Header -->
+    <header class="max-w-2xl mx-auto w-full bg-white rounded-3xl p-4 shadow-sm border-2 border-slate-100 flex items-center justify-between gap-2 mb-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-xl shadow-inner">
+                🔍
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-xl text-slate-800 leading-none">Picky!</h1>
+                <p class="text-xs font-semibold text-slate-400 mt-0.5">Find the anomaly 🐾</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3 font-display">
+            <!-- Hearts / Lives -->
+            <div id="hearts-container" class="flex space-x-1 text-lg">
+                <span>❤️</span><span>❤️</span><span>❤️</span>
+            </div>
+            
+            <!-- Score -->
+            <div class="bg-amber-50 border-2 border-amber-200 px-3 py-1.5 rounded-2xl flex items-center space-x-1">
+                <span class="text-sm">⭐</span>
+                <span id="score-display" class="font-bold text-amber-600 text-sm">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Play Area -->
+    <main class="max-w-2xl w-full mx-auto flex-1 flex flex-col justify-center space-y-4">
+        
+        <!-- Category Banner -->
+        <div class="flex items-center justify-between px-2">
+            <div class="flex items-center space-x-2">
+                <span id="cat-icon" class="text-lg">📰</span>
+                <span id="cat-title" class="font-display font-bold text-slate-600 uppercase tracking-wider text-xs">NEWS INSPECTION</span>
+            </div>
+            <span class="text-xs font-bold text-slate-400 bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">
+                Tap suspicious part!
+            </span>
+        </div>
+
+        <!-- Document Card -->
+        <div id="document-card" class="relative bg-white rounded-3xl p-6 shadow-md border-2 border-slate-100 transition-all min-h-[260px] flex flex-col justify-between overflow-hidden">
+            
+            <!-- Dynamic Content -->
+            <div id="card-content" class="space-y-4">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- Decision Stamp Overlay -->
+            <div id="stamp-overlay" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <div id="stamp-box" class="px-8 py-3 rounded-3xl font-display font-black text-3xl tracking-wider uppercase shadow-xl transform rotate-[-6deg]">
+                    SAFE
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Anomaly Dock -->
+        <div class="bg-white/80 backdrop-blur rounded-2xl p-3 border border-slate-100 shadow-sm flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-2 overflow-hidden flex-1">
+                <span class="text-base shrink-0">🔎</span>
+                <div id="anomaly-dock-text" class="text-xs font-bold text-slate-400 flex flex-wrap gap-1.5 items-center max-h-16 overflow-y-auto">
+                    No anomalies selected yet...
+                </div>
+            </div>
+            <span id="dock-badge" class="text-[10px] font-bold font-display px-2.5 py-1 rounded-full bg-slate-100 text-slate-400 shrink-0">
+                CLEAN
+            </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+            <!-- Trust Button -->
+            <button id="trust-btn" class="bg-emerald-400 hover:bg-emerald-500 active:scale-95 text-white font-display font-bold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-200 transition-all flex flex-col items-center justify-center space-y-0.5 group">
+                <div class="flex items-center space-x-2 text-lg">
+                    <span>💚</span>
+                    <span>TRUST</span>
+                </div>
+                <span class="text-[10px] font-sans opacity-80 font-semibold">[ SPACE ]</span>
+            </button>
+
+            <!-- Reject Button (Disabled by default until anomaly selected) -->
+            <button id="reject-btn" disabled class="bg-slate-200 text-slate-400 font-display font-bold py-4 px-4 rounded-2xl transition-all flex flex-col items-center justify-center space-y-0.5 opacity-60 cursor-not-allowed">
+                <div class="flex items-center space-x-2 text-lg">
+                    <span id="reject-icon">🔒</span>
+                    <span>REJECT</span>
+                </div>
+                <span id="reject-subtext" class="text-[10px] font-sans opacity-80 font-semibold">Select Anomaly First</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Result Overlay Modal -->
+    <div id="feedback-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl border-4 border-white animate-bounce-subtle">
+            <div id="modal-emoji" class="text-5xl">🎉</div>
+            <div>
+                <h3 id="modal-title" class="font-display font-bold text-2xl text-slate-800">Spot On!</h3>
+                <p id="modal-desc" class="text-xs font-semibold text-slate-500 mt-2 leading-relaxed">
+                    Explanation goes here.
+                </p>
+            </div>
+            <button id="next-btn" class="w-full bg-sky-400 hover:bg-sky-500 text-white font-display font-bold py-3.5 rounded-2xl shadow-md shadow-sky-200 active:scale-95 transition-all text-sm">
+                NEXT CASE ➔
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+            }
+
+            playPop() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.05);
+                } catch (e) {}
+            }
+
+            playSuccess() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.08);
+                        osc.stop(now + idx * 0.08 + 0.2);
+                    });
+                } catch (e) {}
+            }
+
+            playError() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(160, now + 0.1);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } catch (e) {}
+            }
+        }
+
+        const audio = new SoundEngine();
+    </script>
+
+    <script>
+        // News inspection cases following the 3 core rules:
+        // 1. Not HTTPS (http://)
+        // 2. Not .com / .org / .gov
+        // 3. Outdated date (below 2010 vs recent 2020+)
+        const GAME_CASES = [
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['domain'],
+                explanation: 'Insecure news source! The domain uses http:// instead of secure HTTPS.',
+                data: {
+                    outlet: 'Daily Beacon',
+                    domain: 'http://dailybeacon.com',
+                    date: 'May 14, 2024',
+                    headline: 'Local Solar Microgrid Reaches Full Operational Capacity in Metro Area',
+                    description: 'City officials and environmental agencies celebrated the official launch of the municipal solar array. The project now supplies clean, reliable electricity to more than 50,000 residential households while reducing dependence on regional fossil fuel power stations.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: false,
+                anomalyKeys: [],
+                explanation: 'Clean news report! Valid HTTPS protocol, trusted .org domain, and recent 2026 date.',
+                data: {
+                    outlet: 'World Report',
+                    domain: 'https://worldreport.org',
+                    date: 'Today, 8:15 AM',
+                    headline: 'Global Conservation Initiative Restores 100,000 Hectares of Coastal Wetlands',
+                    description: 'A decade-long international restoration campaign has successfully rehabilitated critical marine sanctuaries. Satellite imagery confirms significant biodiversity recovery, with local marine populations rebounding faster than projected.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['date'],
+                explanation: 'Outdated news! The publication date is October 2007 (below year 2010).',
+                data: {
+                    outlet: 'Tech Insider',
+                    domain: 'https://techinsider.com',
+                    date: 'October 12, 2007',
+                    headline: 'Breakthrough Solid-State Battery Promises Double Smartphone Lifespan',
+                    description: 'Researchers at the national laboratory have unveiled a working solid-state battery prototype that doubles charge density without increasing thermal footprint. Commercial production is anticipated following regulatory approvals.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['domain'],
+                explanation: 'Unverified domain extension! The web address uses .xyz instead of .com, .org, or .gov.',
+                data: {
+                    outlet: 'Metro Digest',
+                    domain: 'https://metrodigest.xyz',
+                    date: 'June 8, 2025',
+                    headline: 'Downtown Express Rapid Transit Line Officially Opens to Public Commuters',
+                    description: 'The new high-speed electric bus rapid transit network launched service early this morning, connecting major business districts with suburban residential hubs. Transit authorities report smooth initial operations and strong rider turnout.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['domain'],
+                explanation: 'Double domain anomaly! Uses insecure http:// (not HTTPS) and an untrusted .site extension.',
+                data: {
+                    outlet: 'Fast News',
+                    domain: 'http://fastnews.site',
+                    date: 'Today, 3:00 PM',
+                    headline: 'Deep-Sea Robotic Submersible Discovers Unmapped Coral Reef Ecosystem',
+                    description: 'Marine biologists utilizing autonomous underwater vehicles have discovered an expansive pristine coral reef off the continental shelf. The ecosystem hosts hundreds of previously uncatalogued marine species at depths exceeding 800 meters.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['date', 'domain'],
+                explanation: 'Double anomaly! Outdated date from 2005 (below 2010) and insecure http:// protocol.',
+                data: {
+                    outlet: 'City Journal',
+                    domain: 'http://cityjournal.gov',
+                    date: 'May 20, 2005',
+                    headline: 'Municipal Council Unanimously Approves Annual Urban Park Infrastructure Budget',
+                    description: 'Local representatives voted in favor of a comprehensive revitalization package aimed at renovating downtown public plazas and planting native shade trees along major pedestrian corridors over the upcoming fiscal term.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: false,
+                anomalyKeys: [],
+                explanation: 'Clean news report! Secure HTTPS, official .gov domain, and current 2026 timestamp.',
+                data: {
+                    outlet: 'Science Daily',
+                    domain: 'https://sciencedaily.gov',
+                    date: 'February 18, 2026',
+                    headline: 'Deep Space Observatory Captures High-Resolution Imagery of Jovian Moons',
+                    description: 'Newly transmitted data from orbital sensors provides unprecedented spectroscopic detail regarding subsurface ocean dynamics on Europa and Ganymede, offering fresh insight into planetary habitability in our solar system.'
+                }
+            },
+            {
+                type: 'news',
+                icon: '📰',
+                title: 'NEWS INSPECTION',
+                isAnomaly: true,
+                anomalyKeys: ['date', 'domain'],
+                explanation: 'Double anomaly! Outdated date from 2008 (below 2010) and untrusted .info domain extension.',
+                data: {
+                    outlet: 'Horizon News',
+                    domain: 'https://horizonnews.info',
+                    date: 'August 15, 2008',
+                    headline: 'Autonomous Electric Transit Shuttles Complete Initial On-Campus Pilot Phase',
+                    description: 'University researchers concluded a six-month trial testing driverless electric shuttles along pedestrian walkways. The trial gathered valuable telemetry on sensor performance and obstacle avoidance in diverse weather conditions.'
+                }
+            }
+        ];
+
+        class GameController {
+            constructor() {
+                this.score = 0;
+                this.lives = 3;
+                this.currentIndex = 0;
+                this.shuffledCases = [];
+                this.selectedKeys = new Set();
+                this.evaluated = false;
+
+                this.initDOM();
+                this.bindEvents();
+                this.restartGame();
+            }
+
+            initDOM() {
+                this.scoreEl = document.getElementById('score-display');
+                this.heartsEl = document.getElementById('hearts-container');
+                this.catIcon = document.getElementById('cat-icon');
+                this.catTitle = document.getElementById('cat-title');
+                this.cardContent = document.getElementById('card-content');
+                this.dockText = document.getElementById('anomaly-dock-text');
+                this.dockBadge = document.getElementById('dock-badge');
+                
+                this.trustBtn = document.getElementById('trust-btn');
+                this.rejectBtn = document.getElementById('reject-btn');
+                this.rejectIcon = document.getElementById('reject-icon');
+                this.rejectSubtext = document.getElementById('reject-subtext');
+
+                this.stampOverlay = document.getElementById('stamp-overlay');
+                this.stampBox = document.getElementById('stamp-box');
+
+                this.modal = document.getElementById('feedback-modal');
+                this.modalEmoji = document.getElementById('modal-emoji');
+                this.modalTitle = document.getElementById('modal-title');
+                this.modalDesc = document.getElementById('modal-desc');
+                this.nextBtn = document.getElementById('next-btn');
+            }
+
+            bindEvents() {
+                this.trustBtn.addEventListener('click', () => this.makeDecision('TRUST'));
+                this.rejectBtn.addEventListener('click', () => this.makeDecision('REJECT'));
+                this.nextBtn.addEventListener('click', () => this.nextCase());
+
+                window.addEventListener('keydown', (e) => {
+                    if (this.evaluated) return;
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.makeDecision('TRUST');
+                    } else if (e.code === 'KeyR' && this.selectedKeys.size > 0) {
+                        e.preventDefault();
+                        this.makeDecision('REJECT');
+                    }
+                });
+            }
+
+            restartGame() {
+                this.score = 0;
+                this.lives = 3;
+                this.currentIndex = 0;
+                this.shuffledCases = [...GAME_CASES].sort(() => Math.random() - 0.5);
+                this.updateHeader();
+                this.loadCurrentCase();
+            }
+
+            updateHeader() {
+                this.scoreEl.textContent = this.score;
+                this.heartsEl.innerHTML = '❤️'.repeat(this.lives) + '🖤'.repeat(3 - this.lives);
+            }
+
+            loadCurrentCase() {
+                this.evaluated = false;
+                this.selectedKeys.clear();
+                this.stampOverlay.classList.add('hidden');
+                this.modal.classList.add('hidden');
+                this.updateDock();
+
+                const item = this.shuffledCases[this.currentIndex];
+                this.catIcon.textContent = item.icon;
+                this.catTitle.textContent = item.title;
+
+                this.renderNews(item.data);
+                this.attachInspectListeners();
+            }
+
+            renderNews(data) {
+                this.cardContent.innerHTML = `
+                    <div class="space-y-3 font-sans text-xs">
+                        <div class="flex items-center justify-between bg-amber-50/80 p-3 rounded-2xl border border-amber-100/80">
+                            <span class="font-display font-bold text-amber-900 text-sm">${data.outlet}</span>
+                            <span class="inspect-field font-bold text-amber-600 underline text-xs" data-key="domain">${data.domain}</span>
+                        </div>
+
+                        <div class="space-y-2 p-1">
+                            <div class="flex items-center space-x-1.5 text-slate-400 font-bold">
+                                <span>📅</span>
+                                <span class="inspect-field text-slate-500 font-semibold" data-key="date">${data.date}</span>
+                            </div>
+                            <h2 class="font-display font-bold text-base md:text-lg text-slate-800 leading-snug">
+                                ${data.headline}
+                            </h2>
+                            <p class="text-xs font-semibold text-slate-600 leading-relaxed pt-1">
+                                ${data.description}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            attachInspectListeners() {
+                const fields = this.cardContent.querySelectorAll('.inspect-field');
+                fields.forEach(field => {
+                    field.addEventListener('click', (e) => {
+                        if (this.evaluated) return;
+                        e.stopPropagation();
+
+                        const key = field.getAttribute('data-key');
+
+                        if (this.selectedKeys.has(key)) {
+                            this.selectedKeys.delete(key);
+                            field.classList.remove('selected-anomaly');
+                        } else {
+                            this.selectedKeys.add(key);
+                            field.classList.add('selected-anomaly');
+                        }
+
+                        audio.playPop();
+                        this.updateDock();
+                    });
+                });
+            }
+
+            updateDock() {
+                if (this.selectedKeys.size === 0) {
+                    this.dockText.innerHTML = '<span class="text-slate-400">No anomalies selected yet...</span>';
+                    this.dockBadge.textContent = 'CLEAN';
+                    this.dockBadge.className = 'text-[10px] font-bold font-display px-2.5 py-1 rounded-full bg-slate-100 text-slate-400 shrink-0';
+
+                    // Lock Reject button
+                    this.rejectBtn.disabled = true;
+                    this.rejectBtn.className = 'bg-slate-200 text-slate-400 font-display font-bold py-4 px-4 rounded-2xl transition-all flex flex-col items-center justify-center space-y-0.5 opacity-60 cursor-not-allowed';
+                    this.rejectIcon.textContent = '🔒';
+                    this.rejectSubtext.textContent = 'Select Anomaly First';
+                } else {
+                    // Render selected chips
+                    let chipsHtml = '';
+                    this.selectedKeys.forEach(key => {
+                        const fieldEl = this.cardContent.querySelector(`[data-key="${key}"]`);
+                        const text = fieldEl ? fieldEl.textContent.trim() : key;
+                        const label = text.length > 18 ? text.substring(0, 15) + '...' : text;
+                        chipsHtml += `<span class="anomaly-chip">🚩 ${label}</span>`;
+                    });
+
+                    this.dockText.innerHTML = chipsHtml;
+                    this.dockBadge.textContent = `${this.selectedKeys.size} FLAGGED`;
+                    this.dockBadge.className = 'text-[10px] font-bold font-display px-2.5 py-1 rounded-full bg-rose-100 text-rose-500 shrink-0';
+
+                    // Unlock Reject button
+                    this.rejectBtn.disabled = false;
+                    this.rejectBtn.className = 'bg-rose-500 hover:bg-rose-600 active:scale-95 text-white font-display font-bold py-4 px-4 rounded-2xl shadow-lg shadow-rose-200 transition-all flex flex-col items-center justify-center space-y-0.5 cursor-pointer';
+                    this.rejectIcon.textContent = '🔴';
+                    this.rejectSubtext.textContent = '[ R ]';
+                }
+            }
+
+            makeDecision(action) {
+                if (this.evaluated) return;
+                this.evaluated = true;
+
+                const current = this.shuffledCases[this.currentIndex];
+                const targetKeys = current.anomalyKeys || [];
+                let isCorrect = false;
+
+                if (action === 'TRUST') {
+                    isCorrect = !current.isAnomaly;
+                    this.showStamp('SAFE');
+                } else if (action === 'REJECT') {
+                    if (current.isAnomaly) {
+                        // Correct if user flagged at least one valid anomaly key and didn't flag normal keys unnecessarily
+                        const selectedArr = Array.from(this.selectedKeys);
+                        const matchedAnomalies = selectedArr.filter(k => targetKeys.includes(k));
+                        const wrongFlags = selectedArr.filter(k => !targetKeys.includes(k));
+
+                        // User wins if they identified all anomalies (or found valid ones) without misflagging clean fields
+                        isCorrect = matchedAnomalies.length > 0 && wrongFlags.length === 0;
+                    }
+                    this.showStamp('REJECTED');
+                }
+
+                if (isCorrect) {
+                    this.score += 100 * (targetKeys.length || 1);
+                    audio.playSuccess();
+                    triggerConfetti();
+                    this.modalEmoji.textContent = '🎉';
+                    this.modalTitle.textContent = 'Spot On!';
+                    this.modalTitle.className = 'font-display font-bold text-2xl text-emerald-500';
+                } else {
+                    this.lives -= 1;
+                    audio.playError();
+                    this.modalEmoji.textContent = '😿';
+                    this.modalTitle.textContent = 'Oopsie!';
+                    this.modalTitle.className = 'font-display font-bold text-2xl text-rose-500';
+                }
+
+                this.updateHeader();
+
+                setTimeout(() => {
+                    this.modalDesc.textContent = current.explanation;
+                    this.modal.classList.remove('hidden');
+
+                    if (this.lives <= 0) {
+                        this.nextBtn.textContent = 'RESTART GAME 🔄';
+                    } else {
+                        this.nextBtn.textContent = 'NEXT CASE ➔';
+                    }
+                }, 400);
+            }
+
+            showStamp(type) {
+                this.stampOverlay.classList.remove('hidden');
+                if (type === 'SAFE') {
+                    this.stampBox.textContent = 'APPROVED';
+                    this.stampBox.className = 'stamp-trust px-8 py-3 rounded-3xl font-display font-black text-2xl md:text-3xl tracking-wider uppercase shadow-xl';
+                } else {
+                    this.stampBox.textContent = 'REJECTED';
+                    this.stampBox.className = 'stamp-reject px-8 py-3 rounded-3xl font-display font-black text-2xl md:text-3xl tracking-wider uppercase shadow-xl';
+                }
+            }
+
+            nextCase() {
+                audio.playPop();
+                if (this.lives <= 0) {
+                    this.restartGame();
+                    return;
+                }
+
+                this.currentIndex = (this.currentIndex + 1) % this.shuffledCases.length;
+                this.loadCurrentCase();
+            }
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#FF4D6D', '#38BDF8', '#C084FC', '#FEF08A', '#10B981'];
+
+            for (let i = 0; i < 40; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    radius: Math.random() * 6 + 4,
+                    alpha: 1
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.alpha > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.3; // gravity
+                        p.alpha -= 0.02;
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = Math.max(0, p.alpha);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(animate);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animate();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.game = new GameController();
+        });
+    </script>
+</body>
+</html>
